@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SAT test with Chat</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: red;
+            text-align: center;
+        }
+
+        #chat-box {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+
+        #chat-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #chat-output {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <div class="row">
+        <!-- Sección del Cuestionario -->
+        <div class="col-md-8">
+            <h1 class="text-center"> SAT test</h1>
+            <div id="timer">Remaining time: 10:00</div>
+            <form id="quiz-form" class="mt-4">
+                {% for question in questions %}
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <p><strong>{{ loop.index }}.</strong> {{ question['question'] }}</p>
+                            <div class="form-group">
+                                {% for choice in question['choices'] %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="question_{{ loop.index }}"
+                                               value="{{ choice }}">
+                                        <label class="form-check-label">{{ choice }}</label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-success btn-block">Send answers</button>
+            </form>
+
+            <div id="results" class="mt-4"></div>
+        </div>
+
+        <!-- Sección del Chat -->
+        <div class="col-md-4">
+            <h4 class="text-center">Chat</h4>
+            <div id="chat-container">
+                <div id="chat-box"></div>
+                <input type="text" id="chat-input" placeholder="Write your question...">
+                <button id="send-chat" class="btn btn-primary btn-block mt-2">Enviar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+    // Temporizador de 10 minutos
+    let timeLeft = 10 * 60;
+
+    const timerElement = document.getElementById('timer');
+    const countdown = setInterval(() => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerElement.textContent = `Tiempo restante: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        timeLeft--;
+
+        if (timeLeft < 0) {
+            clearInterval(countdown);
+            alert("El tiempo ha terminado. El cuestionario se enviará automáticamente.");
+            document.getElementById('quiz-form').submit();
+        }
+    }, 1000);
+
+    document.getElementById('quiz-form').addEventListener('submit', function (event) {
+        clearInterval(countdown);  // Detener el temporizador si el formulario se envía manualmente
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const userAnswers = {};
+
+        formData.forEach((value, key) => {
+            if (value === "") {
+                value = "No seleccionada";  // Asigna un valor por defecto si el valor es null
+            }
+            console.log(`Pregunta: ${key} - Respuesta seleccionada: ${value}`);
+            userAnswers[key] = value;
+        });
+
+        fetch('/check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                questions: {{ questions|tojson }},
+                answers: userAnswers
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            data.forEach((result, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.innerHTML = `
+                    <div class="alert ${result.correct === 'correct' ? 'alert-success' : 'alert-danger'}">
+                        <strong>Pregunta ${index + 1}:</strong> ${result.question.question}
+                        <p>Tu respuesta: ${result.selected_option}</p>
+                        <p>${result.correct === 'correct' ? '¡Correcto!' : 'Incorrecto'}</p>
+                        <p>Explicación: ${result.explanation}</p>
+                    </div>
+                `;
+                resultsDiv.appendChild(questionDiv);
+            });
+        });
+    });
+
+    // Funcionalidad del chat
+    document.getElementById('send-chat').addEventListener('click', function () {
+        const userInput = document.getElementById('chat-input').value;
+        const chatBox = document.getElementById('chat-box');
+
+        if (userInput.trim() !== "") {
+            chatBox.innerHTML += `<p><strong>Usuario:</strong> ${userInput}</p>`;
+            document.getElementById('chat-input').value = ""; // Limpiar el input
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: userInput
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    chatBox.innerHTML += `<p><strong>IA:</strong> ${data.response}</p>`;
+                    chatBox.scrollTop = chatBox.scrollHeight;  // Scroll automático hacia abajo
+                });
+        }
+    });
+
+    // Enviar mensaje con "Enter"
+    document.getElementById('chat-input').addEventListener('keyup', function (event) {
+        if (event.key === "Enter") {
+            document.getElementById('send-chat').click();
+        }
+    });
+</script>
+</body>
+</html>
+
+
+
+

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Select the speciality</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h1 class="text-center">Select test option</h1>
+      <form method="POST" action="/generate_exam" class="mt-4">
+        <input type="hidden" name="exam_type" value="{{ exam_type }}">
+        
+        {% if exam_type == 'exani_ii' %}
+          <!-- Campos para EXANI-II -->
+          <div class="form-group">
+            <label for="segmento">Select the segment:</label>
+            <select id="segmento" name="segmento" class="form-control" required>
+              <option value="Segmento 1">Segment 1</option>
+              <option value="Segmento 2">Segment 2</option>
+              <option value="Segmento 3">Segment 3</option>
+              <!-- Agrega más segmentos según sea necesario -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="asignatura">Select the signature:</label>
+            <select id="asignatura" name="asignatura" class="form-control" required>
+              <option value="Matemáticas">Maths</option>
+              <option value="Español">Español</option>
+              <option value="Ciencias Naturales">Ciencias Naturales</option>
+              <!-- Agrega más asignaturas según sea necesario -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="num_items">Number of questions:</label>
+            <input type="number" id="num_items" name="num_items" class="form-control" required>
+          </div>
+
+        {% elif exam_type == 'baccalaureat' %}
+          <!-- Campos para Baccalauréat -->
+          <div class="form-group">
+            <label for="speciality">Selecciona la Especialidad:</label>
+            <select id="speciality" name="speciality" class="form-control" required>
+              <option value="SPÉCIALITÉ MATHÉMATIQUES">SPÉCIALITÉ MATHÉMATIQUES</option>
+              <option value="SPÉCIALITÉ HISTOIRE-GÉOGRAPHIE, GÉOPOLITIQUE ET SCIENCES POLITIQUES">SPÉCIALITÉ HISTOIRE-GÉOGRAPHIE, GÉOPOLITIQUE ET SCIENCES POLITIQUES</option>
+              <option value="SPÉCIALITÉ PHYSIQUES-CHIMIE">SPÉCIALITÉ PHYSIQUES-CHIMIE</option>
+              <option value="SPÉCIALITÉ BIOCHIMIE-BIOLOGIE BAC TECHNOLOGIQUE STL">SPÉCIALITÉ BIOCHIMIE-BIOLOGIE BAC TECHNOLOGIQUE STL</option>
+              <option value="SPÉCIALITÉ NUMÉRIQUE ET SCIENCES INFORMATIQUES BAC GÉNÉRAL">SPÉCIALITÉ NUMÉRIQUE ET SCIENCES INFORMATIQUES BAC GÉNÉRAL</option>
+              <option value="SPÉCIALITÉ HUMANITÉS, LITTÉRATURE ET PHILOSOPHIE">SPÉCIALITÉ HUMANITÉS, LITTÉRATURE ET PHILOSOPHIE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="num_items">Número de Soluciones a Generar:</label>
+            <input type="number" id="num_items" name="num_items" class="form-control" required>
+          </div>
+
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary btn-block">Generate</button>
+      </form>
+    </div>
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  </body>
+</html>
