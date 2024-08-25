@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrarse</title>
+</head>
+<body>
+    <h1>Registro de Usuario</h1>
+    <form method="POST" action="{{ url_for('register') }}">
+        <label for="username">Usuario:</label>
+        <input type="text" id="username" name="username" required><br>
+        
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br>
+        
+        <label for="password">Contraseña:</label>
+        <input type="password" id="password" name="password" required><br>
+
+        <label for="subscription_type">Tipo de suscripción:</label>
+        <select name="subscription_type" id="subscription_type">
+            <option value="free">Gratis</option>
+            <option value="premium">Premium</option>
+            <option value="pro">Pro</option>
+        </select><br>
+
+        <button type="submit">Registrarse</button>
+    </form>
+</body>
+</html>

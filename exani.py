@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask_login import current_user, login_required
 import os
 import re
-import logging
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.chat_models import ChatDeepInfra
+from models import db
 
 app = Flask(__name__)
 
@@ -151,14 +152,23 @@ def generate_new_questions_exani(failed_questions, chat):
     return new_questions
 
 @app.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
     if request.method == 'POST':
+        if not current_user.can_ask_question():
+            flash('Has alcanzado el límite de preguntas para este mes. Por favor, actualiza tu suscripción.', 'danger')
+            return redirect(url_for('index'))
+
         segmento_asignatura = request.form['segmento_asignatura']
         asignatura = request.form['asignatura']
         num_questions = int(request.form['num_questions'])
 
         chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3-8B-Instruct", max_tokens=4000)
         questions = generate_questions_exani(chat, num_questions, segmento_asignatura, asignatura)
+
+        # Incrementar el contador de preguntas después de generarlas
+        current_user.increment_questions(len(questions))
+        db.session.commit()
 
         return render_template('quiz.html', questions=questions)
 

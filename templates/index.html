@@ -3,28 +3,54 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Select the exam type</title>
+    <title>Página Principal</title>
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center">Select the exam</h1>
-        <form method="POST" action="/select_exam" class="mt-4">
-            <div class="form-group">
-                <label for="exam_type">Test type:</label>
-                <select id="exam_type" name="exam_type" class="form-control" required>
-                    <option value="exani_ii">SAT</option>
-                    <option value="baccalaureat">Baccalauréat</option>
-                </select>
+        <h1 class="text-center">Bienvenido a Nuestra Aplicación</h1>
+        
+        {% if current_user.is_authenticated %}
+            <p class="text-center">Hola, {{ current_user.username }}!</p>
+            <p class="text-center">Tu tipo de suscripción: {{ current_user.subscription_type }}</p>
+            <p class="text-center">Preguntas hechas este mes: {{ current_user.questions_asked }}{% if current_user.subscription_type == 'free' %} / 50{% endif %}</p>
+
+            <div class="text-center mt-4">
+                <h2>Selecciona el tipo de examen</h2>
+                <form method="POST" action="/select_exam" class="mt-4">
+                    <div class="form-group">
+                        <label for="exam_type">Tipo de examen:</label>
+                        <select id="exam_type" name="exam_type" class="form-control" required>
+                            <option value="exani_ii">SAT</option>
+                            <option value="baccalaureat">Baccalauréat</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Siguiente</button>
+                </form>
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Next</button>
-        </form>
-        <div class="mt-4">
-            <h3 class="text-center">Or proceed to payment</h3>
-            <a href="/payment" class="btn btn-success btn-block">Proceed to Payment</a> <!-- Changed this line -->
-        </div>
+
+            <div class="text-center mt-4">
+                {% if current_user.subscription_type == 'free' %}
+                    <a href="{{ url_for('subscribe') }}" class="btn btn-success btn-block">Suscríbete ahora</a>
+                {% else %}
+                    <form action="{{ url_for('cancel_subscription') }}" method="post" class="mt-2">
+                        <button type="submit" class="btn btn-warning btn-block">Cancelar Suscripción</button>
+                    </form>
+                {% endif %}
+            </div>
+            <div class="text-center mt-4">
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Cerrar Sesión</a>
+            </div>
+        {% else %}
+            <div class="text-center mt-4">
+                <p>No has iniciado sesión.</p>
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Iniciar Sesión</a>
+                <a href="{{ url_for('register') }}" class="btn btn-secondary">Registrarse</a>
+            </div>
+        {% endif %}
     </div>
+
     <!-- Bootstrap JS and dependencies -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>

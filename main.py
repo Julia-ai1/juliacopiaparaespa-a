@@ -4,30 +4,145 @@ from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract
 from langchain_community.chat_models import ChatDeepInfra
 import os
 import logging
+from models import db, User 
+import stripe
 from elasticsearch import Elasticsearch
 from langchain.prompts import ChatPromptTemplate
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+# Ruta inicial: Página principal para seleccionar el tipo de examen
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from models import db, User  # Importa db y User desde models.py
+import stripe
+import os
+import logging
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
+db.init_app(app)  # Inicializa db con la aplicación
+migrate = Migrate(app, db)  # Configura Flask-Migrate con tu app y db
+
+login_manager = LoginManager()
+login_manager.init_app(app)  # Asegúrate de inicializar el LoginManager con la app
+login_manager.login_view = 'login'  # Página de inicio de sesión
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Aquí puedes agregar tus rutas y lógica de la aplicación
+
+# Código para crear las tablas en el contexto de la aplicación
+with app.app_context():
+    db.create_all()
 
 # Token de API
 os.environ["DEEPINFRA_API_TOKEN"] = "gtnKXw1ytDsD7DmCSsv2vwdXSW7IBJ5H"
 
-# Ruta inicial: Página principal para seleccionar el tipo de examen
+
+
+# Set your secret key. Remember to switch to your live secret key in production!
+stripe.api_key = 'sk_test_51Pr14b2K3oWETT3EMYe9NiKElssrbGmCHpxdUefcuaXLRkKyya5neMrK4jDzd2qh7GUhYZRQT8wqDaiGB2qtg2Md00fbj6TZqF'
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # Dependiendo de la selección del usuario, se maneja el examen correspondiente
-        return redirect('/select_exam')
+        exam_type = request.form.get('exam_type')
+        if exam_type:
+            return redirect('/select_exam')
     return render_template('index.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        subscription_type = request.form['subscription_type']
+
+        new_user = User(username=username, email=email, subscription_type=subscription_type)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+
+        login_user(new_user)
+        flash('Te has registrado correctamente', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        
+        if user is None or not user.check_password(password):
+            flash('Usuario o contraseña incorrectos', 'danger')
+            return redirect(url_for('login'))
+
+        login_user(user)
+        flash('Has iniciado sesión correctamente', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Has cerrado sesión', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/subscribe', methods=['GET', 'POST'])
+@login_required
+def subscribe():
+    if request.method == 'POST':
+        subscription_type = request.form['subscription_type']
+        
+        # Reemplaza estos enlaces con los Payment Links reales de Stripe
+        payment_links = {
+            'premium': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',
+            'pro': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',
+        }
+
+        if subscription_type not in payment_links:
+            flash('Tipo de suscripción inválido', 'danger')
+            return redirect(url_for('subscribe'))
+
+        return redirect(payment_links[subscription_type])
+
+    return render_template('subscribe.html')
+
+@app.route('/payment_success')
+@login_required
+def payment_success():
+    flash('¡Tu pago ha sido exitoso! Tu suscripción ha sido actualizada.', 'success')
+    return render_template('success.html')
+
+@app.route('/payment_cancel')
+@login_required
+def payment_cancel():
+    flash('Tu pago ha sido cancelado.', 'danger')
+    return render_template('cancel.html')
+
+
 
 @app.route('/select_exam', methods=['POST'])
 def select_exam():
-    exam_type = request.form['exam_type']
-    # Enviar el tipo de examen a la siguiente plantilla
+    exam_type = request.form.get('exam_type')
+    if not exam_type:
+        return "No se ha seleccionado ningún examen", 400
+    # Procesar el tipo de examen
     return render_template('speciality.html', exam_type=exam_type)
+
 
 def format_solutions(solutions_text):
     solutions_raw = solutions_text.split("\n\n")
@@ -55,21 +170,30 @@ def generate_exam():
     if exam_type == "exani_ii":
         segmento = request.form['segmento']
         asignatura = request.form['asignatura']
-        # Lógica para generar preguntas de EXANI-II
         questions = generate_questions_exani(chat, num_items, segmento, asignatura)
+
+        # Incrementa el contador de preguntas para el usuario actual
+        current_user.increment_questions()
+        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
+
         return render_template('quiz.html', questions=questions)
 
     elif exam_type == "baccalaureat":
         speciality = request.form['speciality']
-        # Lógica para generar soluciones de Baccalauréat
         es = Elasticsearch(
-    cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
-    basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM"))
+            cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
+            basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM"))
         relevant_docs = retrieve_documents_bac(es, "general_texts", 20, speciality)
         context = extract_relevant_context_bac(relevant_docs)
         solutions = generate_solutions_bac(chat, context, num_items)
         solutions_as_items = [{'question': solution, 'choices': None} for solution in solutions.split('\n\n')]
-        return render_template('solutions.html', solutions = solutions)
+
+        # Incrementa el contador de preguntas para el usuario actual
+        current_user.increment_questions()
+        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
+
+        return render_template('solutions.html', solutions=solutions_as_items)
+
 
 
 
@@ -125,22 +249,14 @@ def check():
 
     return jsonify(results)
 
-
-from flask import Flask, render_template, jsonify, request
-import stripe
-
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    return render_template('index.html')
+# @app.route('/')
+# def index():
+#   return render_template('index.html')
 
 @app.route('/checkout')
 def checkout():
     return render_template('checkout.html')
 
-# Set your secret key. Remember to switch to your live secret key in production!
-stripe.api_key = 'sk_test_51Pr14b2K3oWETT3EMYe9NiKElssrbGmCHpxdUefcuaXLRkKyya5neMrK4jDzd2qh7GUhYZRQT8wqDaiGB2qtg2Md00fbj6TZqF'
 
 @app.route('/payment')
 def payment():
@@ -224,6 +340,7 @@ def charge():
     except stripe.error.StripeError as e:
         # Handle error
         return str(e)
+
 
 
 if __name__ == '__main__':
