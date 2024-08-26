@@ -6,210 +6,149 @@
     <title>SAT test with Chat</title>
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <style>
-        #timer {
-            font-size: 24px;
-            font-weight: bold;
-            color: red;
-            text-align: center;
-        }
-
-        #chat-box {
-            height: 400px;
-            overflow-y: scroll;
-            border: 1px solid #ccc;
-            padding: 10px;
-            background-color: #f8f9fa;
-        }
-
-        #chat-input {
-            width: 100%;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            margin-top: 10px;
-        }
-
-        #chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        #chat-output {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        .choice-button {
-            width: 100%;
-            text-align: left;
-            margin-bottom: 10px;
-        }
-
-        .choice-button.active {
-            background-color: #007bff;
-            color: white;
-        }
+        #timer { font-size: 24px; font-weight: bold; color: red; text-align: center; }
+        #chat-box { height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background-color: #f8f9fa; }
+        #chat-input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px; }
+        #chat-container { display: flex; flex-direction: column; height: 100%; }
+        #chat-output { flex-grow: 1; overflow-y: auto; }
+        .choice-button { width: 100%; text-align: left; margin-bottom: 10px; }
+        .choice-button.active { background-color: #007bff; color: white; }
     </style>
 </head>
 <body>
-<div class="container mt-5">
+<div id="app" class="container mt-5">
     <div class="row">
         <!-- Sección del Cuestionario -->
         <div class="col-md-8">
             <h1 class="text-center">SAT test</h1>
-            <div id="timer">Tiempo restante: 10:00</div>
-            <form id="quiz-form" class="mt-4">
-                {% for question in questions %}
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <p><strong>{{ loop.index }}.</strong> {{ question['question'] }}</p>
-                            <div class="form-group">
-                                {% for choice in question['choices'] %}
-                                    <button type="button" class="btn btn-outline-primary choice-button" 
-                                            data-question="question_{{ loop.index }}" 
-                                            data-value="{{ choice }}"
-                                            id="question_{{ loop.index }}_choice_{{ loop.index0 }}">
-                                        {{ choice }}
-                                    </button>
-                                {% endfor %}
-                            </div>
+            <div id="timer">Tiempo restante: [[ timeRemaining ]]</div>
+            <form @submit.prevent="submitQuiz" class="mt-4">
+                <div v-for="(question, index) in questions" :key="index" class="card mb-4">
+                    <div class="card-body">
+                        <p><strong>[[ index + 1 ]].</strong> [[ question.question ]]</p>
+                        <div class="form-group">
+                            <button v-for="(choice, choiceIndex) in question.choices" 
+                                    :key="choiceIndex"
+                                    type="button" 
+                                    class="btn btn-outline-primary choice-button"
+                                    :class="{ active: selectedAnswers[`question_${index + 1}`] === choice }"
+                                    @click="selectAnswer(index + 1, choice)">
+                                [[ choice ]]
+                            </button>
                         </div>
                     </div>
-                {% endfor %}
-                <input type="hidden" name="selected_answers" id="selected-answers">
+                </div>
                 <button type="submit" class="btn btn-success btn-block">Enviar respuestas</button>
             </form>
 
-            <div id="results" class="mt-4"></div>
+            <div id="results" class="mt-4">
+                <div v-for="(result, index) in quizResults" :key="index" 
+                     :class="['alert', result.correct === 'correct' ? 'alert-success' : 'alert-danger']">
+                    <strong>Pregunta [[ index + 1 ]]:</strong> [[ result.question.question ]]
+                    <p>Tu respuesta: [[ result.selected_option ]]</p>
+                    <p>[[ result.correct === 'correct' ? '¡Correcto!' : 'Incorrecto' ]]</p>
+                    <p>Explicación: [[ result.explanation ]]</p>
+                </div>
+            </div>
         </div>
 
         <!-- Sección del Chat -->
         <div class="col-md-4">
             <h4 class="text-center">Chat</h4>
             <div id="chat-container">
-                <div id="chat-box"></div>
-                <input type="text" id="chat-input" placeholder="Escribe tu pregunta...">
-                <button id="send-chat" class="btn btn-primary btn-block mt-2">Enviar</button>
+                <div id="chat-box">
+                    <p v-for="(message, index) in chatMessages" :key="index">
+                        <strong>[[ message.sender ]]:</strong> [[ message.text ]]
+                    </p>
+                </div>
+                <input v-model="chatInput" @keyup.enter="sendChatMessage" type="text" id="chat-input" placeholder="Escribe tu pregunta...">
+                <button @click="sendChatMessage" class="btn btn-primary btn-block mt-2">Enviar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Bootstrap JS and dependencies -->
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script>
-    // Inicialización de variables
-    let selectedAnswers = {};
-
-    // Manejar selección de botones
-    document.querySelectorAll('.choice-button').forEach(button => {
-        button.addEventListener('click', function () {
-            const question = this.getAttribute('data-question');
-            const value = this.getAttribute('data-value');
-
-            // Desactivar otros botones de la misma pregunta
-            document.querySelectorAll(`[data-question="${question}"]`).forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Activar el botón seleccionado
-            this.classList.add('active');
-
-            // Guardar la respuesta seleccionada
-            selectedAnswers[question] = value;
-            document.getElementById('selected-answers').value = JSON.stringify(selectedAnswers);
-        });
-    });
-
-    // Temporizador de 10 minutos
-    let timeLeft = 10 * 60;
-    const timerElement = document.getElementById('timer');
-    const countdown = setInterval(() => {
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        timerElement.textContent = `Tiempo restante: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        timeLeft--;
-
-        if (timeLeft < 0) {
-            clearInterval(countdown);
-            alert("El tiempo ha terminado. El cuestionario se enviará automáticamente.");
-            document.getElementById('quiz-form').submit();
+new Vue({
+    el: '#app',
+    delimiters: ['[[', ']]'],
+    data: {
+        questions: {{ questions|tojson }},
+        selectedAnswers: {},
+        timeLeft: 10 * 60,
+        quizResults: [],
+        chatInput: '',
+        chatMessages: []
+    },
+    computed: {
+        timeRemaining() {
+            const minutes = Math.floor(this.timeLeft / 60);
+            const seconds = this.timeLeft % 60;
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
-    }, 1000);
-
-    document.getElementById('quiz-form').addEventListener('submit', function (event) {
-        clearInterval(countdown);  // Detener el temporizador si el formulario se envía manualmente
-        event.preventDefault();
-
-        // Enviar respuestas seleccionadas al servidor
-        fetch('/check', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                questions: {{ questions|tojson }},
-                answers: selectedAnswers
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '';
-            data.forEach((result, index) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.innerHTML = `
-                    <div class="alert ${result.correct === 'correct' ? 'alert-success' : 'alert-danger'}">
-                        <strong>Pregunta ${index + 1}:</strong> ${result.question.question}
-                        <p>Tu respuesta: ${result.selected_option}</p>
-                        <p>${result.correct === 'correct' ? '¡Correcto!' : 'Incorrecto'}</p>
-                        <p>Explicación: ${result.explanation}</p>
-                    </div>
-                `;
-                resultsDiv.appendChild(questionDiv);
-            });
-        });
-    });
-
-    // Funcionalidad del chat
-    document.getElementById('send-chat').addEventListener('click', function () {
-        const userInput = document.getElementById('chat-input').value;
-        const chatBox = document.getElementById('chat-box');
-
-        if (userInput.trim() !== "") {
-            chatBox.innerHTML += `<p><strong>Usuario:</strong> ${userInput}</p>`;
-            document.getElementById('chat-input').value = ""; // Limpiar el input
-
-            fetch('/chat', {
+    },
+    methods: {
+        selectAnswer(questionNumber, choice) {
+            this.$set(this.selectedAnswers, `question_${questionNumber}`, choice);
+        },
+        submitQuiz() {
+            clearInterval(this.countdownTimer);
+            fetch('/check', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: userInput
+                    questions: this.questions,
+                    answers: this.selectedAnswers
                 })
             })
+            .then(response => response.json())
+            .then(data => {
+                this.quizResults = data;
+            });
+        },
+        sendChatMessage() {
+            if (this.chatInput.trim() !== "") {
+                this.chatMessages.push({ sender: 'Usuario', text: this.chatInput });
+                fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: this.chatInput })
+                })
                 .then(response => response.json())
                 .then(data => {
-                    chatBox.innerHTML += `<p><strong>IA:</strong> ${data.response}</p>`;
-                    chatBox.scrollTop = chatBox.scrollHeight;  // Scroll automático hacia abajo
+                    this.chatMessages.push({ sender: 'IA', text: data.response });
+                    this.$nextTick(() => {
+                        const chatBox = document.getElementById('chat-box');
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    });
                 });
+                this.chatInput = '';
+            }
+        },
+        startTimer() {
+            this.countdownTimer = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft < 0) {
+                    clearInterval(this.countdownTimer);
+                    alert("El tiempo ha terminado. El cuestionario se enviará automáticamente.");
+                    this.submitQuiz();
+                }
+            }, 1000);
         }
-    });
-
-    // Enviar mensaje con "Enter"
-    document.getElementById('chat-input').addEventListener('keyup', function (event) {
-        if (event.key === "Enter") {
-            document.getElementById('send-chat').click();
-        }
-    });
+    },
+    mounted() {
+        this.startTimer();
+    }
+});
 </script>
 </body>
 </html>
+
+
+
 
 
 
