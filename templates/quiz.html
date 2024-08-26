@@ -40,6 +40,17 @@
             flex-grow: 1;
             overflow-y: auto;
         }
+
+        .choice-button {
+            width: 100%;
+            text-align: left;
+            margin-bottom: 10px;
+        }
+
+        .choice-button.active {
+            background-color: #007bff;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -48,7 +59,7 @@
         <!-- Sección del Cuestionario -->
         <div class="col-md-8">
             <h1 class="text-center">SAT test</h1>
-            <div id="timer">Remaining time: 10:00</div>
+            <div id="timer">Tiempo restante: 10:00</div>
             <form id="quiz-form" class="mt-4">
                 {% for question in questions %}
                     <div class="card mb-4">
@@ -56,19 +67,19 @@
                             <p><strong>{{ loop.index }}.</strong> {{ question['question'] }}</p>
                             <div class="form-group">
                                 {% for choice in question['choices'] %}
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" 
-                                               id="question_{{ loop.index }}_choice_{{ loop.index0 }}" 
-                                               name="question_{{ loop.index }}" 
-                                               value="{{ choice }}">
-                                        <label class="form-check-label" for="question_{{ loop.index }}_choice_{{ loop.index0 }}">{{ choice }}</label>
-                                    </div>
+                                    <button type="button" class="btn btn-outline-primary choice-button" 
+                                            data-question="question_{{ loop.index }}" 
+                                            data-value="{{ choice }}"
+                                            id="question_{{ loop.index }}_choice_{{ loop.index0 }}">
+                                        {{ choice }}
+                                    </button>
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
                 {% endfor %}
-                <button type="submit" class="btn btn-success btn-block">Send answers</button>
+                <input type="hidden" name="selected_answers" id="selected-answers">
+                <button type="submit" class="btn btn-success btn-block">Enviar respuestas</button>
             </form>
 
             <div id="results" class="mt-4"></div>
@@ -79,7 +90,7 @@
             <h4 class="text-center">Chat</h4>
             <div id="chat-container">
                 <div id="chat-box"></div>
-                <input type="text" id="chat-input" placeholder="Write your question...">
+                <input type="text" id="chat-input" placeholder="Escribe tu pregunta...">
                 <button id="send-chat" class="btn btn-primary btn-block mt-2">Enviar</button>
             </div>
         </div>
@@ -91,9 +102,31 @@
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script>
+    // Inicialización de variables
+    let selectedAnswers = {};
+
+    // Manejar selección de botones
+    document.querySelectorAll('.choice-button').forEach(button => {
+        button.addEventListener('click', function () {
+            const question = this.getAttribute('data-question');
+            const value = this.getAttribute('data-value');
+
+            // Desactivar otros botones de la misma pregunta
+            document.querySelectorAll(`[data-question="${question}"]`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Activar el botón seleccionado
+            this.classList.add('active');
+
+            // Guardar la respuesta seleccionada
+            selectedAnswers[question] = value;
+            document.getElementById('selected-answers').value = JSON.stringify(selectedAnswers);
+        });
+    });
+
     // Temporizador de 10 minutos
     let timeLeft = 10 * 60;
-
     const timerElement = document.getElementById('timer');
     const countdown = setInterval(() => {
         const minutes = Math.floor(timeLeft / 60);
@@ -112,19 +145,7 @@
         clearInterval(countdown);  // Detener el temporizador si el formulario se envía manualmente
         event.preventDefault();
 
-        const formData = new FormData(event.target);
-        const userAnswers = {};
-
-        formData.forEach((value, key) => {
-            if (value === "") {
-                value = "No seleccionada";  // Asigna un valor por defecto si el valor es null
-            }
-            console.log(`Pregunta: ${key} - Respuesta seleccionada: ${value}`);  // Imprimir respuestas seleccionadas en el frontend
-            userAnswers[key] = value;
-        });
-
-        console.log("Datos enviados al backend:", userAnswers);  // Imprimir datos enviados al backend
-
+        // Enviar respuestas seleccionadas al servidor
         fetch('/check', {
             method: 'POST',
             headers: {
@@ -132,12 +153,11 @@
             },
             body: JSON.stringify({
                 questions: {{ questions|tojson }},
-                answers: userAnswers
+                answers: selectedAnswers
             })
         })
         .then(response => response.json())
         .then(data => {
-            console.log("Datos recibidos del backend:", data);  // Imprimir respuestas recibidas del backend
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
             data.forEach((result, index) => {
@@ -190,6 +210,12 @@
 </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 
