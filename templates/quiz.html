@@ -47,7 +47,7 @@
     <div class="row">
         <!-- Sección del Cuestionario -->
         <div class="col-md-8">
-            <h1 class="text-center"> SAT test</h1>
+            <h1 class="text-center">SAT test</h1>
             <div id="timer">Remaining time: 10:00</div>
             <form id="quiz-form" class="mt-4">
                 {% for question in questions %}
@@ -57,9 +57,11 @@
                             <div class="form-group">
                                 {% for choice in question['choices'] %}
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="question_{{ loop.index }}"
+                                        <input class="form-check-input" type="radio" 
+                                               id="question_{{ loop.index }}_choice_{{ loop.index0 }}" 
+                                               name="question_{{ loop.index }}" 
                                                value="{{ choice }}">
-                                        <label class="form-check-label">{{ choice }}</label>
+                                        <label class="form-check-label" for="question_{{ loop.index }}_choice_{{ loop.index0 }}">{{ choice }}</label>
                                     </div>
                                 {% endfor %}
                             </div>
@@ -117,9 +119,11 @@
             if (value === "") {
                 value = "No seleccionada";  // Asigna un valor por defecto si el valor es null
             }
-            console.log(`Pregunta: ${key} - Respuesta seleccionada: ${value}`);
+            console.log(`Pregunta: ${key} - Respuesta seleccionada: ${value}`);  // Imprimir respuestas seleccionadas en el frontend
             userAnswers[key] = value;
         });
+
+        console.log("Datos enviados al backend:", userAnswers);  // Imprimir datos enviados al backend
 
         fetch('/check', {
             method: 'POST',
@@ -133,6 +137,7 @@
         })
         .then(response => response.json())
         .then(data => {
+            console.log("Datos recibidos del backend:", data);  // Imprimir respuestas recibidas del backend
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
             data.forEach((result, index) => {
@@ -185,6 +190,10 @@
 </script>
 </body>
 </html>
+
+
+
+
 
 
 

@@ -216,21 +216,30 @@ def chat():
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
+    print("Datos recibidos del frontend:", data)  # Imprimir los datos recibidos
+
     if not data:
+        print("Error: No se recibieron datos.")
         return jsonify({"error": "No se recibieron datos"}), 400
     
     questions = data.get('questions')
     user_answers = data.get('answers')
 
     if not questions or not user_answers:
+        print("Error: Faltan preguntas o respuestas.")
         return jsonify({"error": "Faltan preguntas o respuestas"}), 400
 
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3-8B-Instruct", max_tokens=4000)
     results = []
 
     for i, question in enumerate(questions):
-        user_answer = user_answers.get(f'question_{i + 1}')
+        question_name = f'question_{i+1}'
+        user_answer = user_answers.get(question_name)
+        
+        print(f"Procesando {question_name}: respuesta seleccionada = {user_answer}")  # Imprimir respuesta seleccionada
+        
         if not user_answer:
+            print(f"{question_name} sin respuesta seleccionada.")
             results.append({
                 'question': question,
                 'selected_option': None,
@@ -240,6 +249,8 @@ def check():
             continue
 
         correctness, explanation = check_answer_exani(question, user_answer, chat)
+        print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
+
         results.append({
             'question': question,
             'selected_option': user_answer,
@@ -248,6 +259,8 @@ def check():
         })
 
     return jsonify(results)
+
+
 
 # @app.route('/')
 # def index():
