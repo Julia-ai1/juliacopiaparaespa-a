@@ -31,9 +31,22 @@
         {% if current_user.is_authenticated %}
             <div class="subscription-card text-center">
                 <p class="subscription-details">Hi, <span class="highlight">{{ current_user.username }}</span>!</p>
-                <p class="subscription-details">Your subscription type: <span class="highlight">{{ current_user.subscription_type }}</span></p>
-                <p class="subscription-details">Questions done this month: 
-                    <span class="highlight">{{ current_user.questions_asked }}</span>{% if current_user.subscription_type == 'free' %} / 50{% endif %}
+                <p class="subscription-details">
+                    Your subscription type: 
+                    <span class="highlight">
+                        {% if current_user.subscription_type == 'pro' %}
+                            Professional
+                        {% elif current_user.subscription_type == 'premium' %}
+                            Premium
+                        {% else %}
+                            Free
+                        {% endif %}
+                    </span>
+                </p>
+                <p class="subscription-details">
+                    Questions done this month: 
+                    <span class="highlight">{{ current_user.questions_asked }}</span>
+                    {% if current_user.subscription_type == 'free' %} / 50{% endif %}
                 </p>
             </div>
 
@@ -43,8 +56,9 @@
                     <div class="form-group">
                         <label for="exam_type">Exam type:</label>
                         <select id="exam_type" name="exam_type" class="form-control" required>
-                            <option value="exani_ii">SAT</option>
+                            <option value="exani_ii">EXANI II</option>
                             <option value="baccalaureat">Baccalauréat</option>
+                            <option value="sat">SAT</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Siguiente</button>

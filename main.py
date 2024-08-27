@@ -54,11 +54,20 @@ stripe.api_key = 'sk_test_51Pr14b2K3oWETT3EMYe9NiKElssrbGmCHpxdUefcuaXLRkKyya5ne
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    if current_user.is_authenticated:
+        # Refetch the current user to ensure the subscription type is updated
+        user = User.query.get(current_user.id)
+        subscription_type = user.subscription_type
+    else:
+        subscription_type = None
+
     if request.method == 'POST':
         exam_type = request.form.get('exam_type')
         if exam_type:
             return redirect('/select_exam')
-    return render_template('index.html')
+
+    return render_template('index.html', subscription_type=subscription_type)
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
