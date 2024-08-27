@@ -319,7 +319,7 @@ def stripe_webhook():
     print("Webhook recibido")  # Añade este log
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_1Ggvv6DCyU55YjYbzuUnwKbCCfE0Snlw'
+    endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'
     event = None
 
     try:
