@@ -19,13 +19,15 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from models import db, User  # Importa db y User desde models.py
 import stripe
 import os
-import logging
+from flask_caching import Cache
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Cache configuration
+app.config['CACHE_TYPE'] = 'simple'
 db.init_app(app)  # Inicializa db con la aplicación
 migrate = Migrate(app, db)  # Configura Flask-Migrate con tu app y db
 
@@ -165,6 +167,8 @@ def stripe_webhook():
 from flask_login import current_user
 from datetime import datetime, timezone
 
+cache = Cache(app)
+
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
     user = User.query.filter_by(email=customer_email).first()
@@ -184,6 +188,14 @@ def handle_checkout_session(session):
         print(f"User {user.username} subscription updated to: {user.subscription_type}")
         
         session.pop('pending_subscription_type', None)
+        
+        # Clear cache for this user
+        cache.delete(f"user_{user.id}")
+        
+        # Update current_user session to reflect changes
+        if current_user.is_authenticated and current_user.id == user.id:
+            login_user(user, remember=True)  # This updates the session with the latest user info
+            
     except Exception as e:
         print(f"Error updating subscription: {e}")
         db.session.rollback()
