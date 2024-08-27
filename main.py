@@ -147,12 +147,13 @@ def stripe_webhook():
     endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+        print(f"Received event: {event['type']}")  # Debugging line
     except ValueError as e:
+        print(f"Error: {str(e)}")
         return '', 400
     except stripe.error.SignatureVerificationError as e:
+        print(f"Signature error: {str(e)}")
         return '', 400
 
     if event['type'] == 'checkout.session.completed':
@@ -167,31 +168,26 @@ from datetime import datetime, timezone
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
     user = User.query.filter_by(email=customer_email).first()
+    
+    if not user:
+        print(f"No user found with email: {customer_email}")
+        return
+    
+    print(f"User found: {user.username}, current subscription: {user.subscription_type}")
 
-    if user:
-        # Print before updating
-        print(f"Tipo de suscripción antes de actualizar: {user.subscription_type}")
-        
-        subscription_type = session.get('pending_subscription_type', 'pro')  # 'pro' por defecto
+    try:
+        subscription_type = session.get('pending_subscription_type', 'pro')  # Default to 'pro'
         user.subscription_type = subscription_type
         user.subscription_start = datetime.now(timezone.utc)
         
         db.session.commit()
-
-        # Reload user from the database to ensure we're using the latest data
-        db.session.refresh(user)
-
-        # Print after updating
-        print(f"Tipo de suscripción después de actualizar: {user.subscription_type}")
-
-        # Update the current_user object to reflect the changes immediately
-        if current_user.is_authenticated and current_user.id == user.id:
-            current_user.subscription_type = user.subscription_type
-            current_user.subscription_start = user.subscription_start
-            current_user.questions_asked = user.questions_asked
-
-        # Clear pending subscription from session
+        print(f"User {user.username} subscription updated to: {user.subscription_type}")
+        
         session.pop('pending_subscription_type', None)
+    except Exception as e:
+        print(f"Error updating subscription: {e}")
+        db.session.rollback()
+
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
