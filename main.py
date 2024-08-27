@@ -231,7 +231,8 @@ def cancel_subscription():
             user.subscription_type = 'free'
             user.stripe_subscription_id = None
             user.subscription_start = None
-            user.subscription_end = datetime.datetime.now(datetime.timezone.utc)
+            user.subscription_end = datetime.now(timezone.utc)
+
             db.session.commit()
             print("Suscripción actualizada en la base de datos")  # Confirmar actualización en DB
             
@@ -240,16 +241,6 @@ def cancel_subscription():
             print(f"Error al cancelar la suscripción en Stripe: {str(e)}")  # Log de error
             flash(f'Ocurrió un error al cancelar tu suscripción en Stripe: {str(e)}', 'danger')
             return redirect(url_for('profile'))
-    else:
-        # Si no hay ID de suscripción de Stripe, solo actualizamos la base de datos
-        print("No se encontró un ID de suscripción en Stripe, actualizando base de datos")  # Log de fallback
-        user.subscription_type = 'free'
-        user.subscription_start = None
-        user.subscription_end = datetime.datetime.now(datetime.timezone.utc)
-        db.session.commit()
-        flash('Tu suscripción ha sido cancelada. Ahora tienes una cuenta gratuita.', 'success')
-
-    return redirect(url_for('profile'))
 
 
 from flask import render_template, redirect, url_for, flash
