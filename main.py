@@ -153,6 +153,17 @@ def handle_checkout_session(session):
             user.subscription_start = datetime.datetime.now(datetime.UTC)
             db.session.commit()
 
+@app.route('/cancel_subscription', methods=['POST'])
+@login_required
+def cancel_subscription():
+    user = current_user
+    user.subscription_type = 'none'  # Ajusta según sea necesario
+    user.subscription_start = None
+    db.session.commit()
+    flash('Tu suscripción ha sido cancelada.', 'success')
+    return redirect(url_for('index'))  # Redirigir a la página principal o a donde desees
+
+
 from flask import render_template, redirect, url_for, flash
 from flask_login import current_user, login_required
 from datetime import datetime
