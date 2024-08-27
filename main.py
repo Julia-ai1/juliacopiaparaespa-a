@@ -77,24 +77,14 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        subscription_type = request.form['subscription_type']
-
         new_user = User(username=username, email=email, subscription_type='free')
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
-
         login_user(new_user)
-
-        if subscription_type in ['pro', 'premium']:
-            # Redirigir a la página de pago
-            return redirect(url_for('subscribe', plan=subscription_type))
-        else:
-            # Si es 'free', redirigir al índice
-            flash('Te has registrado correctamente', 'success')
-            return redirect(url_for('index'))
-
+        return redirect(url_for('subscribe'))  # Redirige al proceso de suscripción
     return render_template('register.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -123,24 +113,14 @@ def logout():
 @app.route('/subscribe', methods=['GET', 'POST'])
 @login_required
 def subscribe():
-    plan = request.args.get('plan', 'pro')  # Por defecto, usa 'pro' si no se especifica
-    payment_links = {
-        'premium': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',  # Enlace para Premium
-        'pro': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',      # Enlace para Pro
-    }
+    # Verifica si el usuario ya tiene una suscripción activa
+    if current_user.subscription_type == 'paid':
+        flash('Ya tienes una suscripción activa.', 'info')
+        return redirect(url_for('dashboard'))  # Redirige a una página adecuada
 
-    if request.method == 'POST':
-        subscription_type = request.form['subscription_type']
-        if subscription_type not in payment_links:
-            flash('Tipo de suscripción inválido', 'danger')
-            return redirect(url_for('subscribe'))
-
-        # Almacenamos el tipo de suscripción en la sesión del usuario
-        session['pending_subscription_type'] = subscription_type
-
-        return redirect(payment_links[subscription_type])
-
-    return render_template('subscribe.html', selected_plan=plan)
+    # Enlace de pago de Stripe para la suscripción Premium
+    payment_link = "https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx"  # Tu enlace de pago real de Stripe
+    return redirect(payment_link)
 
 @app.route('/webhook', methods=['POST'])
 def stripe_webhook():
@@ -150,97 +130,60 @@ def stripe_webhook():
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-        print(f"Received event: {event['type']}")  # Debugging line
     except ValueError as e:
-        print(f"Error: {str(e)}")
-        return '', 400
+        # Invalid payload
+        return jsonify({'error': str(e)}), 400
     except stripe.error.SignatureVerificationError as e:
-        print(f"Signature error: {str(e)}")
-        return '', 400
+        # Invalid signature
+        return jsonify({'error': str(e)}), 400
 
+    # Manejo de los eventos de Stripe
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         handle_checkout_session(session)
-
+    elif event['type'] == 'customer.subscription.deleted':
+        subscription = event['data']['object']
+        handle_subscription_cancellation(subscription)
+    
     return '', 200
 
-from flask_login import current_user
-from datetime import datetime, timezone
-
-cache = Cache(app)
-
 def handle_checkout_session(session):
+    # Obtener información del usuario a partir de la sesión
     customer_email = session.get('customer_details', {}).get('email')
     user = User.query.filter_by(email=customer_email).first()
-    
-    if not user:
-        print(f"No user found with email: {customer_email}")
-        return
-    
-    print(f"User found: {user.username}, current subscription: {user.subscription_type}")
-
-    try:
-        subscription_type = session.get('pending_subscription_type', 'pro')  # Default to 'pro'
-        user.subscription_type = subscription_type
+    if user:
+        user.subscription_type = 'paid'  # Actualizar el tipo de suscripción
         user.subscription_start = datetime.now(timezone.utc)
         user.stripe_subscription_id = session.get('subscription')
-        
         db.session.commit()
-        print(f"User {user.username} subscription updated to: {user.subscription_type}")
-        
-        session.pop('pending_subscription_type', None)
-        
-        # Clear cache for this user
-        cache.delete(f"user_{user.id}")
-        
-        # Update current_user session to reflect changes
-        if current_user.is_authenticated and current_user.id == user.id:
-            login_user(user, remember=True)  # This updates the session with the latest user info
-            
-    except Exception as e:
-        print(f"Error updating subscription: {e}")
-        db.session.rollback()
+        print(f"Suscripción del usuario {user.username} actualizada exitosamente.")
 
+def handle_subscription_cancellation(subscription):
+    user = User.query.filter_by(stripe_subscription_id=subscription.id).first()
+    if user:
+        user.subscription_type = 'free'
+        user.stripe_subscription_id = None
+        db.session.commit()
+        print(f"Suscripción del usuario {user.username} cancelada.")
 
 from datetime import datetime, timezone
 import stripe
 
-def log_request(func):
-    def wrapper(*args, **kwargs):
-        print(f"Request method: {request.method}, Path: {request.path}")
-        return func(*args, **kwargs)
-    return wrapper
-
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
-@log_request
 def cancel_subscription():
-    print(f"Autenticado: {current_user.is_authenticated}")
-    print(f"Usuario: {current_user.username if current_user.is_authenticated else 'No autenticado'}")
-    print("Entrando a cancelar suscripción")  # Verificar que se está entrando en la función
     user = current_user
-
     if user.stripe_subscription_id:
-        print(f"Intentando cancelar suscripción con ID: {user.stripe_subscription_id}")  # Verificar ID de Stripe
         try:
-            # Intentar cancelar la suscripción en Stripe
             stripe.Subscription.delete(user.stripe_subscription_id)
-            print("Suscripción cancelada en Stripe")  # Confirmar cancelación en Stripe
-            
-            # Actualizar usuario en la base de datos
             user.subscription_type = 'free'
             user.stripe_subscription_id = None
-            user.subscription_start = None
-            user.subscription_end = datetime.now(timezone.utc)
-
             db.session.commit()
-            print("Suscripción actualizada en la base de datos")  # Confirmar actualización en DB
-            
             flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
         except stripe.error.StripeError as e:
-            print(f"Error al cancelar la suscripción en Stripe: {str(e)}")  # Log de error
-            flash(f'Ocurrió un error al cancelar tu suscripción en Stripe: {str(e)}', 'danger')
-            return redirect(url_for('profile'))
+            flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
+    return redirect(url_for('profile'))  # Redirige al perfil o página de inicio
+
 
 
 from flask import render_template, redirect, url_for, flash
@@ -273,10 +216,17 @@ def payment_cancel():
 
 
 @app.route('/select_exam', methods=['POST'])
+@login_required
 def select_exam():
+    # Verifica si el usuario tiene una suscripción activa
+    if current_user.subscription_type != 'paid':
+        flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
+        return redirect(url_for('index'))  # Redirige a la página principal si no está suscrito
+
     exam_type = request.form.get('exam_type')
     if not exam_type:
         return "No se ha seleccionado ningún examen", 400
+    
     # Procesar el tipo de examen
     return render_template('speciality.html', exam_type=exam_type)
 
