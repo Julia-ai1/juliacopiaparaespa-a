@@ -183,6 +183,7 @@ def handle_checkout_session(session):
         subscription_type = session.get('pending_subscription_type', 'pro')  # Default to 'pro'
         user.subscription_type = subscription_type
         user.subscription_start = datetime.now(timezone.utc)
+        user.stripe_subscription_id = session.get('subscription')
         
         db.session.commit()
         print(f"User {user.username} subscription updated to: {user.subscription_type}")
@@ -201,16 +202,42 @@ def handle_checkout_session(session):
         db.session.rollback()
 
 
-@app.route('/cancel_subscription', methods=['POST'])
+from datetime import datetime, timezone
+import stripe
+
+@app.route('/cancel_subscription', methods=['GET', 'POST'])
 @login_required
 def cancel_subscription():
-    user = current_user
-    user.subscription_type = 'none'  # Ajusta según sea necesario
-    user.subscription_start = None
-    db.session.commit()
-    flash('Tu suscripción ha sido cancelada.', 'success')
-    return redirect(url_for('index'))  # Redirigir a la página principal o a donde desees
-
+    if request.method == 'POST':
+        user = current_user
+        
+        # Cancelar la suscripción en Stripe
+        if user.stripe_subscription_id:
+            try:
+                stripe.Subscription.delete(user.stripe_subscription_id)
+                
+                # Actualizar el usuario en la base de datos
+                user.subscription_type = 'free'
+                user.stripe_subscription_id = None
+                user.subscription_start = None
+                user.subscription_end = datetime.now(timezone.utc)
+                db.session.commit()
+                
+                flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
+            except stripe.error.StripeError as e:
+                flash(f'Ocurrió un error al cancelar tu suscripción en Stripe: {str(e)}', 'danger')
+                return redirect(url_for('profile'))
+        else:
+            # Si no hay ID de suscripción de Stripe, solo actualizamos la base de datos
+            user.subscription_type = 'free'
+            user.subscription_start = None
+            user.subscription_end = datetime.now(timezone.utc)
+            db.session.commit()
+            flash('Tu suscripción ha sido cancelada. Ahora tienes una cuenta gratuita.', 'success')
+        
+        return redirect(url_for('profile'))
+    
+    return render_template('cancel_subscription.html')
 
 from flask import render_template, redirect, url_for, flash
 from flask_login import current_user, login_required
