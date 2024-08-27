@@ -382,29 +382,39 @@ def cancel():
 
 
 # Webhook route to handle Stripe events
+import stripe
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    event = None
+    endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'  # Asegúrate de que esta sea la clave secreta correcta
+
+    print("Payload recibido:", payload)  # Imprimir el payload recibido
+    print("Cabecera de firma recibida:", sig_header)  # Imprimir la cabecera de firma recibida
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'
+            payload, sig_header, endpoint_secret
         )
+        print("Firma validada exitosamente.")
     except ValueError as e:
-        # Invalid payload
+        # Payload inválido
+        print("Error: Payload inválido:", e)
         return '', 400
     except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
+        # Firma inválida
+        print("Error de verificación de firma:", e)
+        print("Cabecera de firma esperada:", endpoint_secret)  # Imprimir la clave de firma esperada para comparación
         return '', 400
 
-    # Handle the event
+    # Manejar el evento (por ejemplo, un pago completado)
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         handle_checkout_session(session)
 
     return '', 200
+
 
 @app.route('/charge', methods=['POST'])
 def charge():
