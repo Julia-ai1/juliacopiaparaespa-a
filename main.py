@@ -143,15 +143,17 @@ def stripe_webhook():
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
     print(f"Procesando checkout.session.completed para el correo: {customer_email}")
+    
     user = User.query.filter_by(email=customer_email).first()
     if user:
         user.subscription_type = 'paid'  # Actualizar el tipo de suscripción
         user.subscription_start = datetime.now(timezone.utc)
-        user.stripe_subscription_id = session.get('subscription')  # Corrige para obtener el ID de la suscripción
+        user.stripe_subscription_id = session.get('subscription')  # Obtener ID de la suscripción
         db.session.commit()
         print(f"Suscripción del usuario {user.username} actualizada exitosamente a 'paid'.")
     else:
         print(f"No se encontró usuario con el correo: {customer_email}")
+
 
 def handle_subscription_cancellation(subscription):
     user = User.query.filter_by(stripe_subscription_id=subscription.id).first()
