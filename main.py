@@ -13,7 +13,7 @@ from langchain.prompts import ChatPromptTemplate
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required, current_user
 # Ruta inicial: Página principal para seleccionar el tipo de examen
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from models import db, User  # Importa db y User desde models.py
@@ -161,26 +161,36 @@ def stripe_webhook():
 
     return '', 200
 
+from flask_login import current_user
+from datetime import datetime, timezone
+
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
     user = User.query.filter_by(email=customer_email).first()
 
     if user:
-        # Imprimir el tipo de suscripción antes de actualizar
+        # Print before updating
         print(f"Tipo de suscripción antes de actualizar: {user.subscription_type}")
         
-        # Recuperamos el tipo de suscripción de la sesión del usuario
         subscription_type = session.get('pending_subscription_type', 'pro')  # 'pro' por defecto
-        
         user.subscription_type = subscription_type
         user.subscription_start = datetime.now(timezone.utc)
         
         db.session.commit()
 
-        # Imprimir el tipo de suscripción después de actualizar
+        # Reload user from the database to ensure we're using the latest data
+        db.session.refresh(user)
+
+        # Print after updating
         print(f"Tipo de suscripción después de actualizar: {user.subscription_type}")
 
-        # Limpiamos la suscripción pendiente de la sesión
+        # Update the current_user object to reflect the changes immediately
+        if current_user.is_authenticated and current_user.id == user.id:
+            current_user.subscription_type = user.subscription_type
+            current_user.subscription_start = user.subscription_start
+            current_user.questions_asked = user.questions_asked
+
+        # Clear pending subscription from session
         session.pop('pending_subscription_type', None)
 
 @app.route('/cancel_subscription', methods=['POST'])

@@ -34,9 +34,9 @@
                 <p class="subscription-details">
                     Your subscription type: 
                     <span class="highlight">
-                        {% if current_user.subscription_type == 'pro' %}
+                        {% if subscription_type == 'pro' %}
                             Professional
-                        {% elif current_user.subscription_type == 'premium' %}
+                        {% elif subscription_type == 'premium' %}
                             Premium
                         {% else %}
                             Free
@@ -45,8 +45,8 @@
                 </p>
                 <p class="subscription-details">
                     Questions done this month: 
-                    <span class="highlight">{{ current_user.questions_asked }}</span>
-                    {% if current_user.subscription_type == 'free' %} / 50{% endif %}
+                    <span class="highlight">{{ questions_asked }}</span>
+                    {% if subscription_type == 'free' %} / 50{% endif %}
                 </p>
             </div>
 
@@ -66,7 +66,7 @@
             </div>
 
             <div class="text-center mt-4">
-                {% if current_user.subscription_type == 'free' %}
+                {% if subscription_type == 'free' %}
                     <a href="{{ url_for('subscribe') }}" class="btn btn-success btn-block">Suscríbete ahora</a>
                 {% else %}
                     <form action="{{ url_for('cancel_subscription') }}" method="post" class="mt-2">
