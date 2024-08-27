@@ -107,11 +107,9 @@ def logout():
 def subscribe():
     if request.method == 'POST':
         subscription_type = request.form['subscription_type']
-        
-        # Reemplaza estos enlaces con los Payment Links reales de Stripe
         payment_links = {
-            'premium': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',
-            'pro': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',
+            'premium': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',  # Enlace para Premium
+            'pro': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',      # Enlace para Pro
         }
 
         if subscription_type not in payment_links:
@@ -121,6 +119,39 @@ def subscribe():
         return redirect(payment_links[subscription_type])
 
     return render_template('subscribe.html')
+
+@app.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError:
+        return 'Invalid payload', 400
+    except stripe.error.SignatureVerificationError:
+        return 'Invalid signature', 400
+
+    if event['type'] == 'checkout.session.completed':
+        handle_checkout_session(event['data']['object'])
+
+    return '', 200
+
+def handle_checkout_session(session):
+    customer_email = session.get('customer_details', {}).get('email')
+    subscription_id = session.get('subscription')
+
+    if subscription_id:
+        subscription = stripe.Subscription.retrieve(subscription_id)
+        subscription_type = session.get('metadata', {}).get('subscription_type', 'basic')
+        user = User.query.filter_by(email=customer_email).first()
+        if user:
+            user.subscription_type = subscription_type
+            user.subscription_start = datetime.datetime.now(datetime.UTC)
+            db.session.commit()
 
 from flask import render_template, redirect, url_for, flash
 from flask_login import current_user, login_required
@@ -314,62 +345,6 @@ def create_checkout_session():
     except Exception as e:
         return jsonify(error=str(e)), 400
 
-@app.route('/webhook', methods=['POST'])
-def stripe_webhook():
-    print("Webhook recibido")  # Añade este log
-    payload = request.get_data(as_text=True)
-    sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'
-    event = None
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
-        print(f"Evento construido: {event['type']}")  # Añade este log
-    except ValueError as e:
-        print(f"Error de valor: {str(e)}")  # Añade este log
-        return '', 400
-    except stripe.error.SignatureVerificationError as e:
-        print(f"Error de verificación de firma: {str(e)}")  # Añade este log
-        return '', 400
-
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        print("Llamando a handle_checkout_session")  # Añade este log
-        handle_checkout_session(session)
-
-    return '', 200
-
-def handle_checkout_session(session):
-    print("Llamando a handle_checkout_session")
-    print("Sesión completa: %s", session)
-
-    user_email = session.get('customer_details', {}).get('email')
-    print("Correo electrónico del usuario: %s", user_email)
-
-    subscription_id = session.get('subscription')
-    print("ID de suscripción: %s", subscription_id)
-
-    if subscription_id:
-        try:
-            subscription = stripe.Subscription.retrieve(subscription_id)
-            subscription_type = subscription['items']['data'][0]['plan']['nickname']
-            print("Tipo de suscripción encontrado: %s", subscription_type)
-
-            user = User.query.filter_by(email=user_email).first()
-            if user:
-                print("Usuario encontrado: %s", user.username)
-                user.subscription_type = subscription_type
-                user.subscription_start = datetime.utcnow()
-                db.session.commit()
-                print("Base de datos actualizada con éxito.")
-            else:
-                print("Usuario no encontrado con el correo electrónico: %s", user_email)
-        except Exception as e:
-            print("Error al recuperar la suscripción: %s", str(e))
-    else:
-        print("No se encontró ID de suscripción en la sesión.")
 
 
 @app.route('/success')
