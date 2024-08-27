@@ -4,6 +4,7 @@ from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract
 from langchain_community.chat_models import ChatDeepInfra
 import os
 import logging
+import datetime
 from models import db, User 
 import stripe
 from elasticsearch import Elasticsearch
@@ -120,6 +121,21 @@ def subscribe():
         return redirect(payment_links[subscription_type])
 
     return render_template('subscribe.html')
+
+from flask import render_template, redirect, url_for, flash
+from flask_login import current_user, login_required
+from datetime import datetime
+
+@app.route('/profile')
+@login_required
+def profile():
+    # Verifica la suscripción actual del usuario
+    subscription_type = current_user.subscription_type
+    subscription_start = current_user.subscription_start
+
+    # Renderiza una plantilla con la información de la suscripción
+    return render_template('profile.html', subscription_type=subscription_type, subscription_start=subscription_start)
+
 
 @app.route('/payment_success')
 @login_required
@@ -298,6 +314,42 @@ def create_checkout_session():
     except Exception as e:
         return jsonify(error=str(e)), 400
 
+@app.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = 'whsec_5Zmcef3wlxH3rzLdTsVIhnFG5twOyVTL'
+    event = None
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        # Invalid payload
+        return '', 400
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        return '', 400
+
+    # Manejar el evento de pago exitoso
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        handle_checkout_session(session)
+
+    return '', 200
+
+def handle_checkout_session(session):
+    # Actualiza la suscripción del usuario en la base de datos
+    user_email = session.get('customer_email')
+    subscription_type = session.get('display_items')[0]['plan']['nickname']
+
+    user = User.query.filter_by(email=user_email).first()
+    if user:
+        user.subscription_type = subscription_type
+        user.subscription_start = datetime.utcnow()
+        db.session.commit()
+
 @app.route('/success')
 def success():
     return "Payment successful!"
@@ -331,10 +383,6 @@ def webhook():
         handle_checkout_session(session)
 
     return '', 200
-
-def handle_checkout_session(session):
-    # Logic to fulfill the purchase or activate the subscription
-    print('Payment was successful!')
 
 @app.route('/charge', methods=['POST'])
 def charge():

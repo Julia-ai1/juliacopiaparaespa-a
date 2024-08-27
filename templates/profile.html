@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Perfil de Usuario</title>
+</head>
+<body>
+    <h1>Perfil de Usuario</h1>
+    <p>Tipo de suscripción actual: {{ subscription_type }}</p>
+    <p>Fecha de inicio de la suscripción: {{ subscription_start.strftime('%Y-%m-%d') }}</p>
+    <a href="{{ url_for('index') }}">Volver al Inicio</a>
+</body>
+</html>
