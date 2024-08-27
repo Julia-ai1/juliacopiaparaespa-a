@@ -67,14 +67,20 @@ def register():
         password = request.form['password']
         subscription_type = request.form['subscription_type']
 
-        new_user = User(username=username, email=email, subscription_type=subscription_type)
+        new_user = User(username=username, email=email, subscription_type='free')
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
 
         login_user(new_user)
-        flash('Te has registrado correctamente', 'success')
-        return redirect(url_for('index'))
+
+        if subscription_type in ['pro', 'premium']:
+            # Redirigir a la página de pago
+            return redirect(url_for('subscribe', plan=subscription_type))
+        else:
+            # Si es 'free', redirigir al índice
+            flash('Te has registrado correctamente', 'success')
+            return redirect(url_for('index'))
 
     return render_template('register.html')
 
@@ -105,20 +111,24 @@ def logout():
 @app.route('/subscribe', methods=['GET', 'POST'])
 @login_required
 def subscribe():
+    plan = request.args.get('plan', 'pro')  # Por defecto, usa 'pro' si no se especifica
+    payment_links = {
+        'premium': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',  # Enlace para Premium
+        'pro': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',      # Enlace para Pro
+    }
+
     if request.method == 'POST':
         subscription_type = request.form['subscription_type']
-        payment_links = {
-            'premium': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',  # Enlace para Premium
-            'pro': 'https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx',      # Enlace para Pro
-        }
-
         if subscription_type not in payment_links:
             flash('Tipo de suscripción inválido', 'danger')
             return redirect(url_for('subscribe'))
 
+        # Almacenamos el tipo de suscripción en la sesión del usuario
+        session['pending_subscription_type'] = subscription_type
+
         return redirect(payment_links[subscription_type])
 
-    return render_template('subscribe.html')
+    return render_template('subscribe.html', selected_plan=plan)
 
 @app.route('/webhook', methods=['POST'])
 def stripe_webhook():
@@ -130,28 +140,31 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret
         )
-    except ValueError:
-        return 'Invalid payload', 400
-    except stripe.error.SignatureVerificationError:
-        return 'Invalid signature', 400
+    except ValueError as e:
+        return '', 400
+    except stripe.error.SignatureVerificationError as e:
+        return '', 400
 
     if event['type'] == 'checkout.session.completed':
-        handle_checkout_session(event['data']['object'])
+        session = event['data']['object']
+        handle_checkout_session(session)
 
     return '', 200
 
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
-    subscription_id = session.get('subscription')
+    user = User.query.filter_by(email=customer_email).first()
 
-    if subscription_id:
-        subscription = stripe.Subscription.retrieve(subscription_id)
-        subscription_type = session.get('metadata', {}).get('subscription_type', 'basic')
-        user = User.query.filter_by(email=customer_email).first()
-        if user:
-            user.subscription_type = subscription_type
-            user.subscription_start = datetime.datetime.now(datetime.UTC)
-            db.session.commit()
+    if user:
+        # Recuperamos el tipo de suscripción de la sesión del usuario
+        subscription_type = session.get('pending_subscription_type', 'pro')  # 'pro' por defecto
+        
+        user.subscription_type = subscription_type
+        user.subscription_start = datetime.datetime.now(datetime.UTC)
+        db.session.commit()
+
+        # Limpiamos la suscripción pendiente de la sesión
+        session.pop('pending_subscription_type', None)
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
