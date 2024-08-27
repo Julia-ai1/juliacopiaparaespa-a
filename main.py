@@ -205,9 +205,18 @@ def handle_checkout_session(session):
 from datetime import datetime, timezone
 import stripe
 
+def log_request(func):
+    def wrapper(*args, **kwargs):
+        print(f"Request method: {request.method}, Path: {request.path}")
+        return func(*args, **kwargs)
+    return wrapper
+
 @app.route('/cancel_subscription', methods=['POST'])
-# @login_required
+@login_required
+@log_request
 def cancel_subscription():
+    print(f"Autenticado: {current_user.is_authenticated}")
+    print(f"Usuario: {current_user.username if current_user.is_authenticated else 'No autenticado'}")
     print("Entrando a cancelar suscripción")  # Verificar que se está entrando en la función
     user = current_user
 
