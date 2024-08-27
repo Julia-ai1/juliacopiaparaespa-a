@@ -206,7 +206,7 @@ from datetime import datetime, timezone
 import stripe
 
 @app.route('/cancel_subscription', methods=['POST'])
-@login_required
+# @login_required
 def cancel_subscription():
     print("Entrando a cancelar suscripción")  # Verificar que se está entrando en la función
     user = current_user
@@ -434,16 +434,6 @@ def create_checkout_session():
         return jsonify(id=checkout_session.id)
     except Exception as e:
         return jsonify(error=str(e)), 400
-
-
-
-@app.route('/success')
-def success():
-    return "Payment successful!"
-
-@app.route('/cancel')
-def cancel():
-    return "Payment canceled!"
 
 
 # Webhook route to handle Stripe events
