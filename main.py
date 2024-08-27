@@ -3,6 +3,7 @@ from exani import generate_questions_exani, check_answer_exani, generate_new_que
 from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract_relevant_context_bac
 from langchain_community.chat_models import ChatDeepInfra
 import os
+from datetime import datetime, timezone
 import logging
 import datetime
 from models import db, User 
@@ -163,7 +164,7 @@ def handle_checkout_session(session):
         subscription_type = session.get('pending_subscription_type', 'pro')  # 'pro' por defecto
         
         user.subscription_type = subscription_type
-        user.subscription_start = datetime.datetime.now(datetime.timezone.utc)
+        user.subscription_start = datetime.now(timezone.utc)
         
         db.session.commit()
 
