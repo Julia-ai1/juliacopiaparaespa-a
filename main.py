@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from exani import generate_questions_exani, check_answer_exani, generate_new_questions_exani
 from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract_relevant_context_bac
 from langchain_community.chat_models import ChatDeepInfra
