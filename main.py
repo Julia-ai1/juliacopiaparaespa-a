@@ -156,12 +156,19 @@ def handle_checkout_session(session):
     user = User.query.filter_by(email=customer_email).first()
 
     if user:
+        # Imprimir el tipo de suscripción antes de actualizar
+        print(f"Tipo de suscripción antes de actualizar: {user.subscription_type}")
+        
         # Recuperamos el tipo de suscripción de la sesión del usuario
         subscription_type = session.get('pending_subscription_type', 'pro')  # 'pro' por defecto
         
         user.subscription_type = subscription_type
-        user.subscription_start = datetime.datetime.now(datetime.UTC)
+        user.subscription_start = datetime.datetime.now(datetime.timezone.utc)
+        
         db.session.commit()
+
+        # Imprimir el tipo de suscripción después de actualizar
+        print(f"Tipo de suscripción después de actualizar: {user.subscription_type}")
 
         # Limpiamos la suscripción pendiente de la sesión
         session.pop('pending_subscription_type', None)
