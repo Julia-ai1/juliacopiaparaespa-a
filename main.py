@@ -316,39 +316,61 @@ def create_checkout_session():
 
 @app.route('/webhook', methods=['POST'])
 def stripe_webhook():
+    print("Webhook recibido")  # Añade este log
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_5Zmcef3wlxH3rzLdTsVIhnFG5twOyVTL'
+    endpoint_secret = 'whsec_1Ggvv6DCyU55YjYbzuUnwKbCCfE0Snlw'
     event = None
 
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret
         )
+        print(f"Evento construido: {event['type']}")  # Añade este log
     except ValueError as e:
-        # Invalid payload
+        print(f"Error de valor: {str(e)}")  # Añade este log
         return '', 400
     except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
+        print(f"Error de verificación de firma: {str(e)}")  # Añade este log
         return '', 400
 
-    # Manejar el evento de pago exitoso
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
+        print("Llamando a handle_checkout_session")  # Añade este log
         handle_checkout_session(session)
 
     return '', 200
 
 def handle_checkout_session(session):
-    # Actualiza la suscripción del usuario en la base de datos
-    user_email = session.get('customer_email')
-    subscription_type = session.get('display_items')[0]['plan']['nickname']
+    print("Llamando a handle_checkout_session")
+    print("Sesión completa: %s", session)
 
-    user = User.query.filter_by(email=user_email).first()
-    if user:
-        user.subscription_type = subscription_type
-        user.subscription_start = datetime.utcnow()
-        db.session.commit()
+    user_email = session.get('customer_details', {}).get('email')
+    print("Correo electrónico del usuario: %s", user_email)
+
+    subscription_id = session.get('subscription')
+    print("ID de suscripción: %s", subscription_id)
+
+    if subscription_id:
+        try:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            subscription_type = subscription['items']['data'][0]['plan']['nickname']
+            print("Tipo de suscripción encontrado: %s", subscription_type)
+
+            user = User.query.filter_by(email=user_email).first()
+            if user:
+                print("Usuario encontrado: %s", user.username)
+                user.subscription_type = subscription_type
+                user.subscription_start = datetime.utcnow()
+                db.session.commit()
+                print("Base de datos actualizada con éxito.")
+            else:
+                print("Usuario no encontrado con el correo electrónico: %s", user_email)
+        except Exception as e:
+            print("Error al recuperar la suscripción: %s", str(e))
+    else:
+        print("No se encontró ID de suscripción en la sesión.")
+
 
 @app.route('/success')
 def success():
@@ -405,5 +427,6 @@ def charge():
 
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
 
