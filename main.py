@@ -20,12 +20,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Cache configuration
 app.config['CACHE_TYPE'] = 'simple'
-db.init_app(app)  # Inicializa db con la aplicación
-migrate = Migrate(app, db)  # Configura Flask-Migrate con tu app y db
+db.init_app(app)
+migrate = Migrate(app, db)
 
 login_manager = LoginManager()
-login_manager.init_app(app)  # Asegúrate de inicializar el LoginManager con la app
-login_manager.login_view = 'login'  # Página de inicio de sesión
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -44,17 +44,13 @@ stripe.api_key = 'sk_test_51Pr14b2K3oWETT3EMYe9NiKElssrbGmCHpxdUefcuaXLRkKyya5ne
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if current_user.is_authenticated:
-        user = User.query.get(current_user.id)
-        subscription_type = user.subscription_type
+        subscription_type = current_user.subscription_type
+        questions_asked = current_user.questions_asked
     else:
         subscription_type = None
+        questions_asked = 0
 
-    if request.method == 'POST':
-        exam_type = request.form.get('exam_type')
-        if exam_type:
-            return redirect('/select_exam')
-
-    return render_template('index.html', subscription_type=subscription_type)
+    return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -68,7 +64,7 @@ def register():
         db.session.commit()
         login_user(new_user)
         print(f"Usuario registrado: {username}, Email: {email}")
-        return redirect(url_for('subscribe'))  # Redirige al proceso de suscripción
+        return redirect(url_for('subscribe'))
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -95,19 +91,16 @@ def login():
 def logout():
     logout_user()
     flash('Has cerrado sesión', 'success')
-    print(f"Usuario {current_user.username} ha cerrado sesión.")
     return redirect(url_for('index'))
 
-@app.route('/subscribe', methods=['GET', 'POST'])
+@app.route('/subscribe')
 @login_required
 def subscribe():
     if current_user.subscription_type == 'paid':
         flash('Ya tienes una suscripción activa.', 'info')
-        print(f"Usuario {current_user.username} ya tiene una suscripción activa.")
-        return redirect(url_for('profile'))
+        return redirect(url_for('index'))
 
     payment_link = "https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx"  # Tu enlace de pago real de Stripe
-    print(f"Usuario {current_user.username} redirigido al enlace de pago.")
     return redirect(payment_link)
 
 @app.route('/webhook', methods=['POST'])
@@ -116,61 +109,42 @@ def stripe_webhook():
     sig_header = request.headers.get('Stripe-Signature')
     endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'
 
-    print("Payload recibido:", payload)
-    print("Cabecera de firma recibida:", sig_header)
-
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-        print(f"Evento de Stripe recibido: {event['type']}")
     except ValueError as e:
-        print(f"Error: Payload inválido - {e}")
         return jsonify({'error': str(e)}), 400
     except stripe.error.SignatureVerificationError as e:
-        print(f"Error de verificación de firma: {e}")
         return jsonify({'error': str(e)}), 400
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        print("Evento checkout.session.completed recibido.")
         handle_checkout_session(session)
     elif event['type'] == 'customer.subscription.deleted':
         subscription = event['data']['object']
-        print("Evento customer.subscription.deleted recibido.")
         handle_subscription_cancellation(subscription)
     
     return '', 200
 
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
-    print(f"Procesando checkout.session.completed para el correo: {customer_email}")
-    
     user = User.query.filter_by(email=customer_email).first()
     if user:
-        user.subscription_type = 'paid'  # Actualizar el tipo de suscripción
+        user.subscription_type = 'paid'
         user.subscription_start = datetime.now(timezone.utc)
-        user.stripe_subscription_id = session.get('subscription')  # Obtener ID de la suscripción
+        user.stripe_subscription_id = session.get('subscription')
         db.session.commit()
-        print(f"Suscripción del usuario {user.username} actualizada exitosamente a 'paid'.")
-    else:
-        print(f"No se encontró usuario con el correo: {customer_email}")
-
 
 def handle_subscription_cancellation(subscription):
     user = User.query.filter_by(stripe_subscription_id=subscription.id).first()
-    print(f"Procesando customer.subscription.deleted para la suscripción ID: {subscription.id}")
     if user:
         user.subscription_type = 'free'
         user.stripe_subscription_id = None
         db.session.commit()
-        print(f"Suscripción del usuario {user.username} cancelada. Cambiado a 'free'.")
-    else:
-        print(f"No se encontró usuario con la suscripción ID: {subscription.id}")
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
 def cancel_subscription():
     user = current_user
-    print(f"Usuario {user.username} intentando cancelar suscripción.")
     if user.stripe_subscription_id:
         try:
             stripe.Subscription.delete(user.stripe_subscription_id)
@@ -178,46 +152,20 @@ def cancel_subscription():
             user.stripe_subscription_id = None
             db.session.commit()
             flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
-            print(f"Suscripción de {user.username} cancelada con éxito.")
         except stripe.error.StripeError as e:
             flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
-            print(f"Error al cancelar suscripción para {user.username}: {e}")
-    return redirect(url_for('profile'))
-
-@app.route('/profile')
-@login_required
-def profile():
-    subscription_type = current_user.subscription_type
-    subscription_start = current_user.subscription_start
-    print(f"Mostrando perfil de usuario {current_user.username}. Tipo de suscripción: {subscription_type}")
-    return render_template('profile.html', subscription_type=subscription_type, subscription_start=subscription_start)
-
-@app.route('/payment_success')
-@login_required
-def payment_success():
-    flash('¡Tu pago ha sido exitoso! Tu suscripción ha sido actualizada.', 'success')
-    print(f"Pago exitoso registrado para {current_user.username}.")
-    return render_template('success.html')
-
-@app.route('/payment_cancel')
-@login_required
-def payment_cancel():
-    flash('Tu pago ha sido cancelado.', 'danger')
-    print(f"Pago cancelado por {current_user.username}.")
-    return render_template('cancel.html')
+    return redirect(url_for('index'))
 
 @app.route('/select_exam', methods=['POST'])
 @login_required
 def select_exam():
     if current_user.subscription_type != 'paid':
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
-        print(f"Acceso denegado a exámenes para usuario {current_user.username} con suscripción {current_user.subscription_type}.")
         return redirect(url_for('index'))
     exam_type = request.form.get('exam_type')
     if not exam_type:
         return "No se ha seleccionado ningún examen", 400
     
-    # Procesar el tipo de examen
     return render_template('speciality.html', exam_type=exam_type)
 
 
