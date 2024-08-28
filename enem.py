@@ -70,8 +70,10 @@ def process_questions(response_text):
                 
                 # Añadir la pregunta y sus opciones a la lista de preguntas
                 questions.append({'question': question_text, 'choices': choices})
-    
+    print("esto es")
+    print(questions)
     return questions
+
 
 
 
