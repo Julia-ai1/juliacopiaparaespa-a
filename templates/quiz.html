@@ -3,12 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SAT test with Chat</title>
+    <title>ENEM Quiz</title>
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- Vue.js -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <style>
+        /* Color styles based on the selected cuaderno */
+        .bg-verde { background-color: #d4edda; }
+        .bg-rosa { background-color: #f8d7da; }
+        .bg-azul { background-color: #d1ecf1; }
+        .bg-amarillo { background-color: #fff3cd; }
         #timer { font-size: 24px; font-weight: bold; color: red; text-align: center; }
         #chat-box { height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background-color: #f8f9fa; }
         #chat-input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px; }
@@ -18,12 +23,12 @@
         .choice-button.active { background-color: #007bff; color: white; }
     </style>
 </head>
-<body>
+<body :class="cuadernoClass">
 <div id="app" class="container mt-5">
     <div class="row">
         <!-- Sección del Cuestionario -->
         <div class="col-md-8">
-            <h1 class="text-center">SAT test</h1>
+            <h1 class="text-center">ENEM Quiz</h1>
             <div id="timer">Tiempo restante: [[ timeRemaining ]]</div>
             <form @submit.prevent="submitQuiz" class="mt-4">
                 <div v-for="(question, index) in questions" :key="index" class="card mb-4">
@@ -81,13 +86,30 @@ new Vue({
         timeLeft: 10 * 60,
         quizResults: [],
         chatInput: '',
-        chatMessages: []
+        chatMessages: [],
+        cuaderno: '{{ cuaderno }}'  // Assumes the selected cuaderno is passed as a variable
     },
     computed: {
         timeRemaining() {
             const minutes = Math.floor(this.timeLeft / 60);
             const seconds = this.timeLeft % 60;
             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        },
+        cuadernoClass() {
+            switch (this.cuaderno) {
+                case 'caderno_biologia.pdf':
+                case 'caderno_fisica.pdf':
+                case 'caderno_quimica.pdf':
+                    return 'bg-verde';
+                case 'caderno_linguagens_e_seus_codigos.pdf':
+                    return 'bg-rosa';
+                case 'caderno_matematicas.pdf':
+                    return 'bg-azul';
+                case 'caderno_ciencias_humanas.pdf':
+                    return 'bg-amarillo';
+                default:
+                    return '';
+            }
         }
     },
     methods: {
