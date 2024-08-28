@@ -98,7 +98,7 @@ def login():
 def logout():
     logout_user()
     flash('Has cerrado sesión', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('app_index'))
 
 @app.route('/subscribe')
 @login_required
@@ -161,14 +161,14 @@ def cancel_subscription():
             flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
         except stripe.error.StripeError as e:
             flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
-    return redirect(url_for('index'))
+    return redirect(url_for('app_index'))
 
 @app.route('/select_exam', methods=['POST'])
 @login_required
 def select_exam():
     if current_user.subscription_type != 'paid':
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
-        return redirect(url_for('index'))
+        return redirect(url_for('app_index'))
     exam_type = request.form.get('exam_type')
     if not exam_type:
         return "No se ha seleccionado ningún examen", 400
