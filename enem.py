@@ -43,23 +43,24 @@ def extract_relevant_context(documents, max_length=500):
                     return '. '.join(relevant_text)[:max_length]
     return '. '.join(relevant_text)[:max_length]
 
+# Definición de la función mejorada para procesar preguntas
 def process_questions(response_text):
     questions = []
 
     # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
-    question_blocks = re.split(r"\n(?=Questão \d+:)", response_text.strip())
+    question_blocks = re.split(r"\n(?=Questão \d+)", response_text.strip())
 
     for block in question_blocks:
         # Buscar y extraer el texto de la pregunta que comienza con "Questão"
-        question_match = re.search(r"(Questão \d+: .+?)(?=\n[A-E]\)|$)", block, re.DOTALL)
+        question_match = re.search(r"(Questão \d+.+?)(?=\n[A-J][\).]|$)", block, re.DOTALL)
         if question_match:
             question_text = question_match.group(1).strip()
         else:
             # Si no se encuentra "Questão", usar el texto antes de las opciones
-            question_text = re.split(r"\n[A-E]\)", block)[0].strip()
+            question_text = re.split(r"\n[A-J][\).]", block)[0].strip()
 
-        # Buscar las opciones en el formato específico
-        options = re.findall(r"\n([A-E])\) (.+?)(?=\n[A-E]\)|\n*$)", block, re.DOTALL)
+        # Buscar las opciones en el formato específico, cubriendo tanto letras con paréntesis como con punto
+        options = re.findall(r"\n([A-J][\).])\s*(.+?)(?=\n[A-J][\).]|\n*$)", block, re.DOTALL)
 
         if options:
             # Asegurarse de que cada opción esté limpia y bien formateada
