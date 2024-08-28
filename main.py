@@ -229,8 +229,8 @@ def generate_exam():
     elif exam_type == "enem":
         cuaderno_seleccionado = request.form['cuaderno']
         es = Elasticsearch(
-            cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2Nwb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
-            basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM")
+            cloud_id="1b04b13a745c44b8931831059d0e3c9c:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJDg2M2UyNjljODc0NDQxMjM5OTZhMmE3MDVkYWFmMzkwJDY0MzY1OTA5NzQzYzQyZDJiNTRmZWE1MjI3ZTZmYTc2",
+            basic_auth=("elastic", "RV6INIvwks0S1aMR4bSFvLS0")
         )
         relevant_docs = retrieve_documents(es, "general_texts_enempdfs", 20, cuaderno_seleccionado)
         context = extract_relevant_context(relevant_docs)
