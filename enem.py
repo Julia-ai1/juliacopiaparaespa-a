@@ -147,6 +147,7 @@ from langchain.schema import HumanMessage, SystemMessage
 def check_answer(question, user_answer, chat):
     try:
         # Preparar el contenido de la pregunta y las opciones
+        print("hola")
         question_text = question["question"]
         options = "\n".join([f"{chr(65 + i)}. {choice}" for i, choice in enumerate(question["choices"])])
         
