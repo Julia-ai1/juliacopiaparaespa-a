@@ -43,34 +43,52 @@ def extract_relevant_context(documents, max_length=500):
                     return '. '.join(relevant_text)[:max_length]
     return '. '.join(relevant_text)[:max_length]
 
+import re
+
 def process_questions(response_text):
     questions = []
-    question_blocks = re.split(r"Questão \d+:", response_text)  # Cambiado "Pregunta" por "Questão"
-
-    for block in question_blocks[1:]:
-        block = block.strip()
-        lines = block.split('\n')
-        question_text = ''
-        options = []
-        capture_options = False
-        for line in lines:
-            line = line.strip()
-            if re.match(r"^[A-C1-3]\)", line) or re.match(r"^[A-C1-3]\.", line):
-                options.append(line)
-                capture_options = True
-            elif capture_options and re.match(r"^\d+\.", line):
-                options.append(line)
-            else:
-                if capture_options:
-                    continue
-                question_text += ' ' + line
-
-        question_text = question_text.strip()
-        choices = [re.sub(r"^[A-C1-3][)\.\s]*", '', option).strip() for option in options]
-
-        if question_text and choices:
-            questions.append({'question': question_text, 'choices': choices})
-
+    
+    # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
+    question_blocks = re.split(r"(?=\*\*Questão \d+\*\*)", response_text.strip())
+    
+    for block in question_blocks:
+        if not block.strip():
+            continue
+        
+        # Extraer el número de la pregunta y el texto
+        question_match = re.match(r"\*\*Questão (\d+)\*\*\s*(.+?)(?=\n[A-J]\.|\Z)", block, re.DOTALL)
+        
+        if question_match:
+            question_number = question_match.group(1)
+            question_text = question_match.group(2).strip()
+            
+            # Buscar las opciones en el formato específico
+            options = re.findall(r"([A-J])\.\s*(.+?)(?=\n[A-J]\.|\Z)", block, re.DOTALL)
+            
+            if options:
+                # Asegurarse de que cada opción esté limpia y bien formateada
+                choices = [option[1].strip() for option in options]
+                
+                # Procesar las opciones para soportar LaTeX y texto normal
+                formatted_choices = []
+                for choice in choices:
+                    # Convertir posibles entidades HTML a caracteres correspondientes
+                    choice = re.sub(r'&lt;', '<', choice)
+                    choice = re.sub(r'&gt;', '>', choice)
+                    choice = re.sub(r'&amp;', '&', choice)
+                    choice = re.sub(r'&quot;', '"', choice)
+                    choice = re.sub(r'&#39;', "'", choice)
+                    
+                    # Manejar posibles formatos LaTeX
+                    choice = re.sub(r'\\\$', '$', choice)  # Quitar escapes de $
+                    formatted_choices.append(choice)
+                
+                questions.append({
+                    'question_number': question_number,
+                    'question': question_text,
+                    'choices': formatted_choices
+                })
+    
     return questions
 
 
