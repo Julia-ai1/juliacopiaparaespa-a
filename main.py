@@ -290,19 +290,28 @@ def check():
             })
             continue
 
-        if 'enem' in question.get('metadata', {}).get('source', ''):
-            correctness, explanation = check_answer(question, user_answer, chat)
-        else:
-            correctness, explanation = check_answer_exani(question, user_answer, chat)
-        
-        print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
+        try:
+            if 'enem' in question.get('metadata', {}).get('source', ''):
+                correctness, explanation = check_answer(question, user_answer, chat)
+            else:
+                correctness, explanation = check_answer_exani(question, user_answer, chat)
+            
+            print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
 
-        results.append({
-            'question': question,
-            'selected_option': user_answer,
-            'correct': correctness,
-            'explanation': explanation
-        })
+            results.append({
+                'question': question,
+                'selected_option': user_answer,
+                'correct': correctness,
+                'explanation': explanation
+            })
+        except Exception as e:
+            print(f"Error al procesar {question_name}: {str(e)}")
+            results.append({
+                'question': question,
+                'selected_option': user_answer,
+                'correct': "error",
+                'explanation': f"Error al procesar la respuesta: {str(e)}"
+            })
 
     return jsonify(results)
 
