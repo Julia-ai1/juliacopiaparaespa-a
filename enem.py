@@ -46,32 +46,34 @@ def extract_relevant_context(documents, max_length=500):
 import re
 
 def process_questions(response_text):
+    import re
     questions = []
-    
-    # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
+
+    # Dividir el texto en bloques de preguntas usando un patrón más robusto
     question_blocks = re.split(r"(?=\*\*Questão \d+\*\*)", response_text.strip())
-    
+
     for block in question_blocks:
         if not block.strip():
             continue
-        
-        # Extraer el texto de la pregunta
-        question_match = re.match(r"\*\*Questão \d+\*\*\s*(.*?)(?=\n[A-E]\)|\Z)", block, re.DOTALL)
-        
+
+        # Extraer el texto de la pregunta con más flexibilidad en el patrón
+        question_match = re.search(r"\*\*Questão \d+\*\*\s*(.*?)(?=(\n[A-E]\)|\Z))", block, re.DOTALL)
+
         if question_match:
             question_text = question_match.group(1).strip()
-            
-            # Buscar las opciones en el formato específico
-            options = re.findall(r"([A-E])\)\s*(.+?)(?=\n[A-E]\)|\Z)", block, re.DOTALL)
-            
+
+            # Buscar las opciones, asegurando que detecta el final de cada opción correctamente
+            options = re.findall(r"([A-E])\)\s*(.+?)(?=(\n[A-E]\)|\Z))", block, re.DOTALL)
+
             if options:
                 # Crear una lista con las opciones
                 choices = [option[1].strip() for option in options]
-                
+
                 # Añadir la pregunta y sus opciones a la lista de preguntas
                 questions.append({'question': question_text, 'choices': choices})
-    
+
     return questions
+
 
 
 
@@ -81,7 +83,7 @@ def count_words(text):
 
 def generate_questions(chat, pdf_content, num_questions):
     escaped_pdf_content = pdf_content.replace("{", "{{").replace("}", "}}")
-    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato, empezando estrictamente así:
+    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato:
 
 Questão 95: No programa do balé Parade, apresentado em 18 de maio de 1917, foi empregada publicamente, pela primeira vez, a palavra sur-realisme. Pablo Picasso desenhou o cenário e a indumentária, cujo efeito foi tão surpreendente que se sobrepôs à coreografia. A música de Erik Satie era uma mistura de jazz, música popular e sons reais tais como tiros de pistola, combinados com as imagens do balé de Charlie Chaplin, caubóis e vilões, mágica chinesa e Ragtime... da cena muitas vezes demonstram as condições cotidianas de um determinado grupo social, como se pode observar na descrição acima do balé Parade, o qual reflete
 A) a falta de diversidade cultural na sua proposta estética.
