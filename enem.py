@@ -46,34 +46,32 @@ def extract_relevant_context(documents, max_length=500):
 import re
 
 def process_questions(response_text):
-    import re
     questions = []
-
-    # Dividir el texto en bloques de preguntas usando un patrón más robusto
-    question_blocks = re.split(r"(?=\*\*Questão \d+\*\*)", response_text.strip())
-
+    
+    # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
+    question_blocks = re.split(r"(?=Questão \d+)", response_text.strip())
+    
     for block in question_blocks:
         if not block.strip():
             continue
-
-        # Extraer el texto de la pregunta con más flexibilidad en el patrón
-        question_match = re.search(r"\*\*Questão \d+\*\*\s*(.*?)(?=(\n[A-E]\)|\Z))", block, re.DOTALL)
-
+        
+        # Extraer el texto de la pregunta
+        question_match = re.search(r"Questão \d+\s*(.*?)(?=\n[A-E]\)|\Z)", block, re.DOTALL)
+        
         if question_match:
             question_text = question_match.group(1).strip()
-
-            # Buscar las opciones, asegurando que detecta el final de cada opción correctamente
-            options = re.findall(r"([A-E])\)\s*(.+?)(?=(\n[A-E]\)|\Z))", block, re.DOTALL)
-
+            
+            # Buscar las opciones en el formato específico
+            options = re.findall(r"([A-E])\)\s*(.+?)(?=\n[A-E]\)|\Z)", block, re.DOTALL)
+            
             if options:
                 # Crear una lista con las opciones
                 choices = [option[1].strip() for option in options]
-
+                
                 # Añadir la pregunta y sus opciones a la lista de preguntas
                 questions.append({'question': question_text, 'choices': choices})
-
+    
     return questions
-
 
 
 
