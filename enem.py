@@ -89,7 +89,7 @@ def count_words(text):
 
 def generate_questions(chat, pdf_content, num_questions):
     escaped_pdf_content = pdf_content.replace("{", "{{").replace("}", "}}")
-    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato:
+    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato, empezando estrictamente así:
 
 Questão 95: No programa do balé Parade, apresentado em 18 de maio de 1917, foi empregada publicamente, pela primeira vez, a palavra sur-realisme. Pablo Picasso desenhou o cenário e a indumentária, cujo efeito foi tão surpreendente que se sobrepôs à coreografia. A música de Erik Satie era uma mistura de jazz, música popular e sons reais tais como tiros de pistola, combinados com as imagens do balé de Charlie Chaplin, caubóis e vilões, mágica chinesa e Ragtime... da cena muitas vezes demonstram as condições cotidianas de um determinado grupo social, como se pode observar na descrição acima do balé Parade, o qual reflete
 A) a falta de diversidade cultural na sua proposta estética.
@@ -132,8 +132,8 @@ def check_answer(question, user_answer, chat):
         question_text = question["question"]
         options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(question["choices"]))
 
-        prompt_text = f"""Pregunta: {question_text}\n
-        Opciones:
+        prompt_text = f"""Pergunta: {question_text}\n
+        Opções:
         {options}"""
 
         prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", prompt_text)])
@@ -145,17 +145,30 @@ def check_answer(question, user_answer, chat):
         if match:
             correct_answer = match.group(1).upper()
         else:
-            raise ValueError("No se pudo determinar la respuesta correcta a partir del modelo.")
+            raise ValueError("Não foi possível determinar a resposta correta a partir do modelo.")
 
-        # Comparar la respuesta del usuario con la respuesta correcta
-        if user_answer == correct_answer:
-            return "correct", "Sim, a resposta está correta."
+        # Segundo prompt para obter a explicação da resposta
+        system_explanation = "Você é um assistente que fornece uma explicação detalhada de por que uma resposta está correta ou incorreta."
+
+        human_explanation = f'Pergunta: {question_text}\nResposta correta: {correct_answer}'
+
+        prompt_explanation = ChatPromptTemplate.from_messages(
+            [("system", system_explanation), ("human", human_explanation)]
+        )
+
+        response_explanation = prompt_explanation | chat
+        explanation = response_explanation.invoke({}).content.strip()
+
+        # Comparar a resposta do usuário com a resposta correta
+        if user_answer.lower() in correct_answer.lower():
+            return "correct", f"Sim, a resposta está correta. A resposta correta é '{correct_answer}'.\nExplicação: {explanation}"
         else:
-            return "incorrect", f"Não, a resposta correta é {correct_answer}. {response_text.strip()}"
+            return "incorrect", f"Não, a resposta está incorreta. A resposta correta é '{correct_answer}', não '{user_answer}'.\nExplicação: {explanation}"
 
     except Exception as e:
-        logging.error(f"Error en check_answer: {e}")
-        return "error", f"Error al evaluar la respuesta: {e}"
+        logging.error(f"Erro em check_answer: {e}")
+        return "error", f"Erro ao avaliar a resposta: {e}"
+
 
 def retrieve_documents(es, index_name, num_docs=20, cuaderno_seleccionado=None):
     search_query = {
