@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Julia.ai - Seu Assistente de Preparação para Exames</title>
+    <title>Julia.ai - Seu Assistente de Preparação para o ENEM</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -16,42 +16,65 @@
     <div class="container mx-auto px-4 py-8">
         <header class="text-center mb-12">
             <h1 class="text-4xl font-bold text-indigo-800 mb-2">Bem-vindo ao Julia.ai</h1>
-            <p class="text-xl text-gray-600">Seu assistente inteligente para preparação de exames</p>
+            <p class="text-xl text-gray-600">Seu assistente inteligente para preparação do ENEM</p>
         </header>
         
         <div class="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
-            <div class="text-center mb-8">
-                <h2 class="text-2xl font-semibold text-indigo-700 mb-2">Olá, <span class="text-pink-600">cadamar123</span>!</h2>
-                <div class="flex justify-center items-center space-x-4 mb-4">
-                    <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full">
-                        Assinatura Ativa
-                    </div>
-                    <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full">
-                        131 Perguntas Este Mês
+            {% if current_user.is_authenticated %}
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-semibold text-indigo-700 mb-2">Olá, <span class="text-pink-600">{{ current_user.username }}</span>!</h2>
+                    <div class="flex justify-center items-center space-x-4 mb-4">
+                        <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full">
+                            {% if subscription_type == 'paid' %}
+                                Assinatura Ativa
+                            {% else %}
+                                Assinatura Gratuita
+                            {% endif %}
+                        </div>
+                        <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full">
+                            {{ questions_asked }} Perguntas Este Mês
+                            {% if subscription_type == 'free' %} / 50{% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="mb-8">
-                <h3 class="text-xl font-semibold text-gray-800 mb-4">Selecione o tipo de exame</h3>
-                <select id="exam_type" name="exam_type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="" disabled selected>Escolha um exame</option>
-                    <option value="exani_ii">EXANI II</option>
-                    <option value="enem">ENEM</option>
-                </select>
-            </div>
-            
-            <button class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 mb-4">
-                Iniciar Preparação
-            </button>
-            
-            <button class="w-full bg-yellow-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-yellow-600 transition duration-300 mb-4">
-                Cancelar Assinatura
-            </button>
-            
-            <a href="#" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
-                Sair da Conta
-            </a>
+
+                {% if subscription_type == 'paid' %}
+                    <form method="POST" action="{{ url_for('select_exam') }}" class="mb-8">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Preparação para o ENEM</h3>
+                        <input type="hidden" name="exam_type" value="enem">
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300">
+                            Iniciar Preparação para o ENEM
+                        </button>
+                    </form>
+                    
+                    <form action="{{ url_for('cancel_subscription') }}" method="post" class="mb-4">
+                        <button type="submit" class="w-full bg-yellow-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-yellow-600 transition duration-300">
+                            Cancelar Assinatura
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="text-center mb-8">
+                        <p class="mb-4">Para acessar a preparação do ENEM, você precisa de uma assinatura ativa.</p>
+                        <a href="{{ url_for('subscribe') }}" class="block w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300">
+                            Assine agora por $3/mês
+                        </a>
+                    </div>
+                {% endif %}
+
+                <a href="{{ url_for('logout') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
+                    Sair da Conta
+                </a>
+            {% else %}
+                <div class="text-center">
+                    <p class="mb-4">Você não está conectado.</p>
+                    <a href="{{ url_for('login') }}" class="block w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 mb-4">
+                        Entrar
+                    </a>
+                    <a href="{{ url_for('register') }}" class="block w-full bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-600 transition duration-300">
+                        Registrar
+                    </a>
+                </div>
+            {% endif %}
         </div>
     </div>
 </body>
