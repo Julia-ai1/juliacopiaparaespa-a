@@ -85,33 +85,41 @@ import re
 
 import re
 
+import re
+
 def generate_questions(chat, pdf_content, num_questions):
     # Escapar llaves y caracteres especiales de LaTeX para evitar interpretaciones erróneas
     escaped_pdf_content = pdf_content.replace("{", "{{").replace("}", "}}")
     escaped_pdf_content = escaped_pdf_content.replace("\\", "\\\\")  # Escapar backslashes para LaTeX
 
-    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Pon solo las preguntas y respuestas, NO HAGAS comentarios, NO PONGAS la respuesta correcta en las opciones. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato:
+    # Uso de triple comillas y placeholders para evitar conflictos
+    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. 
+    En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`. 
+    Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto: {{pdf_content}}. 
+    Pon solo las preguntas y respuestas, NO HAGAS comentarios, NO PONGAS la respuesta correcta en las opciones. 
+    Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato:
 
-Questão 95: No programa do balé Parade, apresentado em...
-A) a falta de diversidade cultural na sua proposta estética.
-B) a alienação dos artistas em relação às tensões da Segunda Guerra Mundial.
-C) uma disputa cênica entre as linguagens das artes visuais, do figurino e da música.
-D) as inovações tecnológicas nas partes cênicas, musicais, coreográficas e de figurino.
-E) uma narrativa com encadeamentos claramente lógicos e lineares.
+    Questão 95: No programa do balé Parade, apresentado em...
+    A) a falta de diversidade cultural na sua proposta estética.
+    B) a alienação dos artistas em relação às tensões da Segunda Guerra Mundial.
+    C) uma disputa cênica entre as linguagens das artes visuais, do figurino e da música.
+    D) as inovações tecnológicas nas partes cênicas, musicais, coreográficas e de figurino.
+    E) uma narrativa com encadeamentos claramente lógicos e lineares.
 
-Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente contexto en cada enunciado."""
+    Por favor, genera {{num_questions}} preguntas, asegurándote de incluir suficiente contexto en cada enunciado."""
     
-    human_text = f"Genera preguntas con la estructura descrita a partir del contenido del PDF:\n{escaped_pdf_content}. Asegúrate de que cada pregunta incluya el contexto relevante como las definiciones de matrices y otros elementos importantes. Si el contenido no es suficiente, usa tu conocimiento general para generar preguntas coherentes."
+    human_text = "Genera preguntas con la estructura descrita a partir del contenido del PDF:"
     
-    input_text = system_text + human_text
+    input_text = system_text + "\n" + human_text
     input_word_count = count_words(input_text)
     print(f"Number of words in the input: {input_word_count}")
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_text),
-        ("human", human_text)
+        ("human", human_text + "\n" + escaped_pdf_content)
     ])
     
+    # Pasar los datos como parte de las variables de la plantilla para evitar conflictos
     prompt_input = {
         "pdf_content": escaped_pdf_content,
         "num_questions": num_questions,
@@ -126,6 +134,9 @@ Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente
     return questions
 
 
+
+import re
+from langchain.prompts import ChatPromptTemplate
 
 def check_answer(question, user_answer, chat):
     # Escapar las llaves y caracteres especiales de LaTeX para evitar que se interpreten como placeholders
@@ -179,6 +190,7 @@ def check_answer(question, user_answer, chat):
     except Exception as e:
         logging.error(f"Erro em check_answer: {e}")
         return "error", f"Erro ao avaliar a resposta: {e}"
+
 
 
 
