@@ -197,52 +197,50 @@ def generate_exam():
     exam_type = request.form['exam_type']
     num_items = int(request.form['num_items'])
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
-    results = []
 
-    if exam_type == "enem":
-        cuaderno_seleccionado = request.form['cuaderno']
-        es = Elasticsearch(
-    cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2Nwb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
-    basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM")
-)
-        relevant_docs = retrieve_documents(es, "general_texts_enempdfs", 20, cuaderno_seleccionado)
-        context = extract_relevant_context(relevant_docs)
-
-        reintentos = 0
-        max_reintentos = 5  # Límite máximo de reintentos
-        questions_generated = 0
-        
-        while questions_generated < num_items and reintentos < max_reintentos:
-            try:
-                # Genera preguntas usando la función existente
-                questions = generate_questions(chat, context, num_items - questions_generated)
-                
-                # Validar preguntas generadas
-                valid_questions = [q for q in questions if validate_question(q)]
-                
-                # Agregar preguntas válidas a los resultados
-                results.extend(valid_questions)
-                questions_generated = len(results)
-                
-                print(f"Preguntas válidas generadas hasta ahora: {questions_generated} de {num_items}")
-
-                # Si no se alcanzó el número requerido de preguntas, incrementar reintentos
-                if questions_generated < num_items:
-                    print(f"No se generaron suficientes preguntas válidas. Reintento {reintentos + 1}...")
-                    reintentos += 1
-
-            except Exception as e:
-                print(f"Error al generar preguntas: {str(e)}")
-                reintentos += 1
-
-        if questions_generated < num_items:
-            print(f"Advertencia: No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
+    if exam_type == "exani_ii":
+        segmento = request.form['segmento']
+        asignatura = request.form['asignatura']
+        questions = generate_questions_exani(chat, num_items, segmento, asignatura)
 
         # Incrementa el contador de preguntas para el usuario actual
         current_user.increment_questions()
         db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
 
-        return render_template('quiz.html', questions=results)
+        return render_template('quiz.html', questions=questions)
+
+    elif exam_type == "baccalaureat":
+        speciality = request.form['speciality']
+        es = Elasticsearch(
+            cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2Nwb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
+            basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM")
+        )
+        relevant_docs = retrieve_documents_bac(es, "general_texts", 20, speciality)
+        context = extract_relevant_context_bac(relevant_docs)
+        solutions = generate_solutions_bac(chat, context, num_items)
+        solutions_as_items = [{'question': solution, 'choices': None} for solution in solutions.split('\n\n')]
+
+        # Incrementa el contador de preguntas para el usuario actual
+        current_user.increment_questions()
+        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
+
+        return render_template('solutions.html', solutions=solutions_as_items)
+
+    elif exam_type == "enem":
+        cuaderno_seleccionado = request.form['cuaderno']
+        es = Elasticsearch(
+            cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2Nwb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
+            basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM")
+        )
+        relevant_docs = retrieve_documents(es, "general_texts_enempdfs", 20, cuaderno_seleccionado)
+        context = extract_relevant_context(relevant_docs)
+        questions = generate_questions(chat, context, num_items)
+
+        # Incrementa el contador de preguntas para el usuario actual
+        current_user.increment_questions()
+        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
+
+        return render_template('quiz.html', questions=questions)
 
 # Función para validar preguntas
 def validate_question(question):
