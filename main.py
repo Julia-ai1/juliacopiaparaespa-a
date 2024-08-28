@@ -12,6 +12,7 @@ from models import db, User
 import stripe
 from elasticsearch import Elasticsearch
 from flask_caching import Cache
+from langchain.prompts import ChatPromptTemplate
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
