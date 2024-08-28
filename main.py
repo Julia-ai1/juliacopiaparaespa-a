@@ -255,10 +255,6 @@ def chat():
     return jsonify({"response": response_text})
 
 
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
@@ -267,7 +263,7 @@ def check():
     if not data:
         print("Error: No se recibieron datos.")
         return jsonify({"error": "No se recibieron datos"}), 400
-
+    
     questions = data.get('questions')
     user_answers = data.get('answers')
 
@@ -284,7 +280,7 @@ def check():
         user_answer = user_answers.get(question_name)
         
         print(f"Procesando {question_name}: respuesta seleccionada = {user_answer}")  # Imprimir respuesta seleccionada
-
+        
         if not user_answer:
             print(f"{question_name} sin respuesta seleccionada.")
             results.append({
@@ -296,7 +292,7 @@ def check():
             continue
 
         try:
-            # Siempre usar check_answer para verificar la respuesta
+            # Usar siempre check_answer para verificar la respuesta
             correctness, explanation = check_answer(question, user_answer, chat)
             
             print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
@@ -317,9 +313,6 @@ def check():
             })
 
     return jsonify(results)
-
-
-# Aquí irían las definiciones de check_answer y check_answer_exani
 
 
 @app.route('/checkout')
