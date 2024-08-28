@@ -8,6 +8,8 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- Vue.js -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         /* Color styles based on the selected cuaderno */
         .bg-verde { background-color: #d4edda; }
@@ -33,7 +35,7 @@
             <form @submit.prevent="submitQuiz" class="mt-4">
                 <div v-for="(question, index) in questions" :key="index" class="card mb-4">
                     <div class="card-body">
-                        <p><strong>[[ index + 1 ]].</strong> [[ question.question ]]</p>
+                        <p><strong>[[ index + 1 ]].</strong> <span v-html="question.question"></span></p>
                         <div class="form-group">
                             <button v-for="(choice, choiceIndex) in question.choices" 
                                     :key="choiceIndex"
@@ -41,7 +43,7 @@
                                     class="btn btn-outline-primary choice-button"
                                     :class="{ active: selectedAnswers[`question_${index + 1}`] === choice }"
                                     @click="selectAnswer(index + 1, choice)">
-                                [[ choice ]]
+                                <span v-html="choice"></span>
                             </button>
                         </div>
                     </div>
@@ -52,10 +54,10 @@
             <div id="results" class="mt-4">
                 <div v-for="(result, index) in quizResults" :key="index" 
                      :class="['alert', result.correct === 'correct' ? 'alert-success' : 'alert-danger']">
-                    <strong>Pregunta [[ index + 1 ]]:</strong> [[ result.question.question ]]
-                    <p>Tu respuesta: [[ result.selected_option ]]</p>
+                    <strong>Pregunta [[ index + 1 ]]:</strong> <span v-html="result.question.question"></span>
+                    <p>Tu respuesta: <span v-html="result.selected_option"></span></p>
                     <p>[[ result.correct === 'correct' ? '¡Correcto!' : 'Incorrecto' ]]</p>
-                    <p>Explicación: [[ result.explanation ]]</p>
+                    <p>Explicación: <span v-html="result.explanation"></span></p>
                 </div>
             </div>
         </div>
@@ -129,6 +131,7 @@ new Vue({
             .then(response => response.json())
             .then(data => {
                 this.quizResults = data;
+                this.updateMathJax(); // Asegura que MathJax procese el resultado
             });
         },
         sendChatMessage() {
@@ -159,17 +162,23 @@ new Vue({
                     this.submitQuiz();
                 }
             }, 1000);
+        },
+        updateMathJax() {
+            // Llamada a MathJax para procesar el contenido actualizado
+            MathJax.typesetPromise();
         }
     },
     mounted() {
         this.startTimer();
+    },
+    updated() {
+        // Actualiza MathJax cada vez que el DOM se actualice
+        this.updateMathJax();
     }
 });
 </script>
 </body>
 </html>
-
-
 
 
 
