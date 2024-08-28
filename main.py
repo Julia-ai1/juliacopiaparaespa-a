@@ -4,6 +4,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from exani import generate_questions_exani, check_answer_exani, generate_new_questions_exani
 from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract_relevant_context_bac
+from enem import generate_questions, check_answer, retrieve_documents, extract_relevant_context
 from langchain_community.chat_models import ChatDeepInfra
 import os
 from datetime import datetime, timezone
@@ -174,7 +175,6 @@ def select_exam():
     
     return render_template('speciality.html', exam_type=exam_type)
 
-
 def format_solutions(solutions_text):
     solutions_raw = solutions_text.split("\n\n")
     formatted_solutions = []
@@ -196,7 +196,7 @@ def format_solutions(solutions_text):
 def generate_exam():
     exam_type = request.form['exam_type']
     num_items = int(request.form['num_items'])
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3-8B-Instruct", max_tokens=4000)
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
 
     if exam_type == "exani_ii":
         segmento = request.form['segmento']
@@ -225,14 +225,25 @@ def generate_exam():
 
         return render_template('solutions.html', solutions=solutions_as_items)
 
+    elif exam_type == "enem":
+        cuaderno_seleccionado = request.form['cuaderno']
+        es = Elasticsearch(
+            cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
+            basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM"))
+        relevant_docs = retrieve_documents(es, "general_texts_enempdfs", 20, cuaderno_seleccionado)
+        context = extract_relevant_context(relevant_docs)
+        questions = generate_questions(chat, context, num_items)
 
+        # Incrementa el contador de preguntas para el usuario actual
+        current_user.increment_questions()
+        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
 
+        return render_template('quiz.html', questions=questions)
 
-# Ruta para manejar las solicitudes del chat
 @app.route('/chat', methods=['POST'])
 def chat():
     user_message = request.json['message']
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3-8B-Instruct", max_tokens=4000)
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen."
     human_text = user_message
     prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
@@ -260,7 +271,7 @@ def check():
         print("Error: Faltan preguntas o respuestas.")
         return jsonify({"error": "Faltan preguntas o respuestas"}), 400
 
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3-8B-Instruct", max_tokens=4000)
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     results = []
 
     for i, question in enumerate(questions):
@@ -279,7 +290,11 @@ def check():
             })
             continue
 
-        correctness, explanation = check_answer_exani(question, user_answer, chat)
+        if 'enem' in question.get('metadata', {}).get('source', ''):
+            correctness, explanation = check_answer(question, user_answer, chat)
+        else:
+            correctness, explanation = check_answer_exani(question, user_answer, chat)
+        
         print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
 
         results.append({
@@ -291,16 +306,9 @@ def check():
 
     return jsonify(results)
 
-
-
-# @app.route('/')
-# def index():
-#   return render_template('index.html')
-
 @app.route('/checkout')
 def checkout():
     return render_template('checkout.html')
-
 
 @app.route('/payment')
 def payment():
@@ -364,7 +372,6 @@ def webhook():
 
     return '', 200
 
-
 @app.route('/charge', methods=['POST'])
 def charge():
     # `stripeToken` is obtained from the form submission
@@ -383,9 +390,8 @@ def charge():
         # Handle error
         return str(e)
 
-
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 

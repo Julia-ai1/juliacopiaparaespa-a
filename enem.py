@@ -1,0 +1,201 @@
+from flask import render_template, request, jsonify
+import os
+import re
+import random
+import logging
+from elasticsearch import Elasticsearch
+from langchain.prompts import ChatPromptTemplate
+from langchain_community.chat_models import ChatDeepInfra
+
+# Configuración de logging
+logging.basicConfig(level=logging.INFO)
+
+# Configurar el índice en Elasticsearch
+INDEX_NAME = "general_texts_enempdfs"
+
+# Token de API
+os.environ["DEEPINFRA_API_TOKEN"] = "gtnKXw1ytDsD7DmCSsv2vwdXSW7IBJ5H"
+
+def extract_relevant_context(documents, max_length=500):
+    intro_end_patterns = [
+        r"Ejercicio [\d]+",  # Captura los títulos de los ejercicios
+        r"instrucciones:",
+        r"resolver los siguientes problemas:",
+        r"resolver CUATRO de los ocho ejercicios",
+        r"cada ejercicio completo puntuará"
+    ]
+    intro_end_regex = '|'.join(intro_end_patterns)
+    keywords = ["calcular", "determinar", "resolver", "analizar", "discutir", "si"]
+    question_patterns = [r"\b\d+\)", r"\b\d+\.", r"\b\d+\-\)"]
+
+    relevant_text = []
+    for doc in documents:
+        content = doc['page_content']
+        intro_end_match = re.search(intro_end_regex, content)
+        if intro_end_match:
+            content = content[intro_end_match.start():]  # Incluir desde el inicio del ejercicio
+
+        sentences = content.split('.')
+        for sentence in sentences:
+            if any(keyword in sentence.lower() for keyword in keywords) or any(re.search(pattern, sentence) for pattern in question_patterns):
+                relevant_text.append(sentence.strip())
+                if len('. '.join(relevant_text)) >= max_length:
+                    return '. '.join(relevant_text)[:max_length]
+    return '. '.join(relevant_text)[:max_length]
+
+def process_questions(response_text):
+    questions = []
+
+    # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
+    question_blocks = re.split(r"\n(?=Questão \d+:)", response_text.strip())
+
+    for block in question_blocks:
+        # Buscar y extraer el texto de la pregunta que comienza con "Questão"
+        question_match = re.search(r"(Questão \d+: .+?)(?=\n[A-E]\)|$)", block, re.DOTALL)
+        if question_match:
+            question_text = question_match.group(1).strip()
+        else:
+            # Si no se encuentra "Questão", usar el texto antes de las opciones
+            question_text = re.split(r"\n[A-E]\)", block)[0].strip()
+
+        # Buscar las opciones en el formato específico
+        options = re.findall(r"\n([A-E])\) (.+?)(?=\n[A-E]\)|\n*$)", block, re.DOTALL)
+
+        if options:
+            # Asegurarse de que cada opción esté limpia y bien formateada
+            choices = [option[1].strip() for option in options]
+
+            # Procesar las opciones para soportar LaTeX y texto normal
+            formatted_choices = []
+            for choice in choices:
+                # Convertir posibles entidades HTML a caracteres correspondientes
+                choice = re.sub(r'&lt;', '<', choice)
+                choice = re.sub(r'&gt;', '>', choice)
+                choice = re.sub(r'&amp;', '&', choice)
+                choice = re.sub(r'&quot;', '"', choice)
+                choice = re.sub(r'&#39;', "'", choice)
+
+                # Manejar posibles formatos LaTeX
+                choice = re.sub(r'\\\$', '$', choice)  # Quitar escapes de $
+                formatted_choices.append(choice)
+
+            questions.append({'question': question_text, 'choices': formatted_choices})
+
+    return questions
+
+def count_words(text):
+    words = text.split()
+    return len(words)
+
+def generate_questions(chat, pdf_content, num_questions):
+    escaped_pdf_content = pdf_content.replace("{", "{{").replace("}", "}}")
+    system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato:
+
+Questão 95: No programa do balé Parade, apresentado em 18 de maio de 1917, foi empregada publicamente, pela primeira vez, a palavra sur-realisme. Pablo Picasso desenhou o cenário e a indumentária, cujo efeito foi tão surpreendente que se sobrepôs à coreografia. A música de Erik Satie era uma mistura de jazz, música popular e sons reais tais como tiros de pistola, combinados com as imagens do balé de Charlie Chaplin, caubóis e vilões, mágica chinesa e Ragtime... da cena muitas vezes demonstram as condições cotidianas de um determinado grupo social, como se pode observar na descrição acima do balé Parade, o qual reflete
+A) a falta de diversidade cultural na sua proposta estética.
+B) a alienação dos artistas em relação às tensões da Segunda Guerra Mundial.
+C) uma disputa cênica entre as linguagens das artes visuais, do figurino e da música.
+D) as inovações tecnológicas nas partes cênicas, musicais, coreográficas e de figurino.
+E) uma narrativa com encadeamentos claramente lógicos e lineares.
+
+Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente contexto en cada enunciado."""
+    
+    human_text = f"Genera preguntas con la estructura descrita a partir del contenido del PDF:\n{escaped_pdf_content}. Asegúrate de que cada pregunta incluya el contexto relevante como las definiciones de matrices y otros elementos importantes. Si el contenido no es suficiente, usa tu conocimiento general para generar preguntas coherentes."
+    
+    input_text = system_text + human_text
+    input_word_count = count_words(input_text)
+    print(f"Number of words in the input: {input_word_count}")
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_text),
+        ("human", human_text)
+    ])
+    
+    prompt_input = {
+        "pdf_content": escaped_pdf_content,
+        "num_questions": num_questions,
+    }
+    
+    response = prompt | chat
+    response_msg = response.invoke(prompt_input)
+    response_text = response_msg.content
+    print(f"Prompt: {response_text}")
+
+    questions = process_questions(response_text)
+    return questions
+
+def check_answer(question, user_answer, chat):
+    try:
+        # Primer prompt para obtener la respuesta correcta
+        system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."""
+
+        question_text = question["question"]
+        options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(question["choices"]))
+
+        prompt_text = f"""Pregunta: {question_text}\n
+        Opciones:
+        {options}"""
+
+        prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", prompt_text)])
+        response = prompt | chat
+        response_text = response.invoke({}).content
+
+        # Extract the correct answer from the response
+        match = re.match(r"^(A|B|C|D|E)", response_text.strip(), re.IGNORECASE)
+        if match:
+            correct_answer = match.group(1).upper()
+        else:
+            raise ValueError("No se pudo determinar la respuesta correcta a partir del modelo.")
+
+        # Comparar la respuesta del usuario con la respuesta correcta
+        if user_answer == correct_answer:
+            return "correct", "Sim, a resposta está correta."
+        else:
+            return "incorrect", f"Não, a resposta correta é {correct_answer}. {response_text.strip()}"
+
+    except Exception as e:
+        logging.error(f"Error en check_answer: {e}")
+        return "error", f"Error al evaluar la respuesta: {e}"
+
+def retrieve_documents(es, index_name, num_docs=20, cuaderno_seleccionado=None):
+    search_query = {
+        "query": {
+            "bool": {
+                "must": [
+                    {"match_all": {}}
+                ],
+                "filter": [
+                    {"wildcard": {"metadata.source": f"*{cuaderno_seleccionado}*"}}
+                ] if cuaderno_seleccionado else []
+            }
+        },
+        "size": num_docs * 2  # Recuperar más documentos para asegurar suficientes después del filtrado
+    }
+
+    print(f"search_query: {search_query}")  # Debug
+    response = es.search(index=index_name, body=search_query)
+    documents = [
+        {
+            "page_content": hit["_source"]["content"],
+            "metadata": hit["_source"]["metadata"]
+        }
+        for hit in response["hits"]["hits"]
+    ]
+    print(f"Retrieved {len(documents)} documents")  # Debug
+    for doc in documents:
+        print(f"Documento: {doc['metadata']}")
+
+    # Filtrar los documentos de las primeras 10 páginas
+    filtered_documents = [
+        doc for doc in documents if int(doc['metadata'].get('page', 0)) > 10
+    ]
+    print(f"Filtered documents count: {len(filtered_documents)}")
+    for doc in filtered_documents:
+        print(f"Documento: {doc['metadata']}")
+
+    # Aleatorizar los documentos
+    random.shuffle(filtered_documents)
+
+    # Limitar el número de documentos a devolver
+    return filtered_documents[:num_docs]
+

@@ -56,6 +56,24 @@
             <input type="number" id="num_items" name="num_items" class="form-control" required>
           </div>
 
+        {% elif exam_type == 'enem' %}
+          <!-- Campos para ENEM -->
+          <div class="form-group">
+            <label for="cuaderno">Selecciona el Cuaderno:</label>
+            <select id="cuaderno" name="cuaderno" class="form-control" required>
+              <option value="caderno_linguagens_e_seus_codigos.pdf">Caderno Linguagens e seus Códigos</option>
+              <option value="caderno_fisica.pdf">Caderno Física</option>
+              <option value="caderno_quimica.pdf">Caderno Química</option>
+              <option value="caderno_matematicas.pdf">Caderno Matemáticas</option>
+              <option value="caderno_biologia.pdf">Caderno Biología</option>
+              <option value="caderno_ciencias_humanas.pdf">Caderno Ciências Humanas</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="num_items">Número de Preguntas a Generar:</label>
+            <input type="number" id="num_items" name="num_items" class="form-control" required>
+          </div>
+
         {% endif %}
 
         <button type="submit" class="btn btn-primary btn-block">Generate</button>
