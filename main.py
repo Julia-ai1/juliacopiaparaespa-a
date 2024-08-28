@@ -166,12 +166,24 @@ def cancel_subscription():
 @app.route('/select_exam', methods=['POST'])
 @login_required
 def select_exam():
+    # Debug: Verificar si el usuario está autenticado y tiene una suscripción activa
+    print(f"Usuario autenticado: {current_user.is_authenticated}, Tipo de suscripción: {current_user.subscription_type}")
+    
     if current_user.subscription_type != 'paid':
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
         return redirect(url_for('index'))
+    
     exam_type = request.form.get('exam_type')
+    
+    # Debug: Verificar si se ha recibido exam_type
+    print(f"Tipo de examen seleccionado: {exam_type}")
+    
     if not exam_type:
+        print("Error: No se ha seleccionado ningún examen.")
         return "No se ha seleccionado ningún examen", 400
+    
+    # Debug: Confirmar redirección a speciality.html con el tipo de examen
+    print(f"Redirigiendo a speciality.html con exam_type: {exam_type}")
     
     return render_template('speciality.html', exam_type=exam_type)
 
