@@ -42,8 +42,12 @@ os.environ["DEEPINFRA_API_TOKEN"] = "gtnKXw1ytDsD7DmCSsv2vwdXSW7IBJ5H"
 # Set your secret key. Remember to switch to your live secret key in production!
 stripe.api_key = 'sk_test_51Pr14b2K3oWETT3EMYe9NiKElssrbGmCHpxdUefcuaXLRkKyya5neMrK4jDzd2qh7GUhYZRQT8wqDaiGB2qtg2Md00fbj6TZqF'
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/')
+def landing():
+    return render_template('landing.html')
+
+@app.route('/app')
+def app_index():
     if current_user.is_authenticated:
         subscription_type = current_user.subscription_type
         questions_asked = current_user.questions_asked
@@ -83,9 +87,10 @@ def login():
         login_user(user)
         flash('Has iniciado sesión correctamente', 'success')
         print(f"Inicio de sesión exitoso para: {username}")
-        return redirect(url_for('index'))
+        return redirect(url_for('app_index'))
 
     return render_template('login.html')
+
 
 @app.route('/logout')
 @login_required
