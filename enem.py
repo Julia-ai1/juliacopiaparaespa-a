@@ -55,39 +55,21 @@ def process_questions(response_text):
         if not block.strip():
             continue
         
-        # Extraer el número de la pregunta y el texto
-        question_match = re.match(r"\*\*Questão (\d+)\*\*\s*(.+?)(?=\n[A-J]\.|\Z)", block, re.DOTALL)
+        # Extraer el texto de la pregunta
+        question_match = re.match(r"\*\*Questão \d+\*\*\s*(.*?)(?=\n[A-E]\)|\Z)", block, re.DOTALL)
         
         if question_match:
-            question_number = question_match.group(1)
-            question_text = question_match.group(2).strip()
+            question_text = question_match.group(1).strip()
             
             # Buscar las opciones en el formato específico
-            options = re.findall(r"([A-J])\.\s*(.+?)(?=\n[A-J]\.|\Z)", block, re.DOTALL)
+            options = re.findall(r"([A-E])\)\s*(.+?)(?=\n[A-E]\)|\Z)", block, re.DOTALL)
             
             if options:
-                # Asegurarse de que cada opción esté limpia y bien formateada
+                # Crear una lista con las opciones
                 choices = [option[1].strip() for option in options]
                 
-                # Procesar las opciones para soportar LaTeX y texto normal
-                formatted_choices = []
-                for choice in choices:
-                    # Convertir posibles entidades HTML a caracteres correspondientes
-                    choice = re.sub(r'&lt;', '<', choice)
-                    choice = re.sub(r'&gt;', '>', choice)
-                    choice = re.sub(r'&amp;', '&', choice)
-                    choice = re.sub(r'&quot;', '"', choice)
-                    choice = re.sub(r'&#39;', "'", choice)
-                    
-                    # Manejar posibles formatos LaTeX
-                    choice = re.sub(r'\\\$', '$', choice)  # Quitar escapes de $
-                    formatted_choices.append(choice)
-                
-                questions.append({
-                    'question_number': question_number,
-                    'question': question_text,
-                    'choices': formatted_choices
-                })
+                # Añadir la pregunta y sus opciones a la lista de preguntas
+                questions.append({'question': question_text, 'choices': choices})
     
     return questions
 
