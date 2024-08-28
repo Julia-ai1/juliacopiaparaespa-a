@@ -119,14 +119,17 @@ Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente
     return questions
 
 def check_answer(question, user_answer, chat):
+    # Escapar las llaves para evitar que se interpreten como parámetros
+    escaped_question_text = question["question"].replace("{", "{{(").replace("}", ")}}")
+    escaped_choices = [choice.replace("{", "{{(").replace("}", ")}}") for choice in question["choices"]]
+    
     try:
         # Primer prompt para obtener la respuesta correcta
         system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."""
 
-        question_text = question["question"]
-        options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(question["choices"]))
+        options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(escaped_choices))
 
-        prompt_text = f"""Pergunta: {question_text}\n
+        prompt_text = f"""Pergunta: {escaped_question_text}\n
         Opções:
         {options}"""
 
@@ -134,7 +137,7 @@ def check_answer(question, user_answer, chat):
         response = prompt | chat
         response_text = response.invoke({}).content
 
-        # Extract the correct answer from the response
+        # Extraer la respuesta correcta de la respuesta
         match = re.match(r"^(A|B|C|D|E)", response_text.strip(), re.IGNORECASE)
         if match:
             correct_answer = match.group(1).upper()
@@ -144,7 +147,7 @@ def check_answer(question, user_answer, chat):
         # Segundo prompt para obter a explicação da resposta
         system_explanation = "Você é um assistente que fornece uma explicação detalhada de por que uma resposta está correta ou incorreta."
 
-        human_explanation = f'Pergunta: {question_text}\nResposta correta: {correct_answer}'
+        human_explanation = f'Pergunta: {escaped_question_text}\nResposta correta: {correct_answer}'
 
         prompt_explanation = ChatPromptTemplate.from_messages(
             [("system", system_explanation), ("human", human_explanation)]
@@ -162,6 +165,7 @@ def check_answer(question, user_answer, chat):
     except Exception as e:
         logging.error(f"Erro em check_answer: {e}")
         return "error", f"Erro ao avaliar a resposta: {e}"
+
 
 
 def retrieve_documents(es, index_name, num_docs=20, cuaderno_seleccionado=None):
