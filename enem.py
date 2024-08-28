@@ -43,51 +43,36 @@ def extract_relevant_context(documents, max_length=500):
                     return '. '.join(relevant_text)[:max_length]
     return '. '.join(relevant_text)[:max_length]
 
-# Definición de la función mejorada para procesar preguntas
 def process_questions(response_text):
     questions = []
+    question_blocks = re.split(r"Questão \d+:", response_text)  # Cambiado "Pregunta" por "Questão"
 
-    # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
-    question_blocks = re.split(r"\n(?=Questão \d+:)", response_text.strip())
-    print("Bloques de preguntas encontrados:", question_blocks)  # Debug: ver los bloques de preguntas
+    for block in question_blocks[1:]:
+        block = block.strip()
+        lines = block.split('\n')
+        question_text = ''
+        options = []
+        capture_options = False
+        for line in lines:
+            line = line.strip()
+            if re.match(r"^[A-C1-3]\)", line) or re.match(r"^[A-C1-3]\.", line):
+                options.append(line)
+                capture_options = True
+            elif capture_options and re.match(r"^\d+\.", line):
+                options.append(line)
+            else:
+                if capture_options:
+                    continue
+                question_text += ' ' + line
 
-    for block in question_blocks:
-        # Buscar y extraer el texto de la pregunta que comienza con "Questão"
-        question_match = re.search(r"(Questão \d+: .+?)(?=\n[A-E]\)|$)", block, re.DOTALL)
-        if question_match:
-            question_text = question_match.group(1).strip()
-        else:
-            # Si no se encuentra "Questão", usar el texto antes de las opciones
-            question_text = re.split(r"\n[A-E]\)", block)[0].strip()
+        question_text = question_text.strip()
+        choices = [re.sub(r"^[A-C1-3][)\.\s]*", '', option).strip() for option in options]
 
-        print("Texto de la pregunta:", question_text)  # Debug: ver el texto de cada pregunta
+        if question_text and choices:
+            questions.append({'question': question_text, 'choices': choices})
 
-        # Buscar las opciones en el formato específico
-        options = re.findall(r"\n([A-E])\) (.+?)(?=\n[A-E]\)|\n*$)", block, re.DOTALL)
-        print("Opciones encontradas:", options)  # Debug: ver las opciones encontradas
-
-        if options:
-            # Asegurarse de que cada opción esté limpia y bien formateada
-            choices = [option[1].strip() for option in options]
-
-            # Procesar las opciones para soportar LaTeX y texto normal
-            formatted_choices = []
-            for choice in choices:
-                # Convertir posibles entidades HTML a caracteres correspondientes
-                choice = re.sub(r'&lt;', '<', choice)
-                choice = re.sub(r'&gt;', '>', choice)
-                choice = re.sub(r'&amp;', '&', choice)
-                choice = re.sub(r'&quot;', '"', choice)
-                choice = re.sub(r'&#39;', "'", choice)
-
-                # Manejar posibles formatos LaTeX
-                choice = re.sub(r'\\\$', '$', choice)  # Quitar escapes de $
-                formatted_choices.append(choice)
-
-            questions.append({'question': question_text, 'choices': formatted_choices})
-
-    print("Preguntas procesadas:", questions)  # Debug: ver todas las preguntas procesadas
     return questions
+
 
 
 def count_words(text):
