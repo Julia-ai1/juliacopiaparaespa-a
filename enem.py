@@ -137,63 +137,48 @@ def generate_questions(chat, pdf_content, num_questions):
 
 import re
 from langchain.prompts import ChatPromptTemplate
+from langchain_community.chat_models import ChatDeepInfra
+from langchain.schema import HumanMessage, SystemMessage 
+
+import re
+from langchain_community.chat_models import ChatDeepInfra
+from langchain.schema import HumanMessage, SystemMessage
 
 def check_answer(question, user_answer, chat):
-    # Escapar las llaves y caracteres especiales de LaTeX para evitar que se interpreten como placeholders
-    escaped_question_text = question["question"].replace("{", "{{").replace("}", "}}")
-    escaped_question_text = escaped_question_text.replace("\\", "\\\\")  # Escapar backslashes para LaTeX
-
-    escaped_choices = [choice.replace("{", "{{").replace("}", "}}").replace("\\", "\\\\") for choice in question["choices"]]
-    
     try:
-        # Primer prompt para obtener la respuesta correcta
-        system_prompt = "Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."
+        # Preparar el contenido de la pregunta y las opciones
+        question_text = question["question"]
+        options = "\n".join([f"{chr(65 + i)}. {choice}" for i, choice in enumerate(question["choices"])])
+        
+        # Primer mensaje para obtener la respuesta correcta
+        system_message = SystemMessage(content="Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve.")
+        human_message = HumanMessage(content=f"Pergunta: {question_text}\n\nOpções:\n{options}")
+        
+        response = chat([system_message, human_message])
+        response_text = response.content
 
-        # Usar delimitadores únicos para placeholders, evitando conflicto con LaTeX
-        options = "\n".join(f"- {chr(65 + i)}. {choice}" for i, choice in enumerate(escaped_choices))
-        prompt_text = f"Pergunta: {escaped_question_text}\nOpções:\n{options}"
-
-        # Usar ChatPromptTemplate de forma segura con delimitadores únicos
-        # Definir un template que no use {} para variables
-        template_text = "Pergunta: <<question>>\nOpções:\n<<options>>"
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("user", template_text)
-        ])
-
-        # Pasar valores usando un diccionario que corresponda con los delimitadores
-        response = prompt | chat
-        response_text = response.invoke({"question": escaped_question_text, "options": options}).content
-
-        # Extraer la respuesta correcta de la respuesta
+        # Extraer la respuesta correcta
         match = re.match(r"^(A|B|C|D|E)", response_text.strip(), re.IGNORECASE)
         if match:
             correct_answer = match.group(1).upper()
         else:
             raise ValueError("Não foi possível determinar a resposta correta a partir do modelo.")
 
-        # Segundo prompt para obter a explicação da resposta
-        system_explanation = "Você é um assistente que fornece uma explicação detalhada de por que uma resposta está correta ou incorreta."
-        human_explanation = f"Pergunta: {escaped_question_text}\nResposta correta: {correct_answer}"
+        # Segundo mensaje para obtener la explicación
+        system_explanation = SystemMessage(content="Você é um assistente que fornece uma explicação detalhada de por que uma resposta está correta ou incorreta.")
+        human_explanation = HumanMessage(content=f"Pergunta: {question_text}\nResposta correta: {correct_answer}")
+        
+        response_explanation = chat([system_explanation, human_explanation])
+        explanation = response_explanation.content.strip()
 
-        # Nuevamente usar delimitadores únicos
-        template_explanation = "Pergunta: <<question>>\nResposta correta: <<answer>>"
-        prompt_explanation = ChatPromptTemplate.from_messages([
-            ("system", system_explanation),
-            ("human", template_explanation)
-        ])
-
-        response_explanation = prompt_explanation | chat
-        explanation = response_explanation.invoke({"question": escaped_question_text, "answer": correct_answer}).content.strip()
-
-        # Comparar a resposta do usuário com a resposta correta
-        if user_answer.lower() in correct_answer.lower():
+        # Comparar la respuesta del usuario con la respuesta correcta
+        if user_answer.upper() == correct_answer:
             return "correct", f"Sim, a resposta está correta. A resposta correta é '{correct_answer}'.\nExplicação: {explanation}"
         else:
             return "incorrect", f"Não, a resposta está incorreta. A resposta correta é '{correct_answer}', não '{user_answer}'.\nExplicação: {explanation}"
 
     except Exception as e:
-        logging.error(f"Erro em check_answer: {e}")
+        print(f"Erro em check_answer: {e}")
         return "error", f"Erro ao avaliar a resposta: {e}"
 
 
