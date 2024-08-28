@@ -367,7 +367,6 @@ def check_answer(question, user_answer, chat):
 
 # Asegúrate de que check_answer_exani también esté definido adecuadamente y maneje el escape de LaTeX como se mostró antes.
 
-
 @app.route('/checkout')
 def checkout():
     return render_template('checkout.html')
