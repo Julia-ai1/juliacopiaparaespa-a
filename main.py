@@ -212,7 +212,7 @@ def generate_exam():
     elif exam_type == "baccalaureat":
         speciality = request.form['speciality']
         es = Elasticsearch(
-            cloud_id="d6ad8b393b364990a49e2dd896c25d44:dXMtY2VudHJhbDEuZ2Nwb3VkLmVzLmlvJDEwNGY0NzdmMzJjNTQ3MmU4NDY5NmVlYTMwZDI0YzMzJDk2NTU5M2I5NGUxZDRhMjU5MDVlMTc5MmY0YzczZGI4",
+            cloud_id="22bdac90277c4985bd0c844638c6d270:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGVjODY3MGFlZjMzMTRjMjU4MmMxNTJkMWM5YTI2MGEwJDE1YjA4MWMzYTZjZjRiOGZhYWRiNTE0Y2NmOTdlOWVm",
             basic_auth=("elastic", "eUqFwSxXebwNHSEH1Bjq1zbM")
         )
         relevant_docs = retrieve_documents_bac(es, "general_texts", 20, speciality)
