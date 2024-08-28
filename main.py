@@ -255,6 +255,12 @@ def chat():
     return jsonify({"response": response_text})
 
 
+from flask import Flask, request, jsonify
+import logging
+import re
+
+app = Flask(__name__)
+
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
@@ -290,6 +296,7 @@ def check():
             })
             continue
 
+        # Identificar si la pregunta pertenece al ENEM o EXANI
         if 'enem' in question.get('metadata', {}).get('source', ''):
             correctness, explanation = check_answer(question, user_answer, chat)
         else:
@@ -305,6 +312,61 @@ def check():
         })
 
     return jsonify(results)
+
+def check_answer(question, user_answer, chat):
+    # Escapar las llaves y caracteres especiales de LaTeX para evitar que se interpreten como placeholders
+    escaped_question_text = question["question"].replace("{", "{{").replace("}", "}}")
+    escaped_question_text = escaped_question_text.replace("\\", "\\\\")  # Escapar backslashes para LaTeX
+    escaped_choices = [choice.replace("{", "{{").replace("}", "}}").replace("\\", "\\\\") for choice in question["choices"]]
+    
+    try:
+        # Primer prompt para obtener la respuesta correcta
+        system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."""
+
+        options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(escaped_choices))
+
+        prompt_text = f"""Pergunta: {escaped_question_text}\n
+        Opções:
+        {options}"""
+
+        # Construir el prompt de forma segura
+        prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", prompt_text)])
+        response = prompt | chat
+        
+        # Llamar a invoke sin variables de plantilla para LaTeX
+        response_text = response.invoke({}).content
+
+        # Extraer la respuesta correcta de la respuesta
+        match = re.match(r"^(A|B|C|D|E)", response_text.strip(), re.IGNORECASE)
+        if match:
+            correct_answer = match.group(1).upper()
+        else:
+            raise ValueError("Não foi possível determinar a resposta correta a partir do modelo.")
+
+        # Segundo prompt para obter a explicação da resposta
+        system_explanation = "Você é um assistente que fornece uma explicação detalhada de por que uma resposta está correta ou incorreta."
+
+        human_explanation = f'Pergunta: {escaped_question_text}\nResposta correta: {correct_answer}'
+
+        prompt_explanation = ChatPromptTemplate.from_messages(
+            [("system", system_explanation), ("human", human_explanation)]
+        )
+
+        response_explanation = prompt_explanation | chat
+        explanation = response_explanation.invoke({}).content.strip()
+
+        # Comparar a resposta do usuário con a resposta correta
+        if user_answer.lower() in correct_answer.lower():
+            return "correct", f"Sim, a resposta está correta. A resposta correta é '{correct_answer}'.\nExplicação: {explanation}"
+        else:
+            return "incorrect", f"Não, a resposta está incorreta. A resposta correta é '{correct_answer}', não '{user_answer}'.\nExplicação: {explanation}"
+
+    except Exception as e:
+        logging.error(f"Erro em check_answer: {e}")
+        return "error", f"Erro ao avaliar a resposta: {e}"
+
+# Asegúrate de que check_answer_exani también esté definido adecuadamente y maneje el escape de LaTeX como se mostró antes.
+
 
 @app.route('/checkout')
 def checkout():
