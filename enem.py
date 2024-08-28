@@ -119,12 +119,12 @@ Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente
     return questions
 
 def check_answer(question, user_answer, chat):
-    # Escapar las llaves para evitar que se interpreten como parámetros
+    # Escapar llaves para evitar que se interpreten como placeholders
     escaped_question_text = question["question"].replace("{", "{{").replace("}", "}}")
     escaped_choices = [choice.replace("{", "{{").replace("}", "}}") for choice in question["choices"]]
     
     try:
-        # Primer prompt para obtener la respuesta correcta
+        # Prompt para obtener la respuesta correcta
         system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."""
 
         options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(escaped_choices))
@@ -133,11 +133,11 @@ def check_answer(question, user_answer, chat):
         Opções:
         {options}"""
 
-        # Construir el prompt de forma segura
+        # Construir el prompt sin variables LaTeX como placeholders
         prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", prompt_text)])
         response = prompt | chat
         
-        # Llamar a invoke sin variables de plantilla para LaTeX
+        # Invocar sin pasar variables no necesarias
         response_text = response.invoke({}).content
 
         # Extraer la respuesta correcta de la respuesta
