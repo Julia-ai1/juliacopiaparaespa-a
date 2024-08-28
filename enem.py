@@ -120,12 +120,12 @@ Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente
 
 def check_answer(question, user_answer, chat):
     # Escapar las llaves para evitar que se interpreten como parámetros
-    escaped_question_text = question["question"].replace("{", "()").replace("}", "}}")
-    escaped_choices = [choice.replace("{", "((").replace("}", "))") for choice in question["choices"]]
+    escaped_question_text = question["question"].replace("{", "{{").replace("}", "}}")
+    escaped_choices = [choice.replace("{", "{{").replace("}", "}}") for choice in question["choices"]]
     
     try:
         # Primer prompt para obtener la respuesta correcta
-        system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."""
+        system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve. Si usas latex NO uses delimitador {}. NO usar {} """
 
         options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(escaped_choices))
 
