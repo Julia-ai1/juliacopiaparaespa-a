@@ -48,19 +48,23 @@ def process_questions(response_text):
     questions = []
 
     # Dividir el texto en bloques de preguntas basándose en un patrón de "Questão"
-    question_blocks = re.split(r"\n(?=Questão \d+)", response_text.strip())
+    question_blocks = re.split(r"\n(?=Questão \d+:)", response_text.strip())
+    print("Bloques de preguntas encontrados:", question_blocks)  # Debug: ver los bloques de preguntas
 
     for block in question_blocks:
         # Buscar y extraer el texto de la pregunta que comienza con "Questão"
-        question_match = re.search(r"(Questão \d+.+?)(?=\n[A-J][\).]|$)", block, re.DOTALL)
+        question_match = re.search(r"(Questão \d+: .+?)(?=\n[A-E]\)|$)", block, re.DOTALL)
         if question_match:
             question_text = question_match.group(1).strip()
         else:
             # Si no se encuentra "Questão", usar el texto antes de las opciones
-            question_text = re.split(r"\n[A-J][\).]", block)[0].strip()
+            question_text = re.split(r"\n[A-E]\)", block)[0].strip()
 
-        # Buscar las opciones en el formato específico, cubriendo tanto letras con paréntesis como con punto
-        options = re.findall(r"\n([A-J][\).])\s*(.+?)(?=\n[A-J][\).]|\n*$)", block, re.DOTALL)
+        print("Texto de la pregunta:", question_text)  # Debug: ver el texto de cada pregunta
+
+        # Buscar las opciones en el formato específico
+        options = re.findall(r"\n([A-E])\) (.+?)(?=\n[A-E]\)|\n*$)", block, re.DOTALL)
+        print("Opciones encontradas:", options)  # Debug: ver las opciones encontradas
 
         if options:
             # Asegurarse de que cada opción esté limpia y bien formateada
@@ -82,7 +86,9 @@ def process_questions(response_text):
 
             questions.append({'question': question_text, 'choices': formatted_choices})
 
+    print("Preguntas procesadas:", questions)  # Debug: ver todas las preguntas procesadas
     return questions
+
 
 def count_words(text):
     words = text.split()
