@@ -147,20 +147,23 @@ def check_answer(question, user_answer, chat):
     
     try:
         # Primer prompt para obtener la respuesta correcta
-        system_prompt = """Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."""
+        system_prompt = "Você é um assistente que avalia perguntas de múltipla escolha. Dada a pergunta e as opções, determine a resposta correta. Sua resposta deve começar com a letra da opção correta (A, B, C, D ou E) seguida por uma explicação breve."
 
-        options = "".join(f"- {chr(65 + i)}. {choice}\n" for i, choice in enumerate(escaped_choices))
+        # Usar delimitadores únicos para placeholders, evitando conflicto con LaTeX
+        options = "\n".join(f"- {chr(65 + i)}. {choice}" for i, choice in enumerate(escaped_choices))
+        prompt_text = f"Pergunta: {escaped_question_text}\nOpções:\n{options}"
 
-        prompt_text = f"""Pergunta: {escaped_question_text}\n
-        Opções:
-        {options}"""
+        # Usar ChatPromptTemplate de forma segura con delimitadores únicos
+        # Definir un template que no use {} para variables
+        template_text = "Pergunta: <<question>>\nOpções:\n<<options>>"
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("user", template_text)
+        ])
 
-        # Construir el prompt de forma segura
-        prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", prompt_text)])
+        # Pasar valores usando un diccionario que corresponda con los delimitadores
         response = prompt | chat
-        
-        # Llamar a invoke sin variables de plantilla para LaTeX
-        response_text = response.invoke({}).content
+        response_text = response.invoke({"question": escaped_question_text, "options": options}).content
 
         # Extraer la respuesta correcta de la respuesta
         match = re.match(r"^(A|B|C|D|E)", response_text.strip(), re.IGNORECASE)
@@ -171,15 +174,17 @@ def check_answer(question, user_answer, chat):
 
         # Segundo prompt para obter a explicação da resposta
         system_explanation = "Você é um assistente que fornece uma explicação detalhada de por que uma resposta está correta ou incorreta."
+        human_explanation = f"Pergunta: {escaped_question_text}\nResposta correta: {correct_answer}"
 
-        human_explanation = f'Pergunta: {escaped_question_text}\nResposta correta: {correct_answer}'
-
-        prompt_explanation = ChatPromptTemplate.from_messages(
-            [("system", system_explanation), ("human", human_explanation)]
-        )
+        # Nuevamente usar delimitadores únicos
+        template_explanation = "Pergunta: <<question>>\nResposta correta: <<answer>>"
+        prompt_explanation = ChatPromptTemplate.from_messages([
+            ("system", system_explanation),
+            ("human", template_explanation)
+        ])
 
         response_explanation = prompt_explanation | chat
-        explanation = response_explanation.invoke({}).content.strip()
+        explanation = response_explanation.invoke({"question": escaped_question_text, "answer": correct_answer}).content.strip()
 
         # Comparar a resposta do usuário com a resposta correta
         if user_answer.lower() in correct_answer.lower():
@@ -190,6 +195,7 @@ def check_answer(question, user_answer, chat):
     except Exception as e:
         logging.error(f"Erro em check_answer: {e}")
         return "error", f"Erro ao avaliar a resposta: {e}"
+
 
 
 
