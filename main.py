@@ -296,8 +296,24 @@ def check():
             continue
 
         try:
-            # Usar check_answer para todas las preguntas
-            correctness, explanation = check_answer(question, user_answer, chat)
+            # Comprobar el origen de la pregunta para usar la función adecuada
+            source = question.get('metadata', {}).get('source', '').lower()
+            if 'enem' in source:
+                # Usar check_answer para preguntas de "enem"
+                correctness, explanation = check_answer(question, user_answer, chat)
+            elif 'exani' in source:
+                # Usar check_answer_exani para preguntas de "exani"
+                correctness, explanation = check_answer_exani(question, user_answer, chat)
+            else:
+                # Si el origen no es ni "enem" ni "exani", manejarlo como error
+                print(f"Origen desconocido para {question_name}: {source}")
+                results.append({
+                    'question': question,
+                    'selected_option': user_answer,
+                    'correct': "error",
+                    'explanation': f"Origen desconocido: {source}"
+                })
+                continue
 
             print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
 
