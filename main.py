@@ -255,10 +255,6 @@ def chat():
     return jsonify({"response": response_text})
 
 
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
@@ -267,7 +263,7 @@ def check():
     if not data:
         print("Error: No se recibieron datos.")
         return jsonify({"error": "No se recibieron datos"}), 400
-
+    
     questions = data.get('questions')
     user_answers = data.get('answers')
 
@@ -275,7 +271,6 @@ def check():
         print("Error: Faltan preguntas o respuestas.")
         return jsonify({"error": "Faltan preguntas o respuestas"}), 400
 
-    # Inicializar el chat con el modelo
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     results = []
 
@@ -284,7 +279,7 @@ def check():
         user_answer = user_answers.get(question_name)
         
         print(f"Procesando {question_name}: respuesta seleccionada = {user_answer}")  # Imprimir respuesta seleccionada
-
+        
         if not user_answer:
             print(f"{question_name} sin respuesta seleccionada.")
             results.append({
@@ -295,47 +290,21 @@ def check():
             })
             continue
 
-        try:
-            # Comprobar el origen de la pregunta para usar la función adecuada
-            source = question.get('metadata', {}).get('source', '').lower()
-            if 'enem' in source:
-                # Usar check_answer para preguntas de "enem"
-                correctness, explanation = check_answer(question, user_answer, chat)
-            elif 'exani' in source:
-                # Usar check_answer_exani para preguntas de "exani"
-                correctness, explanation = check_answer_exani(question, user_answer, chat)
-            else:
-                # Si el origen no es ni "enem" ni "exani", manejarlo como error
-                print(f"Origen desconocido para {question_name}: {source}")
-                results.append({
-                    'question': question,
-                    'selected_option': user_answer,
-                    'correct': "error",
-                    'explanation': f"Origen desconocido: {source}"
-                })
-                continue
+        if 'enem' in question.get('metadata', {}).get('source', ''):
+            correctness, explanation = check_answer(question, user_answer, chat)
+        else:
+            correctness, explanation = check_answer_exani(question, user_answer, chat)
+        
+        print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
 
-            print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
-
-            results.append({
-                'question': question,
-                'selected_option': user_answer,
-                'correct': correctness,
-                'explanation': explanation
-            })
-        except Exception as e:
-            print(f"Error al procesar {question_name}: {str(e)}")
-            results.append({
-                'question': question,
-                'selected_option': user_answer,
-                'correct': "error",
-                'explanation': f"Error al procesar la respuesta: {str(e)}"
-            })
+        results.append({
+            'question': question,
+            'selected_option': user_answer,
+            'correct': correctness,
+            'explanation': explanation
+        })
 
     return jsonify(results)
-
-# Aquí irían las definiciones de check_answer y check_answer_exani
-
 
 @app.route('/checkout')
 def checkout():
