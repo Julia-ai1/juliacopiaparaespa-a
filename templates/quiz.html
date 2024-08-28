@@ -37,7 +37,7 @@
             <form @submit.prevent="submitQuiz" class="mt-4">
                 <div v-for="(question, index) in questions" :key="index" class="card mb-4">
                     <div class="card-body">
-                        <p><strong>[[ index + 1 ]].</strong> [[ question.question ]]</p>
+                        <p><strong>[[ index + 1 ]].</strong> <span v-html="renderMath(question.question)"></span></p>
                         <div class="form-group">
                             <button v-for="(choice, choiceIndex) in question.choices" 
                                     :key="choiceIndex"
@@ -45,7 +45,7 @@
                                     class="btn btn-outline-primary choice-button"
                                     :class="{ active: selectedAnswers[`question_${index + 1}`] === choice }"
                                     @click="selectAnswer(index + 1, choice)">
-                                [[ choice ]]
+                                <span v-html="renderMath(choice)"></span>
                             </button>
                         </div>
                     </div>
@@ -56,10 +56,10 @@
             <div id="results" class="mt-4">
                 <div v-for="(result, index) in quizResults" :key="index" 
                      :class="['alert', result.correct === 'correct' ? 'alert-success' : 'alert-danger']">
-                    <strong>Pregunta [[ index + 1 ]]:</strong> [[ result.question.question ]]
-                    <p>Tu respuesta: [[ result.selected_option ]]</p>
+                    <strong>Pregunta [[ index + 1 ]]:</strong> <span v-html="renderMath(result.question.question)"></span>
+                    <p>Tu respuesta: <span v-html="renderMath(result.selected_option)"></span></p>
                     <p>[[ result.correct === 'correct' ? '¡Correcto!' : 'Incorrecto' ]]</p>
-                    <p>Explicación: [[ result.explanation ]]</p>
+                    <p>Explicación: <span v-html="renderMath(result.explanation)"></span></p>
                 </div>
             </div>
         </div>
@@ -117,8 +117,18 @@ new Vue({
         }
     },
     methods: {
+        renderMath(content) {
+            // Función para procesar LaTeX en las preguntas y respuestas
+            this.$nextTick(() => {
+                if (window.MathJax) {
+                    window.MathJax.typesetPromise();
+                }
+            });
+            return content;
+        },
         selectAnswer(questionNumber, choice) {
             this.$set(this.selectedAnswers, `question_${questionNumber}`, choice);
+            this.updateMathJax(); // Re-renderizar MathJax después de seleccionar una respuesta
         },
         submitQuiz() {
             clearInterval(this.countdownTimer);
@@ -133,6 +143,7 @@ new Vue({
             .then(response => response.json())
             .then(data => {
                 this.quizResults = data;
+                this.updateMathJax(); // Re-renderizar MathJax después de obtener los resultados
             });
         },
         sendChatMessage() {
@@ -150,8 +161,14 @@ new Vue({
                         const chatBox = document.getElementById('chat-box');
                         chatBox.scrollTop = chatBox.scrollHeight;
                     });
+                    this.updateMathJax(); // Re-renderizar MathJax para cualquier respuesta con LaTeX
                 });
                 this.chatInput = '';
+            }
+        },
+        updateMathJax() {
+            if (window.MathJax) {
+                window.MathJax.typesetPromise(); // Re-renderiza todo el contenido de MathJax
             }
         },
         startTimer() {
@@ -167,11 +184,13 @@ new Vue({
     },
     mounted() {
         this.startTimer();
+        this.updateMathJax(); // Inicializar MathJax cuando la página se carga
     }
 });
 </script>
 </body>
 </html>
+
 
 
 

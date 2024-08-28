@@ -83,10 +83,13 @@ def count_words(text):
 
 import re
 
+import re
+
 def generate_questions(chat, pdf_content, num_questions):
-    # Escapar llaves para evitar que se interpreten como placeholders
+    # Escapar llaves y caracteres especiales de LaTeX para evitar interpretaciones erróneas
     escaped_pdf_content = pdf_content.replace("{", "{{").replace("}", "}}")
-    
+    escaped_pdf_content = escaped_pdf_content.replace("\\", "\\\\")  # Escapar backslashes para LaTeX
+
     system_text = f"""Eres un asistente en portugués (brasil) que genera preguntas de opción múltiple. En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`. Quiero que me generes preguntas con una estructura y contenido similar a las preguntas proporcionadas en el siguiente contexto {escaped_pdf_content}. Pon solo las preguntas y respuestas, NO HAGAS comentarios, NO PONGAS la respuesta correcta en las opciones. Coge la estructura, incluyendo en la pregunta inicial TODO el texto para formular la pregunta y las posibles opciones, como en el siguiente formato:
 
 Questão 95: No programa do balé Parade, apresentado em...
@@ -123,10 +126,13 @@ Por favor, genera {num_questions} preguntas, asegurándote de incluir suficiente
     return questions
 
 
+
 def check_answer(question, user_answer, chat):
-    # Escapar las llaves para evitar que se interpreten como placeholders
+    # Escapar las llaves y caracteres especiales de LaTeX para evitar que se interpreten como placeholders
     escaped_question_text = question["question"].replace("{", "{{").replace("}", "}}")
-    escaped_choices = [choice.replace("{", "{{").replace("}", "}}") for choice in question["choices"]]
+    escaped_question_text = escaped_question_text.replace("\\", "\\\\")  # Escapar backslashes para LaTeX
+
+    escaped_choices = [choice.replace("{", "{{").replace("}", "}}").replace("\\", "\\\\") for choice in question["choices"]]
     
     try:
         # Primer prompt para obtener la respuesta correcta
@@ -164,7 +170,7 @@ def check_answer(question, user_answer, chat):
         response_explanation = prompt_explanation | chat
         explanation = response_explanation.invoke({}).content.strip()
 
-        # Comparar a resposta do usuário con a resposta correta
+        # Comparar a resposta do usuário com a resposta correta
         if user_answer.lower() in correct_answer.lower():
             return "correct", f"Sim, a resposta está correta. A resposta correta é '{correct_answer}'.\nExplicação: {explanation}"
         else:
@@ -173,6 +179,7 @@ def check_answer(question, user_answer, chat):
     except Exception as e:
         logging.error(f"Erro em check_answer: {e}")
         return "error", f"Erro ao avaliar a resposta: {e}"
+
 
 
 
