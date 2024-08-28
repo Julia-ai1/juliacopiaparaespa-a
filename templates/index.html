@@ -1,95 +1,59 @@
-<!doctype html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Página Principal</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <title>Julia.ai - Seu Assistente de Preparação para Exames</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .subscription-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-            background-color: #f8f9fa;
-        }
-        .subscription-details {
-            font-size: 1.2em;
-            color: #333;
-        }
-        .highlight {
-            font-weight: bold;
-            color: #007bff;
+        body {
+            font-family: 'Poppins', sans-serif;
         }
     </style>
 </head>
-<body>
-    <div class="container mt-5">
-        <h1 class="text-center mb-5">Bienvenido a Julia.ai</h1>
+<body class="bg-gradient-to-r from-blue-100 to-purple-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-indigo-800 mb-2">Bem-vindo ao Julia.ai</h1>
+            <p class="text-xl text-gray-600">Seu assistente inteligente para preparação de exames</p>
+        </header>
         
-        {% if current_user.is_authenticated %}
-            <div class="subscription-card text-center">
-                <p class="subscription-details">Hola, <span class="highlight">{{ current_user.username }}</span>!</p>
-                <p class="subscription-details">
-                    Tipo de suscripción: 
-                    <span class="highlight">
-                        {% if subscription_type == 'paid' %}
-                            Activa
-                        {% else %}
-                            Gratuita
-                        {% endif %}
-                    </span>
-                </p>
-                <p class="subscription-details">
-                    Preguntas realizadas este mes: 
-                    <span class="highlight">{{ questions_asked }}</span>
-                    {% if subscription_type == 'free' %} / 50{% endif %}
-                </p>
-            </div>
-
-            {% if subscription_type == 'paid' %}
-                <div class="text-center mt-4">
-                    <h2>Selecciona el tipo de examen</h2>
-                    <form method="POST" action="{{ url_for('select_exam') }}" class="mt-4">
-                        <div class="form-group">
-                            <label for="exam_type">Tipo de examen:</label>
-                            <select id="exam_type" name="exam_type" class="form-control" required>
-                                <option value="exani_ii">EXANI II</option>
-                                <option value="enem">ENEM</option> <!-- Only EXANI II and ENEM options available -->
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-block">Siguiente</button>
-                    </form>
+        <div class="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-semibold text-indigo-700 mb-2">Olá, <span class="text-pink-600">cadamar123</span>!</h2>
+                <div class="flex justify-center items-center space-x-4 mb-4">
+                    <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full">
+                        Assinatura Ativa
+                    </div>
+                    <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full">
+                        131 Perguntas Este Mês
+                    </div>
                 </div>
-            {% else %}
-                <div class="text-center mt-4">
-                    <p>Para acceder a los exámenes, necesitas una suscripción activa.</p>
-                    <a href="{{ url_for('subscribe') }}" class="btn btn-success btn-block">Suscríbete ahora por $3/mes</a>
-                </div>
-            {% endif %}
-
-            <div class="text-center mt-4">
-                {% if subscription_type == 'paid' %}
-                    <form action="{{ url_for('cancel_subscription') }}" method="post" class="mt-2">
-                        <button type="submit" class="btn btn-warning btn-block">Cancelar Suscripción</button>
-                    </form>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary mt-2">Cerrar Sesión</a>
             </div>
-        {% else %}
-            <div class="text-center mt-4">
-                <p>No has iniciado sesión.</p>
-                <a href="{{ url_for('login') }}" class="btn btn-primary">Iniciar Sesión</a>
-                <a href="{{ url_for('register') }}" class="btn btn-secondary">Registrarse</a>
+            
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Selecione o tipo de exame</h3>
+                <select id="exam_type" name="exam_type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="" disabled selected>Escolha um exame</option>
+                    <option value="exani_ii">EXANI II</option>
+                    <option value="enem">ENEM</option>
+                </select>
             </div>
-        {% endif %}
+            
+            <button class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 mb-4">
+                Iniciar Preparação
+            </button>
+            
+            <button class="w-full bg-yellow-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-yellow-600 transition duration-300 mb-4">
+                Cancelar Assinatura
+            </button>
+            
+            <a href="#" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
+                Sair da Conta
+            </a>
+        </div>
     </div>
-
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
 
