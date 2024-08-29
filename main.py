@@ -17,7 +17,8 @@ from langchain.prompts import ChatPromptTemplate
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI']  = 'mssql+pyodbc://julia:c1d2Papa1236.,@juliaai.database.windows.net/juliadatabase?driver=ODBC+Driver+17+for+SQL+Server'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://julia:c1d2Papa1236.,@juliaai.mysql.database.azure.com/basededatos'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Cache configuration

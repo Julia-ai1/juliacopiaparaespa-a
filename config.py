@@ -2,7 +2,8 @@ import os
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'mysecretkey')
-    SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc://julia:c1d2Papa1236.,@juliaai.database.windows.net/juliadatabase?driver=ODBC+Driver+17+for+SQL+Server'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://julia:c1d2Papa1236.,@juliaai.mysql.database.azure.com/basededatos'
+
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     STRIPE_PUBLIC_KEY = os.environ.get('STRIPE_PUBLIC_KEY', 'tu_clave_publica_de_stripe')
