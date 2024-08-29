@@ -112,14 +112,14 @@ def subscribe():
         flash('Ya tienses una suscripción activa.', 'info')
         return redirect(url_for('index'))
 
-    payment_link = "https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx"  # Tu enlace de pago real de Stripe
+    payment_link = "https://buy.stripe.com/test_aEU3dugfY2qQ1rOdQT"  # Tu enlace de pago real de Stripe
     return redirect(payment_link)
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_sJritNVJJ7MIhJRkBvwpE1ipbunBQeSB'
+    endpoint_secret = 'whsec_xpqBGgt4EGordrpUfEvwR3OFOgSgKIFm'
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
