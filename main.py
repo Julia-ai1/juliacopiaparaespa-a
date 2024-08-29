@@ -102,7 +102,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('Has cerrado sesión', 'success')
+    flash('Has cerrado sesión ', 'success')
     return redirect(url_for('app_index'))
 
 @app.route('/subscribe')
