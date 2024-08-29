@@ -375,11 +375,11 @@ def create_checkout_session():
 # Webhook route to handle Stripe events
 import stripe
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/', methods=['POST'])
 def webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'  # Asegúrate de que esta sea la clave secreta correcta
+    endpoint_secret = 'whsec_xpqBGgt4EGordrpUfEvwR3OFOgSgKIFm'  # Asegúrate de que esta sea la clave secreta correcta
 
     print("Payload recibido:", payload)  # Imprimir el payload recibido
     print("Cabecera de firma recibida:", sig_header)  # Imprimir la cabecera de firma recibida
