@@ -18,6 +18,7 @@ from langchain.prompts import ChatPromptTemplate
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://julia:c1d2Papa1236.,@juliaai.mysql.database.azure.com/basededatos'
+'?ssl_ca=certs/BaltimoreCyberTrustRoot.crt.pem'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
