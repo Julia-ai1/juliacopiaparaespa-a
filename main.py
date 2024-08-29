@@ -119,7 +119,7 @@ def subscribe():
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_zH5JwyaqWXLClIznIlhm3DKXtxfRknac'
+    endpoint_secret = 'whsec_sJritNVJJ7MIhJRkBvwpE1ipbunBQeSB'
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
