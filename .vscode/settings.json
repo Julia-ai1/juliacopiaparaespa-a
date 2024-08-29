@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/ed01054d-02e7-4d4b-baa6-8d53250fd888/resourceGroups/julia.ai/providers/Microsoft.Web/sites/juliaweb",
+    "appService.deploySubpath": "."
+}
