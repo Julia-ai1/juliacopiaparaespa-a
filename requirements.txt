@@ -7,3 +7,4 @@ elasticsearch
 flask-caching
 langchain-community
 pymysql
+gunicorn
