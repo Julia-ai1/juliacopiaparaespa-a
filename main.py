@@ -109,7 +109,7 @@ def logout():
 @login_required
 def subscribe():
     if current_user.subscription_type == 'paid':
-        flash('Ya tienes una suscripción activa.', 'info')
+        flash('Ya tienses una suscripción activa.', 'info')
         return redirect(url_for('index'))
 
     payment_link = "https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx"  # Tu enlace de pago real de Stripe
