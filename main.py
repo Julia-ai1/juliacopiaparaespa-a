@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     'mysql+pymysql://julia:c1d2Papa1236.,@juliaai.mysql.database.azure.com/basededatos'
-    '?ssl_ca=DigiCertGlobalRootG2.crt.pem'
+    '?ssl_ca=DigiCertGlobalRootCA.crt.pem'
     )
 
 
