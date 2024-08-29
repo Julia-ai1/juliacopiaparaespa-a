@@ -14,7 +14,7 @@ import stripe
 from elasticsearch import Elasticsearch
 from flask_caching import Cache
 from langchain.prompts import ChatPromptTemplate
-import re 
+import re
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = (
@@ -425,6 +425,6 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
 
 
