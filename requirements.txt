@@ -1,0 +1,9 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Login
+stripe
+elasticsearch
+flask-caching
+langchain-community
+pymysql
