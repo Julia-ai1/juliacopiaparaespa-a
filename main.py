@@ -109,10 +109,10 @@ def logout():
 @login_required
 def subscribe():
     if current_user.subscription_type == 'paid':
-        flash('Ya tienes una suscripción activa.', 'info')
+        flash('Ya tienses una suscripción activa.', 'info')
         return redirect(url_for('index'))
 
-    payment_link = "https://buy.stripe.com/test_00g3dud3M6H66M88wA"  # Tu enlace de pago real de Stripe
+    payment_link = "https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx"  # Tu enlace de pago real de Stripe
     return redirect(payment_link)
 
 @app.route('/', methods=['POST'])
@@ -375,11 +375,11 @@ def create_checkout_session():
 # Webhook route to handle Stripe events
 import stripe
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/', methods=['POST'])
 def webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_iEQcZb38URJgh3gLtkmkWnRWm2BMA72e'  # Asegúrate de que esta sea la clave secreta correcta
+    endpoint_secret = 'whsec_xpqBGgt4EGordrpUfEvwR3OFOgSgKIFm'  # Asegúrate de que esta sea la clave secreta correcta
 
     print("Payload recibido:", payload)  # Imprimir el payload recibido
     print("Cabecera de firma recibida:", sig_header)  # Imprimir la cabecera de firma recibida
@@ -425,6 +425,7 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=False)
+
 
 
