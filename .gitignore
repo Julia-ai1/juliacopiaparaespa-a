@@ -1,0 +1,27 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+.env/
+
+# Archivos temporales
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Configuración del entorno de desarrollo
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos y carpetas de despliegue
+*.log
+*.bak
+.python-version
+
+# Archivos específicos del sistema operativo
+Thumbs.db
+desktop.ini

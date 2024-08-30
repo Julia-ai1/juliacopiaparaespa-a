@@ -87,7 +87,7 @@ def login():
         
         if user is None or not user.check_password(password):
             flash('Usuario o contraseña incorrectos', 'danger')
-            print(f"Fallo en inicio de sesión: Usuario {username} no encontrado o contraseña incorrecta.")
+            print(f"Fallo en inicio de sesión: Usuariio {username} no encontrado o contraseña incorrecta.")
             return redirect(url_for('login'))
 
         login_user(user)
