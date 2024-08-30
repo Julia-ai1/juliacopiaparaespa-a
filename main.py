@@ -112,7 +112,7 @@ def subscribe():
         flash('Ya tienses una suscripción activa.', 'info')
         return redirect(url_for('index'))
 
-    payment_link = "https://buy.stripe.com/test_28o8xO2p8aXmeeA8wx"  # Tu enlace de pago real de Stripe
+    payment_link = "https://buy.stripe.com/test_00g3dud3M6H66M88wA"  # Tu enlace de pago real de Stripe
     return redirect(payment_link)
 
 @app.route('/', methods=['POST'])
