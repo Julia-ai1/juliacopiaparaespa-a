@@ -15,24 +15,46 @@ from elasticsearch import Elasticsearch
 from flask_caching import Cache
 from langchain.prompts import ChatPromptTemplate
 import re
+import uuid
+from authlib.integrations.flask_client import OAuth
+from flask_migrate import Migrate
+from dotenv import load_dotenv
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = (
-    'mysql+pymysql://julia:c1d2Papa1236.,@juliaai.mysql.database.azure.com/basededatos'
-    '?ssl_ca=DigiCertGlobalRootCA.crt.pem'
-    )
+load_dotenv()
 
+app = Flask(__name__)
 
+# Configuración de la aplicación usando variables de entorno
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Cache configuration
 app.config['CACHE_TYPE'] = 'simple'
-db.init_app(app)
+
+db = SQLAlchemy(app) 
 migrate = Migrate(app, db)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Configuración de OAuth usando variabdles de entorno
+app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
+
+oauth = OAuth(app)
+
+google = oauth.register(
+    name='google',
+    client_id=app.config['GOOGLE_CLIENT_ID'],
+    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+    access_token_url='https://oauth2.googleapis.com/token',
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
+    client_kwargs={'scope': 'openid profile email', 'access_type': 'offline'}
+)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -42,11 +64,12 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-# Token de API
-os.environ["DEEPINFRA_API_TOKEN"] = "gtnKXw1ytDsD7DmCSsv2vwdXSW7IBJ5H"
+# Token de API como variable de entorno
+os.environ["DEEPINFRA_API_TOKEN"] = os.getenv("DEEPINFRA_API_TOKEN")
 
-# Set your secret key. Remember to switch to your live secret key in production!
-stripe.api_key = 'sk_test_51Pr14b2K3oWETT3EMYe9NiKElssrbGmCHpxdUefcuaXLRkKyya5neMrK4jDzd2qh7GUhYZRQT8wqDaiGB2qtg2Md00fbj6TZqF'
+# Configuración de Stripe usando variables de entorno
+import stripe
+stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 @app.route('/')
 def landing():
@@ -63,47 +86,53 @@ def app_index():
 
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        new_user = User(username=username, email=email, subscription_type='free')
-        new_user.set_password(password)
-        db.session.add(new_user)
-        db.session.commit()
-        login_user(new_user)
-        print(f"Usuario registrado: {username}, Email: {email}")
-        return redirect(url_for('subscribe'))
-    return render_template('register.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        
-        if user is None or not user.check_password(password):
-            flash('Usuario o contraseña incorrectos', 'danger')
-            print(f"Fallo en inicio de sesión: Usuariio {username} no encontrado o contraseña incorrecta.")
-            return redirect(url_for('login'))
-
-        login_user(user)
-        flash('Has iniciado sesión correctamente', 'success')
-        print(f"Inicio de sesión exitoso para: {username}")
-        return redirect(url_for('app_index'))
-
-    return render_template('login.html')
-
+@app.route('/login/google')
+def login_google():
+    nonce = str(uuid.uuid4())  # Generar un nonce único
+    session['nonce'] = nonce   # Almacenar el nonce en la sesión
+    redirect_uri = url_for('authorize_google', _external=True)
+    return google.authorize_redirect(redirect_uri, nonce=nonce)
 
 @app.route('/logout')
 @login_required
 def logout():
-    logout_user()
-    flash('Has cerrado sesión ', 'success')
-    return redirect(url_for('app_index'))
+    logout_user()  # Cierra la sesión del usuario
+    flash('Has cerrado sesión', 'success')
+    return redirect(url_for('landing'))
+
+@app.route('/callback/google')
+def authorize_google():
+    token = google.authorize_access_token()
+    nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
+    if nonce is None:
+        flash('Error al autenticar con Google: falta nonce.', 'danger')
+        return redirect(url_for('login'))
+    
+    user_info = google.parse_id_token(token, nonce=nonce)  # Pasar el nonce al verificar el token ID
+
+    if user_info:
+        user_email = user_info['email']
+        google_id = user_info['sub']
+
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            user = User(
+                username=user_info.get('name', user_email),
+                email=user_email,
+                google_id=google_id,
+                subscription_type='free'
+            )
+            db.session.add(user)
+            db.session.commit()
+
+        login_user(user)
+        flash('Has iniciado sesión correctamente con Google', 'success')
+        return redirect(url_for('app_index'))
+
+    flash('No se pudo autenticar con Google', 'danger')
+    return redirect(url_for('login'))
+
+
 
 @app.route('/subscribe')
 @login_required
@@ -425,7 +454,7 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000) 
+    app.run(host='0.0.0.0', port=5000) 
 
 
 

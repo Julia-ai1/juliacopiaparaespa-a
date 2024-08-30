@@ -15,6 +15,7 @@ class User(UserMixin, db.Model):
     stripe_customer_id = db.Column(db.String(255))
     stripe_subscription_id = db.Column(db.String(255))
     questions_asked = db.Column(db.Integer, default=0)
+    google_id = db.Column(db.String(255), unique=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

@@ -42,6 +42,9 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
             </form>
+            <hr>
+            <!-- Botón de inicio de sesión con Google -->
+            <a href="{{ url_for('login_google') }}" class="btn btn-danger btn-block">Iniciar sesión con Google</a>
             <a href="{{ url_for('register') }}" class="btn btn-link">Registrarse</a>
         </div>
     </div>
@@ -52,4 +55,3 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
-
