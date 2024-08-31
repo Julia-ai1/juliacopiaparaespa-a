@@ -23,7 +23,6 @@ from dotenv import load_dotenv
 
 app = Flask(__name__)
 load_dotenv()
-Talisman(app)
 
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -88,7 +87,7 @@ def login_google():
     session['nonce'] = nonce   # Almacenar el nonce en la sesión
     
     # Usar una URI de redirección fija en lugar de url_for
-    redirect_uri = "https://itsenem.com/callback/google"
+    redirect_uri = "https://itsenem.com"
     print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
     
     return google.authorize_redirect(redirect_uri, nonce=nonce)
@@ -101,7 +100,7 @@ def logout():
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
-@app.route('/callback/google')
+@app.route('/')
 def authorize_google():
     token = google.authorize_access_token()
     nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
