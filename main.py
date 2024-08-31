@@ -86,8 +86,8 @@ def login_google():
     nonce = str(uuid.uuid4())  # Generar un nonce único
     session['nonce'] = nonce   # Almacenar el nonce en la sesión
     
-    # Usar una URI de redirección fija en lugar de url_for
-    redirect_uri = "https://itsenem.com"
+    # Redirigir a la ruta correcta para manejar la autenticación de Google
+    redirect_uri = url_for('authorize_google', _external=True)
     print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
     
     return google.authorize_redirect(redirect_uri, nonce=nonce)
@@ -100,15 +100,16 @@ def logout():
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
-@app.route('/')
+@app.route('/callback/google')
 def authorize_google():
     token = google.authorize_access_token()
     nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
+    
     if nonce is None:
         flash('Error al autenticar con Google: falta nonce.', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('login_google'))
     
-    user_info = google.parse_id_token(token, nonce=nonce)  # Pasar el nonce al verificar el token ID
+    user_info = google.parse_id_token(token, nonce=nonce)  # Verificar el token ID con el nonce
 
     if user_info:
         user_email = user_info['email']
@@ -127,11 +128,10 @@ def authorize_google():
 
         login_user(user)
         flash('Has iniciado sesión correctamente con Google', 'success')
-        return redirect(url_for('app_index'))
+        return redirect(url_for('app_index'))  # Redirigir a la página principal
 
     flash('No se pudo autenticar con Google', 'danger')
-    return redirect(url_for('login'))
-
+    return redirect(url_for('login_google'))
 
 
 @app.route('/subscribe')
