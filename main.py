@@ -84,8 +84,13 @@ def app_index():
 def login_google():
     nonce = str(uuid.uuid4())  # Generar un nonce único
     session['nonce'] = nonce   # Almacenar el nonce en la sesión
-    redirect_uri = url_for('authorize_google', _external=True)
+    
+    # Usar una URI de redirección fija en lugar de url_for
+    redirect_uri = "http://itsenem.com/callback/google"
+    print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
+    
     return google.authorize_redirect(redirect_uri, nonce=nonce)
+
 
 @app.route('/logout')
 @login_required
@@ -448,7 +453,7 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000) 
+    app.run(host='0.0.0.0', port=5000) 
 
 
 
