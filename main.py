@@ -16,12 +16,14 @@ from flask_caching import Cache
 from langchain.prompts import ChatPromptTemplate
 import re
 import uuid
+from flask_talisman import Talisman
 from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 
 app = Flask(__name__)
 load_dotenv()
+Talisman(app)
 
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -86,7 +88,7 @@ def login_google():
     session['nonce'] = nonce   # Almacenar el nonce en la sesión
     
     # Usar una URI de redirección fija en lugar de url_for
-    redirect_uri = "http://itsenem.com/callback/google"
+    redirect_uri = "https://itsenem.com/callback/google"
     print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
     
     return google.authorize_redirect(redirect_uri, nonce=nonce)
@@ -453,7 +455,7 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000) 
+    app.run(host='0.0.0.0', port=8000) 
 
 
 
