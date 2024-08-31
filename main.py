@@ -23,23 +23,17 @@ from dotenv import load_dotenv
 app = Flask(__name__)
 load_dotenv()
 
-app = Flask(__name__)
-
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+db.init_app(app)
 # Cache configuration
 app.config['CACHE_TYPE'] = 'simple'
-
-db = SQLAlchemy(app) 
-migrate = Migrate(app, db)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
 # Configuración de OAuth usando variabdles de entorno
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
@@ -454,7 +448,7 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000) 
+    app.run(host='0.0.0.0', port=5001) 
 
 
 
