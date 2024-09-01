@@ -87,13 +87,13 @@ def login_google():
     session['nonce'] = nonce   # Almacenar el nonce en la sesión
     
     # Redirigir a la ruta correcta para manejar la autenticación de Google
-    redirect_uri = url_for('authorize_google', _external=True)
+    redirect_uri = "https://itsenem.com/callback/google"
     print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
     
     return google.authorize_redirect(redirect_uri, nonce=nonce)
 
 
-@app.route('/logout')
+@app.route('/callback/google')
 @login_required
 def logout():
     logout_user()  # Cierra la sesión del usuario
