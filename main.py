@@ -21,7 +21,7 @@ from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
-
+from requests_oauthlib import OAuth2Session
 
 app = Flask(__name__)
 load_dotenv()
@@ -45,13 +45,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
 
-# Configuración de OAuth con Google usando Flask-Dance con URI de redirección específica
-google_bp = make_google_blueprint(
-    client_id=os.getenv('GOOGLE_CLIENT_ID'),
-    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
-    redirect_url='https://itsenem.com/login/google/authorized'  # URI de redirección específica
-)
-app.register_blueprint(google_bp, url_prefix="/login")
+# Configuración de OAuth2 con Google
+client_id = os.getenv('GOOGLE_CLIENT_ID')
+client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+authorization_base_url = 'https://accounts.google.com/o/oauth2/auth'
+token_url = 'https://accounts.google.com/o/oauth2/token'
+redirect_uri = 'https://itsenem.com/callback'
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -61,30 +60,34 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
+
 @app.route('/')
 def landing():
     return render_template('landing.html')
 
 @app.route('/app')
+@login_required  # Solo permite el acceso a usuarios autenticados
 def app_index():
-    if current_user.is_authenticated:
-        subscription_type = current_user.subscription_type
-        questions_asked = current_user.questions_asked
-    else:
-        subscription_type = None
-        questions_asked = 0
-
+    subscription_type = current_user.subscription_type
+    questions_asked = current_user.questions_asked
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
-@app.route('/login/google')
-def google_login():
-    if not google.authorized:
-        return redirect(url_for("google.login"))
-    resp = google.get("/plus/v1/people/me")
-    assert resp.ok, resp.text
-    user_info = resp.json()
-    user = User.query.filter_by(email=user_info["email"]).first()
+@app.route('/login')
+def login():
+    google = OAuth2Session(client_id, redirect_uri=redirect_uri, scope=['profile', 'email'])
+    authorization_url, state = google.authorization_url(authorization_base_url, access_type="offline")
+    session['oauth_state'] = state
+    return redirect(authorization_url)
 
+@app.route('/callback')
+def callback():
+    google = OAuth2Session(client_id, redirect_uri=redirect_uri, state=session['oauth_state'])
+    token = google.fetch_token(token_url, client_secret=client_secret, authorization_response=request.url)
+    session['oauth_token'] = token
+
+    user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
+    
+    user = User.query.filter_by(email=user_info["email"]).first()
     if user is None:
         user = User(username=user_info["name"], email=user_info["email"], google_id=user_info["id"])
         db.session.add(user)
@@ -99,7 +102,6 @@ def logout():
     logout_user()  # Cierra la sesión del usuario
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
-
 
 
 
