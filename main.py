@@ -40,9 +40,6 @@ app.config['SESSION_COOKIE_SECURE'] = True  # Solo enviar cookies a través de H
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevenir acceso de JavaScript a las cookies de sesión
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True  # Para firmar las cookies de sesión y aumentar la seguridad
-app.config['SESSION_TYPE'] = 'sqlalchemy'
-app.config['SESSION_SQLALCHEMY'] = db
-Session(app)
 app.config['CACHE_TYPE'] = 'simple'
 
 # Configuración de Stripe usando variables de entorno
@@ -50,7 +47,7 @@ stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
+login_manager.login_view = 'login'  # Cambia esto al nombre del blueprint de Google
 
 
 @login_manager.user_loader
