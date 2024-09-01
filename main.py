@@ -22,6 +22,9 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
 from requests_oauthlib import OAuth2Session
+from flask import Flask, session
+from flask_session import Session
+import redis
 
 app = Flask(__name__)
 load_dotenv()
@@ -34,8 +37,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 app.config['SESSION_COOKIE_SECURE'] = True  # Solo enviar cookies a través de HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevenir acceso de JavaScript a las cookies de sesión
-
-# Cache configuration
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True  # Para firmar las cookies de sesión y aumentar la seguridad
+app.config['SESSION_TYPE'] = 'sqlalchemy'
+app.config['SESSION_SQLALCHEMY'] = db
 app.config['CACHE_TYPE'] = 'simple'
 
 # Configuración de Stripe usando variables de entorno
@@ -45,65 +50,70 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
 
-# Configuración de OAuth2 con Google
-client_id = os.getenv('GOOGLE_CLIENT_ID')
-client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
-authorization_base_url = 'https://accounts.google.com/o/oauth2/auth'
-token_url = 'https://accounts.google.com/o/oauth2/token'
-redirect_uri = 'https://itsenem.com/callback'
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Código para crear las tablas en el contexto de la aplicación
+# Inicializar Flask-Session con SQLAlchemy
+Session(app)
 with app.app_context():
     db.create_all()
-
+# Configuración de OAuth2 con Google
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    authorize_params=None,
+    access_token_url='https://accounts.google.com/o/oauth2/token',
+    access_token_params=None,
+    refresh_token_url=None,
+    redirect_uri='https://itsenem.com/callback',
+    client_kwargs={'scope': 'email profile'},
+)
 
 @app.route('/')
 def landing():
     return render_template('landing.html')
 
-@app.route('/app')
-@login_required  # Solo permite el acceso a usuarios autenticados
-def app_index():
-    subscription_type = current_user.subscription_type
-    questions_asked = current_user.questions_asked
-    return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
-
 @app.route('/login')
 def login():
-    google = OAuth2Session(client_id, redirect_uri=redirect_uri, scope=['profile', 'email'])
-    authorization_url, state = google.authorization_url(authorization_base_url, access_type="offline")
-    session['oauth_state'] = state
-    return redirect(authorization_url)
+    redirect_uri = url_for('callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
 
 @app.route('/callback')
 def callback():
-    google = OAuth2Session(client_id, redirect_uri=redirect_uri, state=session['oauth_state'])
-    token = google.fetch_token(token_url, client_secret=client_secret, authorization_response=request.url)
-    session['oauth_token'] = token
-
+    token = google.authorize_access_token()
+    session['google_token'] = token
+    # Cambiar a la URL completa para obtener la información del usuario
     user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
-    
-    user = User.query.filter_by(email=user_info["email"]).first()
-    if user is None:
-        user = User(username=user_info["name"], email=user_info["email"], google_id=user_info["id"])
+
+    user = User.query.filter_by(email=user_info['email']).first()
+    if not user:
+        user = User(username=user_info['name'], email=user_info['email'], google_id=user_info['id'])
         db.session.add(user)
         db.session.commit()
 
     login_user(user)
+    flash('Autenticación exitosa. ¡Bienvenido!', 'success')
     return redirect(url_for('app_index'))
+
 
 @app.route('/logout')
 @login_required
 def logout():
-    logout_user()  # Cierra la sesión del usuario
+    logout_user()
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
-
+@app.route('/app')
+@login_required
+def app_index():
+    subscription_type = current_user.subscription_type
+    questions_asked = current_user.questions_asked
+    return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
 @app.route('/subscribe')
 @login_required
