@@ -81,7 +81,7 @@ def landing():
 
 @app.route('/login')
 def login():
-    redirect_uri = url_for('callback', _external=True)
+    redirect_uri='https://itsenem.com/callback'
     return google.authorize_redirect(redirect_uri)
 
 @app.route('/callback')
