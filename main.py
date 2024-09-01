@@ -87,18 +87,35 @@ def login():
 def callback():
     token = google.authorize_access_token()
     session['google_token'] = token
-    # Cambiar a la URL completa para obtener la información del usuario
     user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
 
     user = User.query.filter_by(email=user_info['email']).first()
     if not user:
-        user = User(username=user_info['name'], email=user_info['email'], google_id=user_info['id'])
+        # Si el usuario no existe, verifica si el nombre de usuario está tomado
+        existing_user = User.query.filter_by(username=user_info['name']).first()
+        if existing_user:
+            # Si el nombre de usuario ya existe, modifica el nombre de usuario
+            base_username = user_info['name']
+            counter = 1
+            new_username = f"{base_username}{counter}"
+            while User.query.filter_by(username=new_username).first():
+                counter += 1
+                new_username = f"{base_username}{counter}"
+            user_info['name'] = new_username
+
+        user = User(
+            username=user_info['name'], 
+            email=user_info['email'], 
+            google_id=user_info['id'],
+            subscription_type='free'  # Inicializar con 'free' u otro valor según tus necesidades
+        )
         db.session.add(user)
         db.session.commit()
 
     login_user(user)
     flash('Autenticación exitosa. ¡Bienvenido!', 'success')
     return redirect(url_for('app_index'))
+
 
 
 @app.route('/logout')
@@ -435,6 +452,6 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8001, debug=True) 
+    app.run(host='0.0.0.0', port=8001) 
 
 
