@@ -100,7 +100,7 @@ def logout():
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
-@app.route('/')
+@app.route('')
 def authorize_google():
     token = google.authorize_access_token()
     nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
