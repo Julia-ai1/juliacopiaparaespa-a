@@ -20,6 +20,11 @@ from flask_talisman import Talisman
 from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
+from flask_dance.contrib.google import make_google_blueprint, google
+
+app = Flask(__name__)
+load_dotenv()
+import logging
 
 app = Flask(__name__)
 load_dotenv()
@@ -29,28 +34,28 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+app.config['SESSION_COOKIE_SECURE'] = True  # Solo enviar cookies a través de HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevenir acceso de JavaScript a las cookies de sesión
+
 # Cache configuration
 app.config['CACHE_TYPE'] = 'simple'
 
+# Configuración de Stripe usando variables de entorno
+stripe.api_key = os.getenv('STRIPE_API_KEY')
+
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
-# Configuración de OAuth usando variabdles de entorno
-app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
-app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
+login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
 
-oauth = OAuth(app)
-
-google = oauth.register(
-    name='google',
-    client_id=app.config['GOOGLE_CLIENT_ID'],
-    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
-    access_token_url='https://oauth2.googleapis.com/token',
-    authorize_url='https://accounts.google.com/o/oauth2/auth',
-    jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
-    client_kwargs={'scope': 'openid profile email', 'access_type': 'offline'}
+# Configuración de OAuth con Google usando Flask-Dance
+google_bp = make_google_blueprint(
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    redirect_to="google_login"
 )
+app.register_blueprint(google_bp, url_prefix="/login")
 
+# Función para cargar el usuario basado en el ID almacenado en la sesión
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -58,13 +63,6 @@ def load_user(user_id):
 # Código para crear las tablas en el contexto de la aplicación
 with app.app_context():
     db.create_all()
-
-# Token de API como variable de entorno
-os.environ["DEEPINFRA_API_TOKEN"] = os.getenv("DEEPINFRA_API_TOKEN")
-
-# Configuración de Stripe usando variables de entorno
-import stripe
-stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 @app.route('/')
 def landing():
@@ -82,56 +80,30 @@ def app_index():
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
 @app.route('/login/google')
-def login_google():
-    nonce = str(uuid.uuid4())  # Generar un nonce único
-    session['nonce'] = nonce   # Almacenar el nonce en la sesión
-    
-    # Redirigir a la ruta correcta para manejar la autenticación de Google
-    redirect_uri = "https://itsenem.com/callback/google"
-    print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
-    
-    return google.authorize_redirect(redirect_uri, nonce=nonce)
+def google_login():
+    if not google.authorized:
+        return redirect(url_for("google.login"))
+    resp = google.get("/plus/v1/people/me")
+    assert resp.ok, resp.text
+    user_info = resp.json()
+    user = User.query.filter_by(email=user_info["email"]).first()
 
+    if user is None:
+        user = User(username=user_info["name"], email=user_info["email"], google_id=user_info["id"])
+        db.session.add(user)
+        db.session.commit()
 
-@app.route('/callback/google')
+    login_user(user)
+    return redirect(url_for('app_index'))
+
+@app.route('/logout')
 @login_required
 def logout():
     logout_user()  # Cierra la sesión del usuario
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
-@app.route('/authorizegoogle')
-def authorize_google():
-    token = google.authorize_access_token()
-    nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
-    
-    if nonce is None:
-        flash('Error al autenticar con Google: falta nonce.', 'danger')
-        return redirect(url_for('login_google'))
-    
-    user_info = google.parse_id_token(token, nonce=nonce)  # Verificar el token ID con el nonce
 
-    if user_info:
-        user_email = user_info['email']
-        google_id = user_info['sub']
-
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            user = User(
-                username=user_info.get('name', user_email),
-                email=user_email,
-                google_id=google_id,
-                subscription_type='free'
-            )
-            db.session.add(user)
-            db.session.commit()
-
-        login_user(user)
-        flash('Has iniciado sesión correctamente con Google', 'success')
-        return redirect(url_for('app_index'))  # Redirigir a la página principal
-
-    flash('No se pudo autenticar con Google', 'danger')
-    return redirect(url_for('login_google'))
 
 
 @app.route('/subscribe')
@@ -454,7 +426,7 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8001) 
+    app.run(host='0.0.0.0', port=5000, debug=True) 
 
 
 
