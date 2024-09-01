@@ -20,12 +20,10 @@ from flask import Flask, redirect, url_for, session, request, jsonify
 from authlib.integrations.flask_client import OAuth
 import requests
 from flask_talisman import Talisman
-from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
 from requests_oauthlib import OAuth2Session
-from flask import Flask, session
 from flask_session import Session
 import redis
 
@@ -44,6 +42,7 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True  # Para firmar las cookies de sesión y aumentar la seguridad
 app.config['SESSION_TYPE'] = 'sqlalchemy'
 app.config['SESSION_SQLALCHEMY'] = db
+Session(app)
 app.config['CACHE_TYPE'] = 'simple'
 
 # Configuración de Stripe usando variables de entorno
