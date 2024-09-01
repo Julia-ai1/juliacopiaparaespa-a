@@ -16,6 +16,9 @@ from flask_caching import Cache
 from langchain.prompts import ChatPromptTemplate
 import re
 import uuid
+from flask import Flask, redirect, url_for, session, request, jsonify
+from authlib.integrations.flask_client import OAuth
+import requests
 from flask_talisman import Talisman
 from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
@@ -30,7 +33,7 @@ app = Flask(__name__)
 load_dotenv()
 import logging
 
-# Configuración de la aplicación usando variables de entorno
+# Configuración dfe la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
