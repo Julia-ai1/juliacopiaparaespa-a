@@ -18,8 +18,13 @@ import re
 import uuid
 from flask_talisman import Talisman
 from authlib.integrations.flask_client import OAuth
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
+
+app = Flask(__name__)
+load_dotenv()
+import logging
 
 app = Flask(__name__)
 load_dotenv()
@@ -28,20 +33,19 @@ load_dotenv()
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 app.config['SESSION_COOKIE_SECURE'] = True  # Solo enviar cookies a través de HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevenir acceso de JavaScript a las cookies de sesión
-app.config['CACHE_TYPE'] = 'simple'  # Cache configuration
 
-# Inicialización de extensiones
-db.init_app(app)
-migrate = Migrate(app, db)
-talisman = Talisman(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
-cache = Cache(app)
+# Cache configuration
+app.config['CACHE_TYPE'] = 'simple'
 
 # Configuración de Stripe usando variables de entorno
 stripe.api_key = os.getenv('STRIPE_API_KEY')
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
 
 # Configuración de OAuth con Google usando Flask-Dance
 google_bp = make_google_blueprint(
@@ -51,6 +55,7 @@ google_bp = make_google_blueprint(
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
+# Función para cargar el usuario basado en el ID almacenado en la sesión
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -98,21 +103,24 @@ def logout():
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
+
+
+
 @app.route('/subscribe')
 @login_required
 def subscribe():
     if current_user.subscription_type == 'paid':
-        flash('Ya tienes una suscripción activa.', 'info')
-        return redirect(url_for('app_index'))
+        flash('Ya tienses una suscripción activa.', 'info')
+        return redirect(url_for('index'))
 
     payment_link = "https://buy.stripe.com/test_00g3dud3M6H66M88wA"  # Tu enlace de pago real de Stripe
     return redirect(payment_link)
 
-@app.route('/stripe-webhook', methods=['POST'])
+@app.route('/', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')  # Use environment variable
+    endpoint_secret = 'whsec_xpqBGgt4EGordrpUfEvwR3OFOgSgKIFm'
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
@@ -173,7 +181,6 @@ def select_exam():
     
     return render_template('speciality.html', exam_type=exam_type)
 
-# Asegúrate de que esta función esté en la misma línea
 def format_solutions(solutions_text):
     solutions_raw = solutions_text.split("\n\n")
     formatted_solutions = []
@@ -213,13 +220,19 @@ def generate_exam():
         
         while questions_generated < num_items and reintentos < max_reintentos:
             try:
+                # Genera preguntas usando la función existente
                 questions = generate_questions(chat, context, num_items - questions_generated)
+                
+                # Validar preguntas generadas
                 valid_questions = [q for q in questions if validate_question(q)]
+                
+                # Agregar preguntas válidas a los resultados
                 results.extend(valid_questions)
                 questions_generated = len(results)
                 
                 print(f"Preguntas válidas generadas hasta ahora: {questions_generated} de {num_items}")
 
+                # Si no se alcanzó el número requerido de preguntas, incrementar reintentos
                 if questions_generated < num_items:
                     print(f"No se generaron suficientes preguntas válidas. Reintento {reintentos + 1}...")
                     reintentos += 1
@@ -231,21 +244,27 @@ def generate_exam():
         if questions_generated < num_items:
             print(f"Advertencia: No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
 
+        # Incrementa el contador de preguntas para el usuario actual
         current_user.increment_questions()
-        db.session.commit()
+        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
 
         return render_template('quiz.html', questions=results)
 
+# Función para validar preguntas
 def validate_question(question):
+    """
+    Verifica que la pregunta tenga los campos necesarios y estén correctamente formateados.
+    """
     if not question:
         return False
     if 'question' not in question or not question['question']:
         return False
     if 'choices' not in question or not question['choices']:
         return False
-    if len(question['choices']) < 2:
+    if len(question['choices']) < 2:  # Asegurar que haya al menos dos opciones
         return False
     return True
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -261,10 +280,11 @@ def chat():
     
     return jsonify({"response": response_text})
 
+
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
-    print("Datos recibidos del frontend:", data)
+    print("Datos recibidos del frontend:", data)  # Imprimir los datos recibidos
 
     if not data:
         print("Error: No se recibieron datos.")
@@ -277,6 +297,7 @@ def check():
         print("Error: Faltan preguntas o respuestas.")
         return jsonify({"error": "Faltan preguntas o respuestas"}), 400
 
+    # Inicializar el chat con el modelo
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     results = []
 
@@ -284,7 +305,7 @@ def check():
         question_name = f'question_{i+1}'
         user_answer = user_answers.get(question_name)
         
-        print(f"Procesando {question_name}: respuesta seleccionada = {user_answer}")
+        print(f"Procesando {question_name}: respuesta seleccionada = {user_answer}")  # Imprimir respuesta seleccionada
         
         if not user_answer:
             print(f"{question_name} sin respuesta seleccionada.")
@@ -297,9 +318,10 @@ def check():
             continue
 
         try:
+            # Usar siempre check_answer para verificar la respuesta
             correctness, explanation = check_answer(question, user_answer, chat)
             
-            print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")
+            print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
 
             results.append({
                 'question': question,
@@ -317,6 +339,7 @@ def check():
             })
 
     return jsonify(results)
+
 
 @app.route('/checkout')
 def checkout():
@@ -349,5 +372,60 @@ def create_checkout_session():
     except Exception as e:
         return jsonify(error=str(e)), 400
 
+
+# Webhook route to handle Stripe events
+import stripe
+
+@app.route('/', methods=['POST'])
+def webhook():
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = 'whsec_xpqBGgt4EGordrpUfEvwR3OFOgSgKIFm'  # Asegúrate de que esta sea la clave secreta correcta
+
+    print("Payload recibido:", payload)  # Imprimir el payload recibido
+    print("Cabecera de firma recibida:", sig_header)  # Imprimir la cabecera de firma recibida
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+        print("Firma validada exitosamente.")
+    except ValueError as e:
+        # Payload inválido
+        print("Error: Payload inválido:", e)
+        return '', 400
+    except stripe.error.SignatureVerificationError as e:
+        # Firma inválida
+        print("Error de verificación de firma:", e)
+        print("Cabecera de firma esperada:", endpoint_secret)  # Imprimir la clave de firma esperada para comparación
+        return '', 400
+
+    # Manejar el evento (por ejemplo, un pago completado)
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        handle_checkout_session(session)
+
+    return '', 200
+
+@app.route('/charge', methods=['POST'])
+def charge():
+    # `stripeToken` is obtained from the form submission
+    token = request.form['stripeToken']
+
+    try:
+        # Use Stripe's library to make requests...
+        charge = stripe.Charge.create(
+            amount=2000,  # $20.00
+            currency='usd',
+            description='Example charge',
+            source=token,
+        )
+        return render_template('success.html', amount=20)
+    except stripe.error.StripeError as e:
+        # Handle error
+        return str(e)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=False)  # Desactiva debug para producción
+    app.run(host='0.0.0.0', port=8001, debug=True) 
+
+
