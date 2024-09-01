@@ -21,13 +21,11 @@ from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
-from flask_talisman import Talisman
 
 
 app = Flask(__name__)
 load_dotenv()
 import logging
-Talisman(app, content_security_policy=None)
 
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -47,15 +45,14 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'google.login'  # Cambia esto al nombre del blueprint de Google
 
-# Configuración de OAuth con Google usando Flask-Dance
+# Configuración de OAuth con Google usando Flask-Dance con URI de redirección específica
 google_bp = make_google_blueprint(
     client_id=os.getenv('GOOGLE_CLIENT_ID'),
     client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
-    redirect_to="google_login"
+    redirect_url='https://itsenem.com/login/google/authorized'  # URI de redirección específica
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
-# Función para cargar el usuario basado en el ID almacenado en la sesión
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
