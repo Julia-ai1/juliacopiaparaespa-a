@@ -21,13 +21,13 @@ from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
+from flask_talisman import Talisman
+
 
 app = Flask(__name__)
 load_dotenv()
 import logging
-
-app = Flask(__name__)
-load_dotenv()
+Talisman(app, content_security_policy=None)
 
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
