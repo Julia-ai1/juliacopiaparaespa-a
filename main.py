@@ -40,16 +40,19 @@ app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
 
 oauth = OAuth(app)
-
 google = oauth.register(
     name='google',
-    client_id=app.config['GOOGLE_CLIENT_ID'],
-    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
-    access_token_url='https://oauth2.googleapis.com/token',
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
     authorize_url='https://accounts.google.com/o/oauth2/auth',
-    jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
-    client_kwargs={'scope': 'openid profile email', 'access_type': 'offline'}
+    authorize_params=None,
+    access_token_url='https://accounts.google.com/o/oauth2/token',
+    access_token_params=None,
+    refresh_token_url=None,
+    redirect_uri='https://itsenem.com/callback',
+    client_kwargs={'scope': 'email profile'},
 )
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -81,16 +84,11 @@ def app_index():
 
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
-@app.route('/login/google')
+@app.route('/login')
 def login_google():
-    nonce = str(uuid.uuid4())  # Generar un nonce único
-    session['nonce'] = nonce   # Almacenar el nonce en la sesión
-    
-    # Redirigir a la ruta correcta para manejar la autenticación de Google
-    redirect_uri = "https://itsenem.com/callback/google"
-    print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
-    
-    return google.authorize_redirect(redirect_uri, nonce=nonce)
+    redirect_uri = url_for('callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
 
 
 @app.route('/callback/google')
