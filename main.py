@@ -38,6 +38,7 @@ login_manager.login_view = 'login'
 # Configuración de OAuth usando variabdles de entorno
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
+app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 oauth = OAuth(app)
 google = oauth.register(
@@ -86,7 +87,7 @@ def app_index():
 
 @app.route('/login')
 def login_google():
-    redirect_uri = url_for('callback', _external=True)
+    redirect_uri = url_for('callback', _external=True, _scheme='https')
     return google.authorize_redirect(redirect_uri)
 
 
