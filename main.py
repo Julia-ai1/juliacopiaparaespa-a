@@ -49,7 +49,7 @@ google = oauth.register(
     access_token_url='https://accounts.google.com/o/oauth2/token',
     access_token_params=None,
     refresh_token_url=None,
-    redirect_uri='https://itsenem.com/callback',
+    redirect_uri='http://itsenem.com/callback',
     client_kwargs={'scope': 'email profile'},
 )
 
