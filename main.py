@@ -91,45 +91,39 @@ def login_google():
 
 
 
-@app.route('/callback/google')
-@login_required
-def logout():
-    logout_user()  # Cierra la sesión del usuario
-    flash('Has cerrado sesión', 'success')
-    return redirect(url_for('landing'))
-
-@app.route('/authorizegoogle')
-def authorize_google():
+@app.route('/callback')
+def callback():
     token = google.authorize_access_token()
-    nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
-    
-    if nonce is None:
-        flash('Error al autenticar con Google: falta nonce.', 'danger')
-        return redirect(url_for('login_google'))
-    
-    user_info = google.parse_id_token(token, nonce=nonce)  # Verificar el token ID con el nonce
+    session['google_token'] = token
+    user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
 
-    if user_info:
-        user_email = user_info['email']
-        google_id = user_info['sub']
+    user = User.query.filter_by(email=user_info['email']).first()
+    if not user:
+        # Si el usuario no existe, verifica si el nombre de usuario está tomado
+        existing_user = User.query.filter_by(username=user_info['name']).first()
+        if existing_user:
+            # Si el nombre de usuario ya existe, modifica el nombre de usuario
+            base_username = user_info['name']
+            counter = 1
+            new_username = f"{base_username}{counter}"
+            while User.query.filter_by(username=new_username).first():
+                counter += 1
+                new_username = f"{base_username}{counter}"
+            user_info['name'] = new_username
 
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            user = User(
-                username=user_info.get('name', user_email),
-                email=user_email,
-                google_id=google_id,
-                subscription_type='free'
-            )
-            db.session.add(user)
-            db.session.commit()
+        user = User(
+            username=user_info['name'], 
+            email=user_info['email'], 
+            google_id=user_info['id'],
+            subscription_type='free'  # Inicializar con 'free' u otro valor según tus necesidades
+        )
+        db.session.add(user)
+        db.session.commit()
 
-        login_user(user)
-        flash('Has iniciado sesión correctamente con Google', 'success')
-        return redirect(url_for('app_index'))  # Redirigir a la página principal
+    login_user(user)
+    flash('Autenticación exitosa. ¡Bienvenido!', 'success')
+    return redirect(url_for('app_index'))
 
-    flash('No se pudo autenticar con Google', 'danger')
-    return redirect(url_for('login_google'))
 
 
 @app.route('/subscribe')
