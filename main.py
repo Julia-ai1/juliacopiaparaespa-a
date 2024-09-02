@@ -16,122 +16,123 @@ from flask_caching import Cache
 from langchain.prompts import ChatPromptTemplate
 import re
 import uuid
-from flask import Flask, redirect, url_for, session, request, jsonify
-from authlib.integrations.flask_client import OAuth
-import requests
 from flask_talisman import Talisman
+from authlib.integrations.flask_client import OAuth
 from flask_migrate import Migrate
 from dotenv import load_dotenv
-from flask_dance.contrib.google import make_google_blueprint, google
-from requests_oauthlib import OAuth2Session
-from flask_session import Session
-import redis
 
 app = Flask(__name__)
 load_dotenv()
-import logging
 
-# Configuración dfe la aplicación usando variables de entorno
+# Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-app.config['SESSION_COOKIE_SECURE'] = True  # Solo enviar cookies a través de HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevenir acceso de JavaScript a las cookies de sesión
-app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_USE_SIGNER'] = True  # Para firmar las cookies de sesión y aumentar la seguridad
-app.config['SESSION_TYPE'] = 'sqlalchemy'
-app.config['SESSION_SQLALCHEMY'] = db
+# Cache configuration
 app.config['CACHE_TYPE'] = 'simple'
-
-# Configuración de Stripe usando variables de entorno
-stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'  # Cambia esto al nombre del blueprint de Google
+login_manager.login_view = 'login'
+# Configuración de OAuth usando variabdles de entorno
+app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
 
+oauth = OAuth(app)
+
+google = oauth.register(
+    name='google',
+    client_id=app.config['GOOGLE_CLIENT_ID'],
+    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+    access_token_url='https://oauth2.googleapis.com/token',
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
+    client_kwargs={'scope': 'openid profile email', 'access_type': 'offline'}
+)
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Inicializar Flask-Session con SQLAlchemy
-Session(app)
+# Código para crear las tablas en el contexto de la aplicación
 with app.app_context():
     db.create_all()
-# Configuración de OAuth2 con Google
-oauth = OAuth(app)
-google = oauth.register(
-    name='google',
-    client_id=os.getenv('GOOGLE_CLIENT_ID'),
-    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
-    authorize_url='https://accounts.google.com/o/oauth2/auth',
-    authorize_params=None,
-    access_token_url='https://accounts.google.com/o/oauth2/token',
-    access_token_params=None,
-    refresh_token_url=None,
-    redirect_uri='https://itsenem.com/callback',
-    client_kwargs={'scope': 'email profile'},
-)
+
+# Token de API como variable de entorno
+os.environ["DEEPINFRA_API_TOKEN"] = os.getenv("DEEPINFRA_API_TOKEN")
+
+# Configuración de Stripe usando variables de entorno
+import stripe
+stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 @app.route('/')
 def landing():
     return render_template('landing.html')
 
-@app.route('/login')
-def login():
-    redirect_uri='https://itsenem.com/callback'
-    return google.authorize_redirect(redirect_uri)
+@app.route('/app')
+def app_index():
+    if current_user.is_authenticated:
+        subscription_type = current_user.subscription_type
+        questions_asked = current_user.questions_asked
+    else:
+        subscription_type = None
+        questions_asked = 0
 
-@app.route('/callback')
-def callback():
-    token = google.authorize_access_token()
-    session['google_token'] = token
-    user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
+    return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
-    user = User.query.filter_by(email=user_info['email']).first()
-    if not user:
-        # Si el usuario no existe, verifica si el nombre de usuario está tomado
-        existing_user = User.query.filter_by(username=user_info['name']).first()
-        if existing_user:
-            # Si el nombre de usuario ya existe, modifica el nombre de usuario
-            base_username = user_info['name']
-            counter = 1
-            new_username = f"{base_username}{counter}"
-            while User.query.filter_by(username=new_username).first():
-                counter += 1
-                new_username = f"{base_username}{counter}"
-            user_info['name'] = new_username
-
-        user = User(
-            username=user_info['name'], 
-            email=user_info['email'], 
-            google_id=user_info['id'],
-            subscription_type='free'  # Inicializar con 'free' u otro valor según tus necesidades
-        )
-        db.session.add(user)
-        db.session.commit()
-
-    login_user(user)
-    flash('Autenticación exitosa. ¡Bienvenido!', 'success')
-    return redirect(url_for('app_index'))
+@app.route('/login/google')
+def login_google():
+    nonce = str(uuid.uuid4())  # Generar un nonce único
+    session['nonce'] = nonce   # Almacenar el nonce en la sesión
+    
+    # Redirigir a la ruta correcta para manejar la autenticación de Google
+    redirect_uri = "https://itsenem.com/callback/google"
+    print(f"Redirect URI being used: {redirect_uri}")  # Añadir esta línea para ver la URI de redirección
+    
+    return google.authorize_redirect(redirect_uri, nonce=nonce)
 
 
-
-@app.route('/logout')
+@app.route('/callback/google')
 @login_required
 def logout():
-    logout_user()
+    logout_user()  # Cierra la sesión del usuario
     flash('Has cerrado sesión', 'success')
     return redirect(url_for('landing'))
 
-@app.route('/app')
-@login_required
-def app_index():
-    subscription_type = current_user.subscription_type
-    questions_asked = current_user.questions_asked
-    return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
+@app.route('/authorizegoogle')
+def authorize_google():
+    token = google.authorize_access_token()
+    nonce = session.pop('nonce', None)  # Recuperar y eliminar el nonce de la sesión
+    
+    if nonce is None:
+        flash('Error al autenticar con Google: falta nonce.', 'danger')
+        return redirect(url_for('login_google'))
+    
+    user_info = google.parse_id_token(token, nonce=nonce)  # Verificar el token ID con el nonce
+
+    if user_info:
+        user_email = user_info['email']
+        google_id = user_info['sub']
+
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            user = User(
+                username=user_info.get('name', user_email),
+                email=user_email,
+                google_id=google_id,
+                subscription_type='free'
+            )
+            db.session.add(user)
+            db.session.commit()
+
+        login_user(user)
+        flash('Has iniciado sesión correctamente con Google', 'success')
+        return redirect(url_for('app_index'))  # Redirigir a la página principal
+
+    flash('No se pudo autenticar con Google', 'danger')
+    return redirect(url_for('login_google'))
+
 
 @app.route('/subscribe')
 @login_required
