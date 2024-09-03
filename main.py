@@ -88,6 +88,8 @@ def app_index():
 @app.route('/login')
 def login_google():
     redirect_uri = url_for('callback', _external=True, _scheme='https')
+    print("Redirigiendo")
+    print(redirect_uri)
     return google.authorize_redirect(redirect_uri)
 
 
@@ -134,30 +136,40 @@ def subscribe():
         flash('Ya tienses una suscripción activa.', 'info')
         return redirect(url_for('index'))
 
-    payment_link = "https://buy.stripe.com/test_00g3dud3M6H66M88wA"  # Tu enlace de pago real de Stripe
+    payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Tu enlace de pago real de Stripe
     return redirect(payment_link)
 
-@app.route('/', methods=['POST'])
+@app.route('/stripe-webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = 'whsec_xpqBGgt4EGordrpUfEvwR3OFOgSgKIFm'
+    endpoint_secret = os.getenv('STRIPE_ENDPOINT_SECRET')  # Usa una variable de entorno para el secreto del webhook
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError as e:
+        # Invalid payload
         return jsonify({'error': str(e)}), 400
     except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
         return jsonify({'error': str(e)}), 400
 
+    # Handle the event types
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         handle_checkout_session(session)
     elif event['type'] == 'customer.subscription.deleted':
         subscription = event['data']['object']
         handle_subscription_cancellation(subscription)
-    
+    elif event['type'] == 'invoice.payment_failed':
+        invoice = event['data']['object']
+        handle_payment_failed(invoice)
+    elif event['type'] == 'customer.subscription.updated':
+        subscription = event['data']['object']
+        handle_subscription_update(subscription)
+
     return '', 200
+
 
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
@@ -174,6 +186,34 @@ def handle_subscription_cancellation(subscription):
         user.subscription_type = 'free'
         user.stripe_subscription_id = None
         db.session.commit()
+
+def handle_payment_failed(invoice):
+    # Obtener el ID de cliente y buscar al usuario
+    customer_id = invoice['customer']
+    user = User.query.filter_by(stripe_customer_id=customer_id).first()
+    
+    if user:
+        # Actualizar la suscripción del usuario a 'free' o notificar sobre el fallo de pago
+        user.subscription_type = 'free'
+        db.session.commit()
+        # Aquí puedes enviar una notificación al usuario si lo deseas
+
+def handle_subscription_update(subscription):
+    customer_id = subscription['customer']
+    user = User.query.filter_by(stripe_customer_id=customer_id).first()
+    
+    if user:
+        if subscription['status'] == 'active':
+            user.subscription_type = 'paid'
+        elif subscription['status'] == 'past_due':
+            # Manejo de suscripción vencida, por ejemplo, avisar al usuario para actualizar el pago
+            user.subscription_type = 'past_due'
+        elif subscription['status'] == 'canceled':
+            user.subscription_type = 'free'
+        
+        db.session.commit()
+        # Aquí también puedes notificar al usuario según el estado de la suscripción
+
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
