@@ -26,9 +26,11 @@
                     <div class="flex justify-center items-center space-x-4 mb-4">
                         <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full">
                             {% if subscription_type == 'paid' %}
-                                Assinatura Ativa
+                                Suscripción Activa
+                            {% elif subscription_type == 'trial' %}
+                                Periodo de Prueba Activo
                             {% else %}
-                                Assinatura Gratuita
+                                Suscripción Gratuita
                             {% endif %}
                         </div>
                         <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full">

@@ -158,6 +158,9 @@ def stripe_webhook():
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         handle_checkout_session(session)
+    elif event['type'] == 'customer.subscription.created' or event['type'] == 'customer.subscription.updated':
+        subscription = event['data']['object']
+        handle_subscription_created_or_updated(subscription)
     elif event['type'] == 'customer.subscription.deleted':
         subscription = event['data']['object']
         handle_subscription_cancellation(subscription)
@@ -214,6 +217,21 @@ def handle_subscription_update(subscription):
         db.session.commit()
         # Aquí también puedes notificar al usuario según el estado de la suscripción
 
+def handle_subscription_created_or_updated(subscription):
+    customer_id = subscription['customer']
+    user = User.query.filter_by(stripe_customer_id=customer_id).first()
+    
+    if user:
+        if subscription['status'] == 'trialing':
+            user.subscription_type = 'trial'
+        elif subscription['status'] == 'active':
+            user.subscription_type = 'paid'
+        elif subscription['status'] == 'past_due':
+            user.subscription_type = 'past_due'
+        elif subscription['status'] == 'canceled':
+            user.subscription_type = 'free'
+        
+        db.session.commit()
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
@@ -233,7 +251,7 @@ def cancel_subscription():
 @app.route('/select_exam', methods=['POST'])
 @login_required
 def select_exam():
-    if current_user.subscription_type != 'paid':
+    if current_user.subscription_type not in ['trial', 'paid']:
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
         return redirect(url_for('app_index'))
     exam_type = request.form.get('exam_type')
