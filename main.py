@@ -139,7 +139,7 @@ def subscribe():
     payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Tu enlace de pago real de Stripe
     return redirect(payment_link)
 
-@app.route('/stripe-webhook', methods=['POST'])
+@app.route('/', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
