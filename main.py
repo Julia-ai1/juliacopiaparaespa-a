@@ -203,12 +203,16 @@ def stripe_webhook():
 
 def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
+    stripe_customer_id = session.get('customer')  # Obtener el Stripe customer ID
     user = User.query.filter_by(email=customer_email).first()
+    
     if user:
         user.subscription_type = 'paid'
         user.subscription_start = datetime.now(timezone.utc)
         user.stripe_subscription_id = session.get('subscription')
+        user.stripe_customer_id = stripe_customer_id  # Guardar el customer_id en la base de datos
         db.session.commit()
+
 
 def handle_subscription_cancellation(subscription):
     user = User.query.filter_by(stripe_subscription_id=subscription.id).first()
@@ -230,9 +234,9 @@ def handle_payment_failed(invoice):
 
 
 def handle_subscription_update(subscription):
-    customer_id = subscription['customer']
+    customer_id = subscription['customer']  # Obtener el customer_id de la suscripción
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
-    
+
     if user:
         if subscription['status'] == 'trialing':
             user.subscription_type = 'trial'
@@ -244,8 +248,10 @@ def handle_subscription_update(subscription):
             user.subscription_type = 'free'
         elif subscription['status'] == 'paused':
             user.subscription_type = 'paused'
-        
+
+        user.stripe_customer_id = customer_id  # Asegurarse de guardar el customer_id
         db.session.commit()
+
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
