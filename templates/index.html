@@ -63,7 +63,7 @@
                     </div>
                 {% endif %}
 
-                <a href="{{ url_for('login_google') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
+                <a href="{{ url_for('logout') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
                     Sair da Conta
                 </a>
             {% else %}
@@ -76,7 +76,6 @@
                         Registrar
                     </a>
                     <p class="mt-4">ou</p>
-                    <!-- Boton de inicio de sesión con Google -->
                     <a href="{{ url_for('login_google') }}" class="block w-full bg-red-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-red-600 transition duration-300">
                         Iniciar sesión con Google
                     </a>

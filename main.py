@@ -262,16 +262,27 @@ def handle_subscription_update(subscription):
 @login_required
 def cancel_subscription():
     user = current_user
+
+    # Verificar si el usuario tiene una suscripción activa
     if user.stripe_subscription_id:
         try:
+            # Cancelar la suscripción en Stripe
             stripe.Subscription.delete(user.stripe_subscription_id)
+
+            # Actualizar la suscripción del usuario a "free"
             user.subscription_type = 'free'
             user.stripe_subscription_id = None
+
+            # Guardar cambios en la base de datos
             db.session.commit()
+
             flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
         except stripe.error.StripeError as e:
             flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
-    return redirect(url_for('app_index'))
+    else:
+        flash('No tienes una suscripción activa para cancelar.', 'info')
+
+    return redirect(url_for('app_index'))  # Redirige a la página principal de la aplicación
 
 
 @app.route('/select_exam', methods=['POST'])
