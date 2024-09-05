@@ -171,23 +171,22 @@ def has_used_trial(stripe_customer_id):
     return False  # No ha usado un trial previamente
 
 
-# Webhook de Stripe para manejar eventos
-@app.route('/stripe_webhook', methods=['POST'])
+@app.route('/', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = os.getenv('STRIPE_ENDPOINT_SECRET')  # Secreto del webhook desde las variables de entorno
+    endpoint_secret = os.getenv('STRIPE_ENDPOINT_SECRET')  # Usa una variable de entorno para el secreto del webhook
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError as e:
-        # Payload inválido
+        # Invalid payload
         return jsonify({'error': str(e)}), 400
     except stripe.error.SignatureVerificationError as e:
-        # Firma inválida
+        # Invalid signature
         return jsonify({'error': str(e)}), 400
 
-    # Manejo de los diferentes tipos de eventos de Stripe
+    # Handle the event types
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         handle_checkout_session(session)
@@ -200,15 +199,14 @@ def stripe_webhook():
     elif event['type'] == 'invoice.payment_failed':
         invoice = event['data']['object']
         handle_payment_failed(invoice)
+    elif event['type'] == 'customer.subscription.updated':
+        subscription = event['data']['object']
+        handle_subscription_update(subscription)
 
     return '', 200
 
 
 def handle_checkout_session(session):
-    """
-    Maneja la finalización de una sesión de pago en Stripe.
-    Guarda los datos de la suscripción en la base de datos.
-    """
     customer_email = session.get('customer_details', {}).get('email')
     stripe_customer_id = session.get('customer')  # Obtener el Stripe customer ID
     user = User.query.filter_by(email=customer_email).first()
@@ -222,22 +220,14 @@ def handle_checkout_session(session):
 
 
 def handle_subscription_cancellation(subscription):
-    """
-    Maneja la cancelación de una suscripción.
-    Actualiza el tipo de suscripción del usuario a 'free' y elimina el ID de la suscripción.
-    """
-    user = User.query.filter_by(stripe_subscription_id=subscription['id']).first()
+    user = User.query.filter_by(stripe_subscription_id=subscription.id).first()
     if user:
         user.subscription_type = 'free'
         user.stripe_subscription_id = None
         db.session.commit()
 
-
 def handle_payment_failed(invoice):
-    """
-    Maneja el fallo en un intento de pago de una factura.
-    Actualiza la suscripción del usuario a 'free'.
-    """
+    # Obtener el ID de cliente y buscar al usuario
     customer_id = invoice['customer']
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
     
@@ -245,13 +235,10 @@ def handle_payment_failed(invoice):
         # Actualizar la suscripción del usuario a 'free' o notificar sobre el fallo de pago
         user.subscription_type = 'free'
         db.session.commit()
+        # Aquí puedes enviar una notificación al usuario si lo deseas
 
 
 def handle_subscription_update(subscription):
-    """
-    Maneja la actualización de una suscripción.
-    Actualiza el tipo de suscripción del usuario según el estado actual de la suscripción en Stripe.
-    """
     customer_id = subscription['customer']  # Obtener el customer_id de la suscripción
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
 
@@ -274,25 +261,18 @@ def handle_subscription_update(subscription):
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
 def cancel_subscription():
-    """
-    Cancela la suscripción actual del usuario en Stripe y actualiza su estado a 'free' en la base de datos.
-    """
     user = current_user
     if user.stripe_subscription_id:
         try:
-            # Intentar cancelar la suscripción en Stripe
             stripe.Subscription.delete(user.stripe_subscription_id)
-            # Actualizar el estado en la base de datos
             user.subscription_type = 'free'
             user.stripe_subscription_id = None
             db.session.commit()
             flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
         except stripe.error.StripeError as e:
             flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
-    else:
-        flash('No tienes una suscripción activa que se pueda cancelar.', 'warning')
-    
-    return redirect(url_for('index'))
+    return redirect(url_for('app_index'))
+
 
 @app.route('/select_exam', methods=['POST'])
 @login_required
@@ -552,4 +532,3 @@ def charge():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001) 
-
