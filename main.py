@@ -277,8 +277,10 @@ def cancel_subscription():
             flash('Tu suscripción se cancelará al final del periodo actual. Tendrás acceso hasta entonces.', 'success')
         except stripe.error.StripeError as e:
             flash(f'Ocurrió un error al programar la cancelación de tu suscripción: {str(e)}', 'danger')
+            return render_template('cancel_suscription.html')
     else:
         flash('No tienes una suscripción activa para cancelar.', 'info')
+        return render_template('register.html')
 
     return redirect(url_for('app_index'))
 
