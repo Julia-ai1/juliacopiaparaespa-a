@@ -26,11 +26,9 @@
                     <div class="flex justify-center items-center space-x-4 mb-4">
                         <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full">
                             {% if subscription_type == 'paid' %}
-                                Suscripción Activa
-                            {% elif subscription_type == 'trial' %}
-                                Periodo de Prueba Activo
+                                Assinatura Ativa
                             {% else %}
-                                Suscripción Gratuita
+                                Assinatura Gratuita
                             {% endif %}
                         </div>
                         <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full">
@@ -49,7 +47,7 @@
                         </button>
                     </form>
                     
-                    <form method="POST" action="{{ url_for('cancel_subscription') }}" class="mb-8">
+                    <form action="{{ url_for('cancel_subscription') }}" method="post" class="mb-4">
                         <button type="submit" class="w-full bg-yellow-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-yellow-600 transition duration-300">
                             Cancelar Assinatura
                         </button>
@@ -76,7 +74,7 @@
                         Registrar
                     </a>
                     <p class="mt-4">ou</p>
-                    <!-- Boton de inicio de sesión con Google -->
+                    <!-- Botón de inicio de sesión con Google -->
                     <a href="{{ url_for('login_google') }}" class="block w-full bg-red-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-red-600 transition duration-300">
                         Iniciar sesión con Google
                     </a>
