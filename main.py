@@ -239,10 +239,14 @@ def handle_payment_failed(invoice):
 
 
 def handle_subscription_update(subscription):
-    customer_id = subscription['customer']  # Obtener el customer_id de la suscripción
+    customer_id = subscription['customer']
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
-
+    
     if user:
+        # Evitar sobrescribir el estado si ya está marcado para cancelarse
+        if user.subscription_type == 'canceled_pending':
+            return
+        
         if subscription['status'] == 'trialing':
             user.subscription_type = 'trial'
         elif subscription['status'] == 'active':
@@ -254,8 +258,9 @@ def handle_subscription_update(subscription):
         elif subscription['status'] == 'paused':
             user.subscription_type = 'paused'
 
-        user.stripe_customer_id = customer_id  # Asegurarse de guardar el customer_id
+        user.stripe_customer_id = customer_id
         db.session.commit()
+
 
 
 @app.route('/cancel_subscription', methods=['POST'])
@@ -264,21 +269,18 @@ def cancel_subscription():
     user = current_user
     if user.stripe_subscription_id:
         try:
-            # Cancelar al final del periodo actual, sin cortar el acceso de inmediato
-            stripe.Subscription.modify(
+            response = stripe.Subscription.modify(
                 user.stripe_subscription_id,
-                cancel_at_period_end=True  # La suscripción se cancelará al final del ciclo de facturación
+                cancel_at_period_end=True
             )
-            
-            # Actualizar el estado de la suscripción del usuario en la base de datos
-            user.subscription_type = 'canceled_pending'  # Indica que la cancelación está programada
+            print(f"Stripe modify response: {response}")
+            user.subscription_type = 'canceled_pending'
             db.session.commit()
-            
-            flash('Tu suscripción se cancelará al final del periodo actual. Tendrás acceso hasta entonces.', 'success')
+            print(f"Subscription marked as canceled_pending for user: {user.email}")
         except stripe.error.StripeError as e:
-            flash(f'Ocurrió un error al programar la cancelación de tu suscripción: {str(e)}', 'danger')
+            print(f"Error during subscription cancellation: {e}")
     else:
-        flash('No tienes una suscripción activa para cancelar.', 'info')
+        print("No active subscription found to cancel.")
 
     return redirect(url_for('app_index'))
 
