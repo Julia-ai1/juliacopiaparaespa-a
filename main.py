@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 
 app = Flask(__name__)
 load_dotenv()
+
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
@@ -168,7 +169,7 @@ def stripe_webhook():
         handle_payment_failed(invoice)
     elif event['type'] == 'customer.subscription.updated':
         subscription = event['data']['object']
-        handle_subscription_created_or_updated(subscription)
+        handle_subscription_update(subscription)
 
     return '', 200
 
@@ -200,31 +201,37 @@ def handle_payment_failed(invoice):
         db.session.commit()
         # Aquí puedes enviar una notificación al usuario si lo deseas
 
+def handle_subscription_update(subscription):
+    customer_id = subscription['customer']
+    user = User.query.filter_by(stripe_customer_id=customer_id).first()
+    
+    if user:
+        if subscription['status'] == 'active':
+            user.subscription_type = 'paid'
+        elif subscription['status'] == 'past_due':
+            # Manejo de suscripción vencida, por ejemplo, avisar al usuario para actualizar el pago
+            user.subscription_type = 'past_due'
+        elif subscription['status'] == 'canceled':
+            user.subscription_type = 'free'
+        
+        db.session.commit()
+        # Aquí también puedes notificar al usuario según el estado de la suscripción
 
 def handle_subscription_created_or_updated(subscription):
     customer_id = subscription['customer']
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
     
     if user:
-        # Si el usuario ya ha usado el trial, no volver a colocarlo en estado trialing
-        if subscription['status'] == 'trialing' and not user.has_used_trial:
+        if subscription['status'] == 'trialing':
             user.subscription_type = 'trial'
-            user.has_used_trial = True  # Marcar que ya ha usado el trial
         elif subscription['status'] == 'active':
             user.subscription_type = 'paid'
         elif subscription['status'] == 'past_due':
             user.subscription_type = 'past_due'
         elif subscription['status'] == 'canceled':
             user.subscription_type = 'free'
-        elif subscription['status'] == 'paused':
-            user.subscription_type = 'paused'
-        elif subscription['status'] == 'trialing' and user.has_used_trial:
-            # Si el usuario ya ha utilizado su prueba gratuita, cambiar a "free" o cualquier otro plan
-            user.subscription_type = 'free'
         
         db.session.commit()
-
-
 
 @app.route('/cancel_subscription', methods=['POST'])
 @login_required
@@ -247,18 +254,11 @@ def select_exam():
     if current_user.subscription_type not in ['trial', 'paid']:
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
         return redirect(url_for('app_index'))
-    
-    # Bloquear acceso si la suscripción está pausada
-    if current_user.subscription_type == 'paused':
-        flash('Tu suscripción está pausada. Reanúdala para acceder a los exámenes.', 'warning')
-        return redirect(url_for('app_index'))
-
     exam_type = request.form.get('exam_type')
     if not exam_type:
         return "No se ha seleccionado ningún examen", 400
     
     return render_template('speciality.html', exam_type=exam_type)
-
 
 def format_solutions(solutions_text):
     solutions_raw = solutions_text.split("\n\n")
@@ -506,5 +506,4 @@ def charge():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001) 
-
 
