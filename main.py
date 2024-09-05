@@ -153,18 +153,23 @@ def has_used_trial(stripe_customer_id):
     Función para verificar si un usuario ha utilizado un trial basado en el historial de suscripciones en Stripe.
     Devuelve False si el usuario no tiene suscripciones previas (nuevo usuario).
     """
+    if not stripe_customer_id:
+        return False  # El usuario no tiene un stripe_customer_id, es un nuevo usuario
+
+    # Obtener suscripciones previas del cliente en Stripe
     subscriptions = stripe.Subscription.list(customer=stripe_customer_id)
 
-    # Si no hay suscripciones previas, el usuario no ha usado un trial
+    # Si no hay suscripciones, el usuario no ha usado un trial
     if not subscriptions['data']:
         return False  # Usuario nuevo, puede usar el trial
-    
+
     # Verificar si alguna suscripción anterior tenía un trial
     for sub in subscriptions['data']:
         if sub.trial_end and sub.status in ['trialing', 'active', 'past_due']:
             return True  # Ya ha usado un trial
 
     return False  # No ha usado un trial previamente
+
 
 @app.route('/', methods=['POST'])
 def stripe_webhook():
