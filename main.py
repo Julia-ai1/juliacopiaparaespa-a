@@ -264,14 +264,24 @@ def cancel_subscription():
     user = current_user
     if user.stripe_subscription_id:
         try:
-            stripe.Subscription.delete(user.stripe_subscription_id)
-            user.subscription_type = 'free'
-            user.stripe_subscription_id = None
+            # Cancelar al final del periodo actual, sin cortar el acceso de inmediato
+            stripe.Subscription.modify(
+                user.stripe_subscription_id,
+                cancel_at_period_end=True  # La suscripción se cancelará al final del ciclo de facturación
+            )
+            
+            # Actualizar el estado de la suscripción del usuario en la base de datos
+            user.subscription_type = 'canceled_pending'  # Indica que la cancelación está programada
             db.session.commit()
-            flash('Tu suscripción ha sido cancelada exitosamente. Ahora tienes una cuenta gratuita.', 'success')
+            
+            flash('Tu suscripción se cancelará al final del periodo actual. Tendrás acceso hasta entonces.', 'success')
         except stripe.error.StripeError as e:
-            flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
+            flash(f'Ocurrió un error al programar la cancelación de tu suscripción: {str(e)}', 'danger')
+    else:
+        flash('No tienes una suscripción activa para cancelar.', 'info')
+
     return redirect(url_for('app_index'))
+
 
 
 @app.route('/select_exam', methods=['POST'])
