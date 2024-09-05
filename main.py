@@ -160,7 +160,7 @@ def stripe_webhook():
         handle_checkout_session(session)
     elif event['type'] == 'customer.subscription.created' or event['type'] == 'customer.subscription.updated':
         subscription = event['data']['object']
-        handle_subscription_created_or_updated(subscription)
+        handle_subscription_update(subscription)
     elif event['type'] == 'customer.subscription.deleted':
         subscription = event['data']['object']
         handle_subscription_cancellation(subscription)
