@@ -133,11 +133,32 @@ def callback():
 @login_required
 def subscribe():
     if current_user.subscription_type == 'paid':
-        flash('Ya tienses una suscripción activa.', 'info')
+        flash('Ya tienes una suscripción activa.', 'info')
         return redirect(url_for('index'))
-
-    payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Tu enlace de pago real de Stripe
+    
+    # Verificar si el usuario ya ha usado un trial
+    if has_used_trial(current_user.stripe_customer_id):
+        # Redirigir a un enlace de pago sin trial
+        payment_link = "https://buy.stripe.com/4gw0417Po5bTeCQaEG"  # Enlace de pago sin trial
+        flash("Ya has utilizado tu período de prueba. Puedes suscribirte con un plan pago.", 'info')
+    else:
+        # Redirigir a un enlace de pago con trial
+        payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Enlace de pago con trial
+    
     return redirect(payment_link)
+
+
+def has_used_trial(stripe_customer_id):
+    """
+    Función para verificar si un usuario ha utilizado un trial basado en el historial de suscripciones en Stripe.
+    """
+    subscriptions = stripe.Subscription.list(customer=stripe_customer_id)
+
+    # Verificar si alguna suscripción anterior tenía un trial
+    for sub in subscriptions:
+        if sub.trial_end and sub.status in ['trialing', 'active', 'past_due']:
+            return True  # Ya ha usado un trial
+    return False
 
 @app.route('/', methods=['POST'])
 def stripe_webhook():
@@ -234,6 +255,7 @@ def cancel_subscription():
         except stripe.error.StripeError as e:
             flash(f'Ocurrió un error al cancelar tu suscripción: {str(e)}', 'danger')
     return redirect(url_for('app_index'))
+
 
 @app.route('/select_exam', methods=['POST'])
 @login_required
