@@ -48,8 +48,7 @@
                             Iniciar Preparação para o ENEM
                         </button>
                     </form>
-                    
-                    <form action="{{ url_for('cancel_subscription') }}" method="post" class="mb-4">
+                    <form action="{{ url_for('cancel_subscription') }}" method="POST" class="mb-8">
                         <button type="submit" class="w-full bg-yellow-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-yellow-600 transition duration-300">
                             Cancelar Assinatura
                         </button>
@@ -63,7 +62,7 @@
                     </div>
                 {% endif %}
 
-                <a href="{{ url_for('login_google') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
+                <a href="{{ url_for('logout') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
                     Sair da Conta
                 </a>
             {% else %}
@@ -76,7 +75,6 @@
                         Registrar
                     </a>
                     <p class="mt-4">ou</p>
-                    <!-- Botón de inicio de sesión con Google -->
                     <a href="{{ url_for('login_google') }}" class="block w-full bg-red-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-red-600 transition duration-300">
                         Iniciar sesión con Google
                     </a>
