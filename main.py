@@ -201,23 +201,8 @@ def handle_payment_failed(invoice):
         db.session.commit()
         # Aquí puedes enviar una notificación al usuario si lo deseas
 
-def handle_subscription_update(subscription):
-    customer_id = subscription['customer']
-    user = User.query.filter_by(stripe_customer_id=customer_id).first()
-    
-    if user:
-        if subscription['status'] == 'active':
-            user.subscription_type = 'paid'
-        elif subscription['status'] == 'past_due':
-            # Manejo de suscripción vencida, por ejemplo, avisar al usuario para actualizar el pago
-            user.subscription_type = 'past_due'
-        elif subscription['status'] == 'canceled':
-            user.subscription_type = 'free'
-        
-        db.session.commit()
-        # Aquí también puedes notificar al usuario según el estado de la suscripción
 
-def handle_subscription_created_or_updated(subscription):
+def handle_subscription_update(subscription):
     customer_id = subscription['customer']
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
     
@@ -230,6 +215,8 @@ def handle_subscription_created_or_updated(subscription):
             user.subscription_type = 'past_due'
         elif subscription['status'] == 'canceled':
             user.subscription_type = 'free'
+        elif subscription['status'] == 'paused':
+            user.subscription_type = 'paused'
         
         db.session.commit()
 
