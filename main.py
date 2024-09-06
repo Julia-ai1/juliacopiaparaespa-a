@@ -128,7 +128,6 @@ def callback():
     return redirect(url_for('app_index'))
 
 
-
 @app.route('/subscribe')
 @login_required
 def subscribe():
@@ -136,11 +135,11 @@ def subscribe():
         flash('Ya tienes una suscripción activa.', 'info')
         return redirect(url_for('index'))
     
-    # Verificar si el usuario ya ha usado un trial
+    # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada
     if has_used_trial(current_user.stripe_customer_id):
         # Redirigir a un enlace de pago sin trial
         payment_link = "https://buy.stripe.com/4gw0417Po5bTeCQaEG"  # Enlace de pago sin trial
-        flash("Ya has utilizado tu período de prueba. Puedes suscribirte con un plan pago.", 'info')
+        flash("Ya has utilizado tu período de prueba o tu suscripción está pausada. Puedes suscribirte con un plan pago.", 'info')
     else:
         # Redirigir a un enlace de pago con trial
         payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Enlace de pago con trial
@@ -151,7 +150,7 @@ def subscribe():
 def has_used_trial(stripe_customer_id):
     """
     Función para verificar si un usuario ha utilizado un trial basado en el historial de suscripciones en Stripe.
-    Devuelve False si el usuario no tiene suscripciones previas (nuevo usuario).
+    Devuelve True si el usuario ya ha usado un trial o si la suscripción está pausada.
     """
     if not stripe_customer_id:
         return False  # El usuario no tiene un stripe_customer_id, es un nuevo usuario
@@ -163,12 +162,13 @@ def has_used_trial(stripe_customer_id):
     if not subscriptions['data']:
         return False  # Usuario nuevo, puede usar el trial
 
-    # Verificar si alguna suscripción anterior tenía un trial
+    # Verificar si alguna suscripción anterior tenía un trial o está pausada
     for sub in subscriptions['data']:
-        if sub.trial_end and sub.status in ['trialing', 'active', 'past_due']:
-            return True  # Ya ha usado un trial
+        if sub.trial_end and sub.status in ['trialing', 'active', 'past_due', 'paused']:
+            return True  # Ya ha usado un trial o la suscripción está pausada
 
-    return False  # No ha usado un trial previamente
+    return False  # No ha usado un trial previamente ni tiene la suscripción pausada
+
 
 
 @app.route('/', methods=['POST'])
