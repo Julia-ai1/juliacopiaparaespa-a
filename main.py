@@ -387,7 +387,7 @@ def validate_question(question):
 def chat():
     user_message = request.json['message']
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
-    system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen."
+    system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen. Responde en brasileño"
     human_text = user_message
     prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
     
