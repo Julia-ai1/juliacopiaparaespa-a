@@ -49,6 +49,14 @@
         </div>
     </div>
 
+    <!-- Verificación de si se está usando un WebView embebido -->
+    <script>
+        if (window.navigator.userAgent.includes('Instagram') || window.navigator.userAgent.includes('FBAN')) {
+            alert('Por favor, abre este enlace en un navegador completo como Chrome o Safari para iniciar sesión con Google.');
+            window.location.href = 'https://www.google.com/chrome/';
+        }
+    </script>
+
     <!-- Bootstrap JS and dependencies -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
