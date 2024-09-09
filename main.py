@@ -82,117 +82,122 @@ def app_index():
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
 import os
-from flask import Flask, request, redirect, url_for, render_template
+from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
+from langchain_chroma import Chroma  # Use Chroma from the langchain_chroma package
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings  # Correct embedding import
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import CharacterTextSplitter
+from sentence_transformers import SentenceTransformer
 
-app = Flask(__name__)
-
+# Configuración para la carpeta de uploads
 UPLOAD_FOLDER = 'uploads/'
 ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Verificar que el archivo sea PDF
+# Inicializar el modelo de embeddings de Hugging Face
+embedding_model = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+
+# Inicializar Chroma para almacenar y consultar los embeddings
+chroma_db_path = "./chroma_db"
+vectorstore = Chroma(embedding_function=embedding_model, persist_directory=chroma_db_path)
+
+# Función para verificar si el archivo es un PDF
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/upload_pdf', methods=['POST'])
 def upload_pdf():
     if 'pdfFile' not in request.files:
-        return jsonify({'error': 'No se ha seleccionado ningún archivo.'}), 400
-    file = request.files['pdfFile']
-    if file.filename == '':
-        return jsonify({'error': 'Archivo no válido.'}), 400
+        return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
 
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
+    pdf_file = request.files['pdfFile']
 
-    # Extraer texto del PDF y indexarlo en Elasticsearch
-    pdf_text = extract_text_from_pdf(filepath)
-    index_pdf_in_elasticsearch(pdf_text, pdf_id=filename)
-
-    return jsonify({'message': 'Archivo subido e indexado correctamente', 'pdf_id': filename}), 200
-
-
-# Ruta para interactuar con PDF
-@app.route('/pdf_page')
-def pdf_page():
-    return render_template('pdf_chat.html')
-
-
-es = Elasticsearch(
-    cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
-    basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
-)
-
-import pdfplumber
-
-def extract_text_from_pdf(pdf_path):
-    with pdfplumber.open(pdf_path) as pdf:
-        text = ''
-        for page in pdf.pages:
-            text += page.extract_text()  # Extraer texto de cada página
-    return text
-
-
-
-def index_pdf_in_elasticsearch(pdf_text, pdf_id):
-    paragraphs = pdf_text.split('\n\n')  # Fragmentamos el texto en párrafos
-    for idx, paragraph in enumerate(paragraphs):
-        doc = {
-            'paragraph': paragraph,
-            'pdf_id': pdf_id,
-            'paragraph_num': idx
-        }
-        es.index(index='pdfs', id=f'{pdf_id}_{idx}', document=doc)
-
-def search_pdf_in_elasticsearch(question, pdf_id):
-    query = {
-        "query": {
-            "bool": {
-                "must": [
-                    {"match": {"paragraph": question}},
-                    {"term": {"pdf_id": pdf_id}}
-                ]
-            }
-        }
-    }
-    response = es.search(index='pdfs', body=query)
-    hits = response['hits']['hits']
-    return [hit['_source']['paragraph'] for hit in hits]
-
-from flask import Flask, request, jsonify, render_template
-import os
-from werkzeug.utils import secure_filename
-
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads/'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-@app.route('/upload_pdf', methods=['POST'])
-def upload_pdf():
-    if 'pdfFile' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    file = request.files['pdfFile']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    if file:
-        filename = secure_filename(file.filename)
+    if allowed_file(pdf_file.filename):
+        # Guardar el archivo subido
+        filename = secure_filename(pdf_file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+        pdf_file.save(filepath)
 
-        # Extraer texto del PDF e indexarlo en Elasticsearch
-        pdf_text = extract_text_from_pdf(filepath)
-        index_pdf_in_elasticsearch(pdf_text, pdf_id=filename)
-        return jsonify({'message': 'Archivo subido e indexado correctamente', 'pdf_id': filename}), 200
+        # Cargar el PDF y extraer el texto usando PyPDFLoader
+        loader = PyPDFLoader(filepath)
+        documents = loader.load()
 
+        # Combinar el texto extraído en una cadena única
+        pdf_text = " ".join([doc.page_content for doc in documents])
+        print(f"Texto extraído (primeros 500 caracteres): {pdf_text[:500]}")
+
+        # Dividir el texto en fragmentos más pequeños
+        text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+        texts = text_splitter.split_text(pdf_text)
+        print(f"Texto dividido en {len(texts)} fragmentos.")
+
+        # Indexar los fragmentos de texto en Chroma
+        vectorstore.add_texts(texts, metadatas=[{"pdf_id": filename}] * len(texts))
+
+        return jsonify({"message": "PDF subido e indexado correctamente", "pdf_id": filename}), 200
+    else:
+        return jsonify({"error": "Formato de archivo no válido. Por favor sube un archivo PDF."}), 400
+
+# Función para buscar en Chroma y generar una respuesta usando un modelo de lenguaje
 @app.route('/ask_question', methods=['POST'])
 def ask_question():
     question = request.form['question']
     pdf_id = request.form['pdf_id']
-    answers = search_pdf_in_elasticsearch(question, pdf_id)
-    return jsonify({'answers': answers})
+
+    # Realizar la búsqueda semántica utilizando el embedding de la pregunta
+    try:
+        results = vectorstore.similarity_search(query=question, filter={"pdf_id": pdf_id})
+    except Exception as e:
+        print(f"Error durante la búsqueda en Chroma: {e}")
+        return jsonify({"error": "Ocurrió un error durante la búsqueda"}), 500
+
+    # Extraer el contexto de los resultados de la búsqueda
+    context = " ".join([result.page_content for result in results])
+
+    # Generar una respuesta basada en el contexto y la pregunta
+    response = generate_response(context, question)  # Ahora 'response' es un JSON, no necesita jsonify de nuevo
+    return response  # Directamente retornas la respuesta, que ya está en formato JSON
+
+
+# Función para generar una respuesta usando un modelo de lenguaje
+def generate_response(context, question):
+    # Aquí se asume que estás usando un modelo de DeepInfra para generar la respuesta
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=1000)
+
+    # Prompt actualizado
+    prompt = f"""
+    You are an intelligent assistant. You have access to the following context from a PDF document:
+    {context}
+    
+    Based on the context above, please answer the following question:
+    {question}
+    
+    Please make sure your response is relevant to the context.
+    """
+
+    # Invoca la API de DeepInfra para obtener la respuesta
+    print("1")
+    print(prompt)
+    response = chat.invoke(prompt)
+    print("2")
+    print(response)
+
+    # Extrae el contenido de la respuesta
+    # Asegúrate de acceder al atributo correcto del objeto de respuesta
+    answer_text = response.content  # Ajusta esto si es diferente
+    print("4")
+    print(answer_text)
+
+    # Devolver la respuesta como JSON
+    return jsonify({'answer': answer_text})
+
+
+
+@app.route('/pdf_page')
+def pdf_page():
+    return render_template('pdf_chat.html')
+
 
 
 

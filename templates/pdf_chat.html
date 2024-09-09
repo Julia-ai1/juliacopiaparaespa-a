@@ -83,7 +83,7 @@
 </head>
 <body>
     <div id="chat-container">
-        <!-- Sección para subir el archivo PDF -->
+        <!-- Section to upload the PDF file -->
         <div id="upload-section">
             <h3>Sube tu PDF</h3>
             <form id="upload-form" enctype="multipart/form-data" method="post">
@@ -92,7 +92,7 @@
             </form>
         </div>
 
-        <!-- Sección de chat -->
+        <!-- Section for the chat interface -->
         <div id="messages"></div>
         <form id="input-form" onsubmit="sendQuestion(); return false;">
             <input type="text" id="user-question" placeholder="Haz una pregunta..." required>
@@ -101,10 +101,10 @@
     </div>
 
     <script>
-        let pdf_id = '';  // Se establecerá una vez que el archivo PDF se haya subido correctamente
+        let pdf_id = '';  // Will be set once the PDF is uploaded
 
-        // Manejar la subida de archivo
-        document.getElementById('upload-form').onsubmit = function (event) {
+        // Handle the PDF file upload
+        document.getElementById('upload-form').onsubmit = function(event) {
             event.preventDefault();
 
             const formData = new FormData();
@@ -126,7 +126,7 @@
             .catch(error => console.error('Error:', error));
         };
 
-        // Función para enviar preguntas sobre el PDF
+        // Function to send a question about the PDF
         function sendQuestion() {
             const question = document.getElementById('user-question').value;
             appendMessage(question);
@@ -146,15 +146,15 @@
             })
             .then(response => response.json())
             .then(data => {
-                const answers = data.answers;
-                answers.forEach(answer => appendMessage(answer, false));
+                const answer = data.answer;
+                appendMessage(answer, false);
             })
             .catch(error => console.error('Error:', error));
 
             document.getElementById('user-question').value = '';
         }
 
-        // Añadir mensaje al chat
+        // Function to append a message in the chat
         function appendMessage(message, isUser = true) {
             const messagesDiv = document.getElementById('messages');
             const messageElement = document.createElement('div');
@@ -166,3 +166,4 @@
     </script>
 </body>
 </html>
+
