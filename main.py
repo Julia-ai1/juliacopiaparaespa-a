@@ -4,21 +4,18 @@ from flask_migrate import Migrate
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from exani import generate_questions_exani, check_answer_exani, generate_new_questions_exani
 from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract_relevant_context_bac
-from enem import generate_questions, check_answer, retrieve_documents, extract_relevant_context
+# from enem import generate_questions, check_answer, retrieve_documents, extract_relevant_context
 from langchain_community.chat_models import ChatDeepInfra
+from selectividad import generate_questions, check_answer, retrieve_documents, extract_relevant_context
 import os
 from datetime import datetime, timezone
-import logging
 from models import db, User
 import stripe
 from elasticsearch import Elasticsearch
-from flask_caching import Cache
 from langchain.prompts import ChatPromptTemplate
 import re
-import uuid
 from flask_talisman import Talisman
 from authlib.integrations.flask_client import OAuth
-from flask_migrate import Migrate
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -31,14 +28,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 # Cache configuration
 app.config['CACHE_TYPE'] = 'simple'
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 # Configuración de OAuth usando variabdles de entorno
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
-app.config['PREFERRED_URL_SCHEME'] = 'https'
+# app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 oauth = OAuth(app)
 google = oauth.register(
@@ -85,9 +81,124 @@ def app_index():
 
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 
+import os
+from flask import Flask, request, redirect, url_for, render_template
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+
+UPLOAD_FOLDER = 'uploads/'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Verificar que el archivo sea PDF
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload_pdf', methods=['POST'])
+def upload_pdf():
+    if 'pdfFile' not in request.files:
+        return jsonify({'error': 'No se ha seleccionado ningún archivo.'}), 400
+    file = request.files['pdfFile']
+    if file.filename == '':
+        return jsonify({'error': 'Archivo no válido.'}), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+
+    # Extraer texto del PDF y indexarlo en Elasticsearch
+    pdf_text = extract_text_from_pdf(filepath)
+    index_pdf_in_elasticsearch(pdf_text, pdf_id=filename)
+
+    return jsonify({'message': 'Archivo subido e indexado correctamente', 'pdf_id': filename}), 200
+
+
+# Ruta para interactuar con PDF
+@app.route('/pdf_page')
+def pdf_page():
+    return render_template('pdf_chat.html')
+
+
+es = Elasticsearch(
+    cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
+    basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
+)
+
+import pdfplumber
+
+def extract_text_from_pdf(pdf_path):
+    with pdfplumber.open(pdf_path) as pdf:
+        text = ''
+        for page in pdf.pages:
+            text += page.extract_text()  # Extraer texto de cada página
+    return text
+
+
+
+def index_pdf_in_elasticsearch(pdf_text, pdf_id):
+    paragraphs = pdf_text.split('\n\n')  # Fragmentamos el texto en párrafos
+    for idx, paragraph in enumerate(paragraphs):
+        doc = {
+            'paragraph': paragraph,
+            'pdf_id': pdf_id,
+            'paragraph_num': idx
+        }
+        es.index(index='pdfs', id=f'{pdf_id}_{idx}', document=doc)
+
+def search_pdf_in_elasticsearch(question, pdf_id):
+    query = {
+        "query": {
+            "bool": {
+                "must": [
+                    {"match": {"paragraph": question}},
+                    {"term": {"pdf_id": pdf_id}}
+                ]
+            }
+        }
+    }
+    response = es.search(index='pdfs', body=query)
+    hits = response['hits']['hits']
+    return [hit['_source']['paragraph'] for hit in hits]
+
+from flask import Flask, request, jsonify, render_template
+import os
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+UPLOAD_FOLDER = 'uploads/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route('/upload_pdf', methods=['POST'])
+def upload_pdf():
+    if 'pdfFile' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['pdfFile']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Extraer texto del PDF e indexarlo en Elasticsearch
+        pdf_text = extract_text_from_pdf(filepath)
+        index_pdf_in_elasticsearch(pdf_text, pdf_id=filename)
+        return jsonify({'message': 'Archivo subido e indexado correctamente', 'pdf_id': filename}), 200
+
+@app.route('/ask_question', methods=['POST'])
+def ask_question():
+    question = request.form['question']
+    pdf_id = request.form['pdf_id']
+    answers = search_pdf_in_elasticsearch(question, pdf_id)
+    return jsonify({'answers': answers})
+
+
+
 @app.route('/login')
 def login_google():
-    redirect_uri = url_for('callback', _external=True, _scheme='https')
+    redirect_uri = url_for('callback', _external=True)
     print("Redirigiendo")
     print(redirect_uri)
     return google.authorize_redirect(redirect_uri)
@@ -289,7 +400,7 @@ def cancel_subscription():
 @app.route('/select_exam', methods=['POST'])
 @login_required
 def select_exam():
-    if current_user.subscription_type not in ['trial', 'paid']:
+    if current_user.subscription_type not in ['trial', 'paid', 'free']:
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
         return redirect(url_for('app_index'))
     exam_type = request.form.get('exam_type')
@@ -315,57 +426,108 @@ def format_solutions(solutions_text):
 
     return formatted_solutions
 
+
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
-    exam_type = request.form['exam_type']
+    # Obtener los valores ingresados en el formulario
+    segmento = request.form['segmento']
+    asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
+
+    # Inicializar el modelo de chat
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     results = []
 
-    if exam_type == "enem":
-        cuaderno_seleccionado = request.form['cuaderno']
-        es = Elasticsearch(
-            cloud_id="1b04b13a745c44b8931831059d0e3c9c:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJDg2M2UyNjljODc0NDQxMjM5OTZhMmE3MDVkYWFmMzkwJDY0MzY1OTA5NzQzYzQyZDJiNTRmZWE1MjI3ZTZmYTc2",
-            basic_auth=("elastic", "RV6INIvwks0S1aMR4bSFvLS0")
-        )
-        relevant_docs = retrieve_documents(es, "general_texts_enempdfs", 20, cuaderno_seleccionado)
-        context = extract_relevant_context(relevant_docs)
+    # Configuración de Elasticsearch con el cloud_id proporcionado
+    es = Elasticsearch(
+        cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
+        basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
+    )
 
-        reintentos = 0
-        max_reintentos = 5  # Límite máximo de reintentos
-        questions_generated = 0
-        
-        while questions_generated < num_items and reintentos < max_reintentos:
-            try:
-                # Genera preguntas usando la función existente
-                questions = generate_questions(chat, context, num_items - questions_generated)
-                
-                # Validar preguntas generadas
-                valid_questions = [q for q in questions if validate_question(q)]
-                
-                # Agregar preguntas válidas a los resultados
-                results.extend(valid_questions)
-                questions_generated = len(results)
-                
-                print(f"Preguntas válidas generadas hasta ahora: {questions_generated} de {num_items}")
+    # Recuperar documentos relevantes usando el segmento ingresado
+    print(f"Recuperando documentos para el segmento: {segmento}")
+    relevant_docs = retrieve_documents(segmento, es, "exam_questions_sel", 20)
 
-                # Si no se alcanzó el número requerido de preguntas, incrementar reintentos
-                if questions_generated < num_items:
-                    print(f"No se generaron suficientes preguntas válidas. Reintento {reintentos + 1}...")
-                    reintentos += 1
+    # Verificar los documentos recuperados
+    if not relevant_docs:
+        print("No se recuperaron documentos de Elasticsearch.")
+    else:
+        print(f"Documentos recuperados: {len(relevant_docs)}")
 
-            except Exception as e:
-                print(f"Error al generar preguntas: {str(e)}")
+    # Extraer el contexto
+    context = extract_relevant_context(relevant_docs)
+    print(f"Contexto extraído: {context[:200]}...")  # Muestra los primeros 200 caracteres del contexto
+
+    reintentos = 0
+    max_reintentos = 5  # Límite máximo de reintentos
+    questions_generated = 0
+
+    while questions_generated < num_items and reintentos < max_reintentos:
+        try:
+            print(f"Generando preguntas. Reintento: {reintentos + 1}")
+            # Generar preguntas usando la función generate_questions
+            questions = generate_questions(chat, context, num_items - questions_generated, segmento, asignatura)
+
+            # Verificar las preguntas generadas
+            if not questions:
+                print("No se generaron preguntas.")
+            else:
+                print(f"Preguntas generadas por la IA: {len(questions)}")
+
+            # Validar preguntas generadas
+            valid_questions = []
+            for question in questions:
+                # Añadir manualmente la asignatura y segmento a cada pregunta
+                question['subject'] = asignatura
+                question['topic'] = segmento
+
+                if validate_question(question):
+                    valid_questions.append(question)
+                else:
+                    print(f"Pregunta inválida: {question}")
+
+            # Agregar preguntas válidas a los resultados
+            results.extend(valid_questions)
+            questions_generated = len(results)
+
+            print(f"Preguntas válidas generadas hasta ahora: {questions_generated} de {num_items}")
+
+            # Si no se alcanzó el número requerido de preguntas, incrementar reintentos
+            if questions_generated < num_items:
+                print(f"No se generaron suficientes preguntas válidas. Reintento {reintentos + 1}...")
                 reintentos += 1
 
-        if questions_generated < num_items:
-            print(f"Advertencia: No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
+        except Exception as e:
+            print(f"Error al generar preguntas: {str(e)}")
+            reintentos += 1
 
-        # Incrementa el contador de preguntas para el usuario actual
-        current_user.increment_questions()
-        db.session.commit()  # Asegúrate de guardar los cambios en la base de datos
+    if questions_generated < num_items:
+        print(f"Advertencia: No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
 
-        return render_template('quiz.html', questions=results)
+    # Guardar las preguntas generadas en la base de datos antes de que el usuario responda
+    for question in results:
+        user_question = UserQuestion(
+            user_id=current_user.id,
+            question=question['question'],
+            user_answer=None,  # No hay respuesta aún
+            correct_answer=None,  # La respuesta correcta se verificará después
+            is_correct=False,  # Esto se actualizará al comprobar la respuesta del usuario
+            subject=question['subject'],  # Asignatura
+            topic=question['topic']  # Segmento
+        )
+        db.session.add(user_question)
+
+    # Confirmar los cambios en la base de datos
+    db.session.commit()
+
+    # Incrementa el contador de preguntas para el usuario actual
+    current_user.increment_questions()
+
+    # Renderizar las preguntas en el HTML (quiz.html)
+    return render_template('quiz.html', questions=results)
+
+
+
 
 # Función para validar preguntas
 def validate_question(question):
@@ -398,34 +560,31 @@ def chat():
     return jsonify({"response": response_text})
 
 
+from models import UserQuestion  # Asegúrate de importar el modelo UserQuestion que se creó anteriormente
+from flask_login import current_user
+
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
-    print("Datos recibidos del frontend:", data)  # Imprimir los datos recibidos
-
+    
+    # Verificar si se recibieron datos
     if not data:
-        print("Error: No se recibieron datos.")
         return jsonify({"error": "No se recibieron datos"}), 400
     
     questions = data.get('questions')
     user_answers = data.get('answers')
 
     if not questions or not user_answers:
-        print("Error: Faltan preguntas o respuestas.")
         return jsonify({"error": "Faltan preguntas o respuestas"}), 400
 
-    # Inicializar el chat con el modelo
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     results = []
 
     for i, question in enumerate(questions):
         question_name = f'question_{i+1}'
         user_answer = user_answers.get(question_name)
-        
-        print(f"Procesando {question_name}: respuesta seleccionada = {user_answer}")  # Imprimir respuesta seleccionada
-        
+
         if not user_answer:
-            print(f"{question_name} sin respuesta seleccionada.")
             results.append({
                 'question': question,
                 'selected_option': None,
@@ -435,10 +594,15 @@ def check():
             continue
 
         try:
-            # Usar siempre check_answer para verificar la respuesta
-            correctness, explanation = check_answer(question, user_answer, chat)
-            
-            print(f"Resultado de {question_name}: correcto = {correctness}, explicación = {explanation}")  # Imprimir resultados
+            correctness, explanation, correct_answer = check_answer(question, user_answer, chat)
+
+            # Actualizar la pregunta existente en la base de datos con la respuesta del usuario
+            user_question = UserQuestion.query.filter_by(user_id=current_user.id, question=question['question']).first()
+            if user_question:
+                user_question.user_answer = user_answer
+                user_question.correct_answer = correct_answer
+                user_question.is_correct = (correctness == "correct")
+                db.session.commit()  # Confirmar cambios en la base de datos
 
             results.append({
                 'question': question,
@@ -447,7 +611,6 @@ def check():
                 'explanation': explanation
             })
         except Exception as e:
-            print(f"Error al procesar {question_name}: {str(e)}")
             results.append({
                 'question': question,
                 'selected_option': user_answer,
@@ -456,6 +619,26 @@ def check():
             })
 
     return jsonify(results)
+
+
+
+
+
+from collections import defaultdict
+
+@app.route('/saved_questions')
+@login_required
+def saved_questions():
+    user_questions = UserQuestion.query.filter_by(user_id=current_user.id).all()
+
+    # Agrupar las preguntas por asignatura y tema
+    user_questions_by_subject = defaultdict(lambda: defaultdict(list))
+
+    for question in user_questions:
+        user_questions_by_subject[question.subject][question.topic].append(question)
+
+    return render_template('saved_questions.html', user_questions_by_subject=user_questions_by_subject)
+
 
 
 @app.route('/checkout')
@@ -543,4 +726,4 @@ def charge():
         return str(e)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8001) 
+    app.run(host='0.0.0.0', port=5001) 

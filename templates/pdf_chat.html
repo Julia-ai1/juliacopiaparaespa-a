@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat con PDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        #chat-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        #messages {
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+        }
+
+        #input-form {
+            display: flex;
+        }
+
+        #input-form input {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #input-form button {
+            width: 20%;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #input-form button:hover {
+            background-color: #45a049;
+        }
+
+        #upload-section {
+            margin-bottom: 20px;
+        }
+
+        #upload-section input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        #upload-section button {
+            width: 100%;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        #upload-section button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <!-- Sección para subir el archivo PDF -->
+        <div id="upload-section">
+            <h3>Sube tu PDF</h3>
+            <form id="upload-form" enctype="multipart/form-data" method="post">
+                <input type="file" id="pdfFile" name="pdfFile" accept="application/pdf" required>
+                <button type="submit">Subir PDF</button>
+            </form>
+        </div>
+
+        <!-- Sección de chat -->
+        <div id="messages"></div>
+        <form id="input-form" onsubmit="sendQuestion(); return false;">
+            <input type="text" id="user-question" placeholder="Haz una pregunta..." required>
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <script>
+        let pdf_id = '';  // Se establecerá una vez que el archivo PDF se haya subido correctamente
+
+        // Manejar la subida de archivo
+        document.getElementById('upload-form').onsubmit = function (event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append('pdfFile', document.getElementById('pdfFile').files[0]);
+
+            fetch('/upload_pdf', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.pdf_id) {
+                    pdf_id = data.pdf_id;
+                    alert('PDF subido correctamente. Ahora puedes hacer preguntas.');
+                } else {
+                    alert('Error al subir el PDF.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        };
+
+        // Función para enviar preguntas sobre el PDF
+        function sendQuestion() {
+            const question = document.getElementById('user-question').value;
+            appendMessage(question);
+
+            if (!pdf_id) {
+                alert("Por favor, sube un archivo PDF primero.");
+                return;
+            }
+
+            fetch('/ask_question', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    question: question,
+                    pdf_id: pdf_id
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const answers = data.answers;
+                answers.forEach(answer => appendMessage(answer, false));
+            })
+            .catch(error => console.error('Error:', error));
+
+            document.getElementById('user-question').value = '';
+        }
+
+        // Añadir mensaje al chat
+        function appendMessage(message, isUser = true) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messageElement.style.textAlign = isUser ? 'right' : 'left';
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preguntas Guardadas</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --background-color: #ecf0f1;
+            --text-color: #34495e;
+            --card-background: #ffffff;
+            --hover-color: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .card {
+            background-color: var(--card-background);
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h1 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .search-form {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .search-form select {
+            padding: 12px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            background-color: #f1f1f1;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            flex-grow: 1;
+            max-width: 200px;
+        }
+
+        .search-form select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+
+        .search-form button {
+            padding: 12px 24px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .search-form button:hover {
+            background-color: #27ae60;
+            transform: scale(1.05);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+            font-size: 14px;
+        }
+
+        .table th, .table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .table tr {
+            background-color: var(--card-background);
+            transition: all 0.3s ease;
+        }
+
+        .table tr:hover {
+            background-color: #f5f5f5;
+            cursor: pointer;
+            transform: scale(1.01);
+        }
+
+        .correct {
+            color: var(--secondary-color);
+        }
+
+        .incorrect {
+            color: var(--hover-color);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: var(--card-background);
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: scale(0.7);
+            transition: all 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: var(--hover-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .math-expression {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 16px;
+            margin: 10px 0;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .subject-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 40px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .topic-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 30px;
+            margin-left: 20px;
+            color: var(--secondary-color);
+        }
+
+        @media (max-width: 768px) {
+            .search-form {
+                flex-direction: column;
+            }
+
+            .search-form select, .search-form button {
+                width: 100%;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1><i class="fas fa-book"></i> Preguntas Guardadas</h1>
+
+            <div class="search-form">
+                <select id="subject-select">
+                    <option value="">Todas las asignaturas</option>
+                    {% for subject in user_questions_by_subject.keys() %}
+                        <option value="{{ subject }}">{{ subject | capitalize }}</option>
+                    {% endfor %}
+                </select>
+                <select id="topic-select">
+                    <option value="">Todos los temas</option>
+                </select>
+                <button onclick="filterQuestions()"><i class="fas fa-search"></i> Buscar</button>
+            </div>
+
+            <div id="questions-container">
+            {% if user_questions_by_subject %}
+                {% for subject, topics in user_questions_by_subject.items() %}
+                    <div class="subject-title" data-subject="{{ subject }}"><i class="fas fa-graduation-cap"></i> {{ subject | capitalize }}</div>
+
+                    {% for topic, questions in topics.items() %}
+                        <div class="topic-title" data-subject="{{ subject }}" data-topic="{{ topic }}"><i class="fas fa-bookmark"></i> {{ topic | capitalize }}</div>
+                        <table class="table" data-subject="{{ subject }}" data-topic="{{ topic }}">
+                            <thead>
+                                <tr>
+                                    <th>Pregunta</th>
+                                    <th>Tu Respuesta</th>
+                                    <th>Respuesta Correcta</th>
+                                    <th>¿Correcto?</th>
+                                    <th>Explicación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for question in questions %}
+                                    <tr class="question-row" data-question="{{ question.question }}" data-user-answer="{{ question.user_answer }}" data-correct-answer="{{ question.correct_answer }}" data-explanation="{{ question.explanation }}">
+                                        <td><i class="fas fa-question-circle"></i> {{ question.question }}</td>
+                                        <td><i class="fas fa-user"></i> {{ question.user_answer if question.user_answer else "No respondida" }}</td>
+                                        <td><i class="fas fa-check-circle"></i> {{ question.correct_answer if question.correct_answer else "No disponible" }}</td>
+                                        <td class="{{ 'correct' if question.is_correct else 'incorrect' }}">
+                                            {% if question.is_correct %}
+                                                <i class="fas fa-thumbs-up"></i> Sí
+                                            {% else %}
+                                                <i class="fas fa-thumbs-down"></i> No
+                                            {% endif %}
+                                        </td>
+                                        <td><i class="fas fa-info-circle"></i> {{ question.explanation[:50] + '...' if question.explanation|length > 50 else question.explanation }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+                <p>No tienes preguntas guardadas.</p>
+            {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-question-circle"></i> Pregunta</h2>
+            <p id="modal-question"></p>
+            <h2><i class="fas fa-user"></i> Tu Respuesta</h2>
+            <p id="modal-user-answer"></p>
+            <h2><i class="fas fa-check-circle"></i> Respuesta Correcta</h2>
+            <p id="modal-correct-answer"></p>
+            <h2><i class="fas fa-info-circle"></i> Explicación</h2>
+            <p id="modal-explanation"></p>
+        </div>
+    </div>
+
+    <script>
+        var modal = document.getElementById("myModal");
+        var span = document.getElementsByClassName("close")[0];
+        var questionRows = document.querySelectorAll(".question-row");
+
+        questionRows.forEach(function(row) {
+            row.addEventListener("click", function() {
+                var question = this.getAttribute("data-question");
+                var userAnswer = this.getAttribute("data-user-answer");
+                var correctAnswer = this.getAttribute("data-correct-answer");
+                var explanation = this.getAttribute("data-explanation");
+
+                document.getElementById("modal-question").innerHTML = formatMathContent(question);
+                document.getElementById("modal-user-answer").innerHTML = formatMathContent(userAnswer);
+                document.getElementById("modal-correct-answer").innerHTML = formatMathContent(correctAnswer);
+                document.getElementById("modal-explanation").innerHTML = formatMathContent(explanation);
+
+                modal.style.display = "block";
+                setTimeout(function() {
+                    modal.classList.add("show");
+                }, 10);
+            });
+        });
+
+        span.onclick = function() {
+            modal.classList.remove("show");
+            setTimeout(function() {
+                modal.style.display = "none";
+            }, 300);
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.classList.remove("show");
+                setTimeout(function() {
+                    modal.style.display = "none";
+                }, 300);
+            }
+        }
+
+        function formatMathContent(content) {
+            var regex = /\$([^$]+)\$/g;
+            return content.replace(regex, function(match, expression) {
+                return '<p class="math-expression">$' + expression + '$</p>';
+            });
+        }
+
+        var subjectSelect = document.getElementById("subject-select");
+        var topicSelect = document.getElementById("topic-select");
+
+        subjectSelect.addEventListener("change", function() {
+            var selectedSubject = this.value;
+            topicSelect.innerHTML = '<option value="">Todos los temas</option>';
+
+            if (selectedSubject) {
+                var topics = document.querySelectorAll('.topic-title[data-subject="' + selectedSubject + '"]');
+                topics.forEach(function(topic) {
+                    var option = document.createElement("option");
+                    option.value = topic.getAttribute("data-topic");
+                    option.textContent = topic.textContent;
+                    topicSelect.appendChild(option);
+                });
+            }
+        });
+
+        function filterQuestions() {
+            var selectedSubject = subjectSelect.value;
+            var selectedTopic = topicSelect.value;
+
+            var subjects = document.querySelectorAll('.subject-title');
+            var topics = document.querySelectorAll('.topic-title');
+            var tables = document.querySelectorAll('.table');
+
+            subjects.forEach(function(subject) {
+                subject.style.display = selectedSubject && subject.getAttribute("data-subject") !== selectedSubject ? "none" : "";
+            });
+
+            topics.forEach(function(topic) {
+                topic.style.display = (selectedSubject && topic.getAttribute("data-subject") !== selectedSubject) ||
+                                      (selectedTopic && topic.getAttribute("data-topic") !== selectedTopic) ? "none" : "";
+            });
+
+            tables.forEach(function(table) {
+                table.style.display = (selectedSubject && table.getAttribute("data-subject") !== selectedSubject) ||
+                                      (selectedTopic && table.getAttribute("data-topic") !== selectedTopic) ? "none" : "";
+            });
+        }
+    </script>
+</body>
+</html>

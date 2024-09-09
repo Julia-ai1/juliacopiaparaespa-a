@@ -1,85 +1,159 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Julia.ai - Seu Assistente de Preparação para o ENEM</title>
+    <title>Julia.ai - Preparación para el ENEM</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: 'Poppins', sans-serif;
         }
+
+        .wave-bg {
+            background-image: url('/api/placeholder/1920/1080');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .wave-bg::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(to right, #4c51bf, #6b46c1);
+            opacity: 0.8;
+            z-index: -1;
+        }
+
+        .user-info {
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+
+        .user-info h2 {
+            color: #4c51bf;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .user-info .badge {
+            background-color: #e9d8fd;
+            color: #6b46c1;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            margin-right: 1rem;
+        }
+
+        .action-buttons button {
+            background-color: #4c51bf;
+            color: #fff;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .action-buttons button:hover {
+            background-color: #6b46c1;
+        }
+
+        .action-buttons .cancel-button {
+            background-color: #f59e0b;
+        }
+
+        .action-buttons .cancel-button:hover {
+            background-color: #d97706;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-r from-blue-100 to-purple-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-indigo-800 mb-2">Bem-vindo ao Julia.ai</h1>
-            <p class="text-xl text-gray-600">Seu assistente inteligente para preparação do ENEM</p>
-        </header>
-        
-        <div class="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
-            {% if current_user.is_authenticated %}
-                <div class="text-center mb-8">
-                    <h2 class="text-2xl font-semibold text-indigo-700 mb-2">Olá, <span class="text-pink-600">{{ current_user.username }}</span>!</h2>
-                    <div class="flex justify-center items-center space-x-4 mb-4">
-                        <div class="bg-green-100 text-green-800 px-4 py-2 rounded-full">
-                            {% if subscription_type == 'paid' %}
-                                Assinatura Ativa
-                            {% else %}
-                                Assinatura Gratuita
-                            {% endif %}
-                        </div>
-                        <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full">
-                            {{ questions_asked }} Perguntas Este Mês
-                            {% if subscription_type == 'free' %} / 50{% endif %}
+<body>
+    <div class="wave-bg min-h-screen flex items-center justify-center">
+        <div class="container mx-auto px-4 py-8">
+            <header class="text-center mb-12">
+                <h1 class="text-4xl font-bold text-white mb-2">Bienvenido a Julia.ai</h1>
+                <p class="text-xl text-gray-200">Tu asistente inteligente para la preparación del ENEM</p>
+            </header>
+
+            <div class="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
+                {% if current_user.is_authenticated %}
+                    <div class="user-info text-center mb-8">
+                        <h2>Hola, <span class="text-pink-600">{{ current_user.username }}</span>!</h2>
+                        <div class="flex justify-center items-center space-x-4 mb-4">
+                            <div class="badge">
+                                {% if subscription_type == 'paid' %}
+                                    Suscripción Activa
+                                {% else %}
+                                    Suscripción Gratuita
+                                {% endif %}
+                            </div>
+                            <div class="badge">
+                                {{ questions_asked }} Preguntas Este Mes
+                                {% if subscription_type == 'free' %} / 50{% endif %}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {% if subscription_type == 'paid' or subscription_type == 'trial' %}
-                    <form method="POST" action="{{ url_for('select_exam') }}" class="mb-8">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Preparação para o ENEM</h3>
-                        <input type="hidden" name="exam_type" value="enem">
-                        <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300">
-                            Iniciar Preparação para o ENEM
-                        </button>
-                    </form>
-                    
-                    <form action="{{ url_for('cancel_subscription') }}" method="post" class="mb-4">
-                        <button type="submit" class="w-full bg-yellow-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-yellow-600 transition duration-300">
-                            Cancelar Assinatura
-                        </button>
-                    </form>
+                    {% if subscription_type == 'paid' or subscription_type == 'free' %}
+                        <div class="action-buttons mb-8">
+                            <form method="POST" action="{{ url_for('select_exam') }}">
+                                <input type="hidden" name="exam_type" value="enem">
+                                <button type="submit" class="w-full mb-4">
+                                    Iniciar Preparación para el ENEM
+                                </button>
+                            </form>
+
+                            <form action="{{ url_for('cancel_subscription') }}" method="post">
+                                <button type="submit" class="w-full cancel-button">
+                                    Cancelar Suscripción
+                                </button>
+                            </form>
+
+                            <a href="{{ url_for('saved_questions') }}" class="block w-full text-center text-indigo-600 hover:text-indigo-800 transition duration-300 mt-4">
+                                Ver Preguntas y Respuestas Guardadas
+                            </a>
+
+                            <!-- Nuevo enlace para interactuar con PDFs -->
+                            <a href="{{ url_for('pdf_page') }}" class="block w-full text-center text-indigo-600 hover:text-indigo-800 transition duration-300 mt-4">
+                                Interactuar con un PDF
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center mb-8">
+                            <p class="mb-4">Para acceder a la preparación del ENEM, necesitas una suscripción activa.</p>
+                            <a href="{{ url_for('subscribe') }}" class="block w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300">
+                                ¡Suscríbete ahora gratis!
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <a href="{{ url_for('login_google') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
+                        Cerrar Sesión
+                    </a>
                 {% else %}
-                    <div class="text-center mb-8">
-                        <p class="mb-4">Para acessar a preparação do ENEM, você precisa de uma assinatura ativa.</p>
-                        <a href="{{ url_for('subscribe') }}" class="block w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300">
-                            Assine agora gratuitamente!
+                    <div class="text-center">
+                        <p class="mb-4">No has iniciado sesión.</p>
+                        <a href="{{ url_for('login') }}" class="block w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 mb-4">
+                            Iniciar Sesión
+                        </a>
+                        <a href="{{ url_for('register') }}" class="block w-full bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-600 transition duration-300">
+                            Registrarse
+                        </a>
+                        <p class="mt-4">o</p>
+                        <a href="{{ url_for('login_google') }}" class="block w-full bg-red-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-red-600 transition duration-300">
+                            Iniciar Sesión con Google
                         </a>
                     </div>
                 {% endif %}
-
-                <a href="{{ url_for('login_google') }}" class="block text-center text-indigo-600 hover:text-indigo-800 transition duration-300">
-                    Sair da Conta
-                </a>
-            {% else %}
-                <div class="text-center">
-                    <p class="mb-4">Você não está conectado.</p>
-                    <a href="{{ url_for('login') }}" class="block w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 mb-4">
-                        Entrar
-                    </a>
-                    <a href="{{ url_for('register') }}" class="block w-full bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-600 transition duration-300">
-                        Registrar
-                    </a>
-                    <p class="mt-4">ou</p>
-                    <!-- Botón de inicio de sesión con Google -->
-                    <a href="{{ url_for('login_google') }}" class="block w-full bg-red-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-red-600 transition duration-300">
-                        Iniciar sesión con Google
-                    </a>
-                </div>
-            {% endif %}
+            </div>
         </div>
     </div>
 </body>

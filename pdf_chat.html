@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat con PDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        #chat-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        #messages {
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+        }
+
+        #input-form {
+            display: flex;
+        }
+
+        #input-form input {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #input-form button {
+            width: 20%;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #input-form button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="messages"></div>
+        <form id="input-form" onsubmit="sendQuestion(); return false;">
+            <input type="text" id="user-question" placeholder="Haz una pregunta..." required>
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <script>
+        const pdf_id = 'example_pdf'; // Asume que ya tienes un pdf_id cargado
+
+        function appendMessage(message, isUser = true) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messageElement.style.textAlign = isUser ? 'right' : 'left';
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function sendQuestion() {
+            const question = document.getElementById('user-question').value;
+            appendMessage(question);
+
+            fetch('/ask_question', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    question: question,
+                    pdf_id: pdf_id
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const answers = data.answers;
+                answers.forEach(answer => appendMessage(answer, false));
+            })
+            .catch(error => console.error('Error:', error));
+
+            document.getElementById('user-question').value = '';
+        }
+    </script>
+</body>
+</html>

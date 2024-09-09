@@ -1,87 +1,160 @@
-<!doctype html>
-<html lang="pt">
-  <head>
+<!DOCTYPE html>
+<html lang="es">
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Selecione a especialidade</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-  </head>
-  <body>
-    <div class="container mt-5">
-      <h1 class="text-center">Selecione a opção de teste</h1>
-      <form method="POST" action="/generate_exam" class="mt-4">
-        <input type="hidden" name="exam_type" value="{{ exam_type }}">
-        
-        {% if exam_type == 'exani_ii' %}
-          <!-- Campos para EXANI-II -->
-          <div class="form-group">
-            <label for="segmento">Selecione o segmento:</label>
-            <select id="segmento" name="segmento" class="form-control" required>
-              <option value="Segmento 1">Segmento 1</option>
-              <option value="Segmento 2">Segmento 2</option>
-              <option value="Segmento 3">Segmento 3</option>
-              <!-- Adicione mais segmentos conforme necessário -->
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="asignatura">Selecione a disciplina:</label>
-            <select id="asignatura" name="asignatura" class="form-control" required>
-              <option value="Matemáticas">Matemática</option>
-              <option value="Español">Espanhol</option>
-              <option value="Ciencias Naturales">Ciências Naturais</option>
-              <!-- Adicione mais disciplinas conforme necessário -->
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="num_items">Número de questões:</label>
-            <input type="number" id="num_items" name="num_items" class="form-control" required>
-          </div>
-
-        {% elif exam_type == 'baccalaureat' %}
-          <!-- Campos para Baccalauréat -->
-          <div class="form-group">
-            <label for="speciality">Selecione a especialidade:</label>
-            <select id="speciality" name="speciality" class="form-control" required>
-              <option value="SPÉCIALITÉ MATHÉMATIQUES">Especialidade Matemática</option>
-              <option value="SPÉCIALITÉ HISTOIRE-GÉOGRAPHIE, GÉOPOLITIQUE ET SCIENCES POLITIQUES">Especialidade História-Geografia, Geopolítica e Ciências Políticas</option>
-              <option value="SPÉCIALITÉ PHYSIQUES-CHIMIE">Especialidade Física-Química</option>
-              <option value="SPÉCIALITÉ BIOCHIMIE-BIOLOGIE BAC TECHNOLOGIQUE STL">Especialidade Bioquímica-Biologia BAC Tecnológico STL</option>
-              <option value="SPÉCIALITÉ NUMÉRIQUE ET SCIENCES INFORMATIQUES BAC GÉNÉRAL">Especialidade Numérica e Ciências Informáticas BAC Geral</option>
-              <option value="SPÉCIALITÉ HUMANITÉS, LITTÉRATURE ET PHILOSOPHIE">Especialidade Humanidades, Literatura e Filosofia</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="num_items">Número de soluções a gerar:</label>
-            <input type="number" id="num_items" name="num_items" class="form-control" required>
-          </div>
-
-        {% elif exam_type == 'enem' %}
-          <!-- Campos para ENEM -->
-          <div class="form-group">
-            <label for="cuaderno">Selecione o caderno:</label>
-            <select id="cuaderno" name="cuaderno" class="form-control" required>
-              <option value="caderno_linguagens_e_seus_codigos.pdf">Caderno Linguagens e seus Códigos</option>
-              <option value="caderno_fisica.pdf">Caderno Física</option>
-              <option value="caderno_quimica.pdf">Caderno Química</option>
-              <option value="caderno_matematicas.pdf">Caderno Matemática</option>
-              <option value="caderno_biologia.pdf">Caderno Biologia</option>
-              <option value="caderno_ciencias_humanas.pdf">Caderno Ciências Humanas</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="num_items">Número de perguntas a gerar:</label>
-            <input type="number" id="num_items" name="num_items" class="form-control" required>
-          </div>
-
-        {% endif %}
-
-        <button type="submit" class="btn btn-primary btn-block">Gerar</button>
-      </form>
+    <title>Generador de Exámenes Interactivo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 400px;
+            width: 100%;
+        }
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #ffffff;
+            border-bottom: none;
+            padding: 20px;
+            text-align: center;
+        }
+        .card-body {
+            padding: 0;
+        }
+        .form-section {
+            display: none;
+            padding: 20px;
+        }
+        .form-section.active {
+            display: block;
+        }
+        .form-control, .btn {
+            border-radius: 10px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+        .progress {
+            height: 5px;
+            background-color: #e9ecef;
+        }
+        .progress-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .nav-pills .nav-link {
+            border-radius: 0;
+            padding: 15px 0;
+            color: #495057;
+            font-weight: bold;
+        }
+        .nav-pills .nav-link.active {
+            background-color: transparent;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Generador de Exámenes</h2>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-pills nav-fill mb-3" id="formNav" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="step1-tab" data-bs-toggle="pill" data-bs-target="#step1" type="button" role="tab" aria-controls="step1" aria-selected="true">1</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="step2-tab" data-bs-toggle="pill" data-bs-target="#step2" type="button" role="tab" aria-controls="step2" aria-selected="false">2</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="step3-tab" data-bs-toggle="pill" data-bs-target="#step3" type="button" role="tab" aria-controls="step3" aria-selected="false">3</button>
+                    </li>
+                </ul>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <form id="examForm" method="POST" action="{{ url_for('generate_exam') }}">
+                    <input type="hidden" name="exam_type" value="custom">
+                    
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="step1" role="tabpanel" aria-labelledby="step1-tab">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="segmento" name="segmento" placeholder="Ej. Segmento 1" required>
+                                <label for="segmento">Segmento</label>
+                            </div>
+                            <button type="button" class="btn btn-primary w-100 py-2 mt-3 next-step">Siguiente</button>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="step2" role="tabpanel" aria-labelledby="step2-tab">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="asignatura" name="asignatura" placeholder="Ej. Matemáticas" required>
+                                <label for="asignatura">Asignatura</label>
+                            </div>
+                            <button type="button" class="btn btn-primary w-100 py-2 mt-3 next-step">Siguiente</button>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="step3" role="tabpanel" aria-labelledby="step3-tab">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="num_items" name="num_items" min="1" required>
+                                <label for="num_items">Número de preguntas</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2 mt-3">
+                                <i class="fas fa-magic me-2"></i>Generar Examen
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-  </body>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('examForm');
+            const progressBar = document.querySelector('.progress-bar');
+            const nextButtons = document.querySelectorAll('.next-step');
+            const navPills = document.querySelectorAll('.nav-pills .nav-link');
+            let currentStep = 0;
+
+            nextButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    currentStep++;
+                    updateProgress();
+                    navPills[currentStep].click();
+                });
+            });
+
+            function updateProgress() {
+                const progress = ((currentStep + 1) / navPills.length) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', progress);
+            }
+
+            form.addEventListener('submit', function(e) {
+                // No prevenimos el envío del formulario aquí
+                // El formulario se enviará normalmente al servidor
+            });
+        });
+    </script>
+</body>
 </html>

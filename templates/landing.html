@@ -1,128 +1,210 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Julia.ai - Revolucionando a Preparação para o ENEM</title>
+    <title>SelectiPro - Tu Éxito en la Selectividad</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --secondary-color: #f39c12;
-            --dark-color: #2c3e50;
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --accent-color: #e74c3c;
+            --dark-color: #34495e;
             --light-color: #ecf0f1;
         }
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--dark-color);
+            overflow-x: hidden;
         }
         .navbar {
             background-color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .navbar-brand {
             font-weight: 700;
             color: var(--primary-color);
+            font-size: 1.5rem;
         }
         .nav-link {
             color: var(--dark-color);
             font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .nav-link:hover {
+            color: var(--primary-color);
         }
         .btn-primary {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+            transform: translateY(-2px);
         }
         .btn-secondary {
             background-color: var(--secondary-color);
             border-color: var(--secondary-color);
         }
+        .btn-accent {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+        }
         #hero {
-            background: linear-gradient(rgba(74, 144, 226, 0.8), rgba(74, 144, 226, 0.8)), url('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80') no-repeat center center;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.8) 0%, rgba(46, 204, 113, 0.8) 100%), url('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80') no-repeat center center;
             background-size: cover;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        #hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;charset=utf8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"%3E%3Cpath fill="%23ffffff" fill-opacity="0.2" d="M0,96L48,112C96,128,192,160,288,170.7C384,181,480,171,576,144C672,117,768,75,864,69.3C960,64,1056,96,1152,106.7C1248,117,1344,107,1392,101.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"%3E%3C/path%3E%3C/svg%3E') no-repeat bottom;
+            background-size: cover;
         }
         .feature-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
             color: var(--primary-color);
         }
+        .feature-card {
+            border: none;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
         .testimonial {
             background-color: white;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,.1);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
             padding: 2rem;
             margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+        .testimonial:hover {
+            transform: scale(1.05);
         }
         #cta {
-            background-color: var(--primary-color);
+            background-color: var(--accent-color);
             color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        #cta::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;charset=utf8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"%3E%3Cpath fill="%23ffffff" fill-opacity="0.1" d="M0,160L48,165.3C96,171,192,181,288,170.7C384,160,480,128,576,128C672,128,768,160,864,181.3C960,203,1056,213,1152,213.3C1248,213,1344,203,1392,197.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"%3E%3C/path%3E%3C/svg%3E') no-repeat bottom;
+            background-size: cover;
         }
         footer {
             background-color: var(--dark-color);
             color: var(--light-color);
+        }
+        .price-card {
+            border: none;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .price-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+        .upload-section {
+            background-color: var(--light-color);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#">Julia.ai</a>
+            <a class="navbar-brand" href="#">SelectiPro</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="#features">Recursos</a>
+                        <a class="nav-link" href="#features">Características</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#how-it-works">Como Funciona</a>
+                        <a class="nav-link" href="#pricing">Precios</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#testimonials">Depoimentos</a>
+                        <a class="nav-link" href="#upload-pdfs">Subir PDFs</a>
                     </li>
                     <li class="nav-item">
-                        <!-- Cambiado para usar Google como método principal de autenticación -->
-                        <a class="nav-link btn btn-primary text-white" href="{{ url_for('login_google') }}">Entrar com Google</a>
+                        <a class="nav-link btn btn-primary text-white" href="{{ url_for('login_google') }}">Iniciar Sesión con Google</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <section id="hero">
-        <div class="container text-center">
-            <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">Revolucione sua Preparação para o ENEM</h1>
-            <p class="lead mb-5" data-aos="fade-up" data-aos-delay="100">Provas personalizadas com IA para impulsionar seu desempenho no ENEM</p>
-            <!-- Botón de inicio de sesión con Google -->
-            <a href="{{ url_for('login_google') }}" class="btn btn-light btn-lg me-3" data-aos="fade-up" data-aos-delay="200">Entrar com Google</a>
-            <a href="#video-demo" class="btn btn-outline-light btn-lg" data-aos="fade-up" data-aos-delay="300">Veja Como Funciona</a>
+    <section id="hero" class="d-flex align-items-center">
+        <div class="container text-center position-relative">
+            <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">Domina la Selectividad con SelectiPro</h1>
+            <p class="lead mb-5" data-aos="fade-up" data-aos-delay="100">Preparación personalizada con IA para maximizar tu puntuación</p>
+            <a href="{{ url_for('login_google') }}" class="btn btn-light btn-lg me-3" data-aos="fade-up" data-aos-delay="200">¡Empieza Ahora con Google!</a>
+            <a href="#video-demo" class="btn btn-outline-light btn-lg" data-aos="fade-up" data-aos-delay="300">Ver Demostración</a>
         </div>
     </section>
 
     <section id="features" class="py-5">
         <div class="container">
-            <h2 class="text-center mb-5">Recursos Avançados</h2>
-            <div class="row text-center">
+            <h2 class="text-center mb-5">Características Exclusivas</h2>
+            <div class="row">
                 <div class="col-md-4 mb-4" data-aos="fade-up">
-                    <i class="fas fa-robot feature-icon"></i>
-                    <h3>IA Avançada</h3>
-                    <p>Gera questões personalizadas baseadas no nível do aluno</p>
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-brain feature-icon"></i>
+                            <h3>IA Avanzada</h3>
+                            <p>Preguntas personalizadas basadas en tu nivel y progreso</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
-                    <i class="fas fa-chart-line feature-icon"></i>
-                    <h3>Análise Detalhada</h3>
-                    <p>Relatórios completos sobre o desempenho e áreas de melhoria</p>
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-line feature-icon"></i>
+                            <h3>Análisis Detallado</h3>
+                            <p>Informes completos sobre tu rendimiento y áreas de mejora</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
-                    <i class="fas fa-mobile-alt feature-icon"></i>
-                    <h3>Acesso Mobile</h3>
-                    <p>Estude onde e quando quiser com nosso app móvel</p>
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-mobile-alt feature-icon"></i>
+                            <h3>Acceso Móvil</h3>
+                            <p>Estudia donde y cuando quieras con nuestra app móvil</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -130,179 +212,94 @@
 
     <section id="video-demo" class="py-5 bg-light">
         <div class="container">
-            <h2 class="text-center mb-5">Veja a Julia.ai em Ação</h2>
+            <h2 class="text-center mb-5">SelectiPro en Acción</h2>
             <div class="row justify-content-center">
                 <div class="col-lg-8">
-                    <div class="ratio ratio-16x9" data-aos="zoom-in">
-                        <iframe src="https://www.youtube.com/watch?v=xHvQygxz9PU" title="Demonstração do Julia.ai" allowfullscreen></iframe>
+                    <div class="ratio ratio-16x9 shadow-lg" data-aos="zoom-in">
+                        <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Demostración de SelectiPro" allowfullscreen></iframe>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="how-it-works" class="py-5">
+    <section id="pricing" class="py-5">
         <div class="container">
-            <h2 class="text-center mb-5">Como Funciona</h2>
-            <div class="row">
-                <div class="col-md-3 text-center mb-4" data-aos="fade-right">
-                    <div class="bg-light p-4 rounded-circle d-inline-block mb-3">
-                        <i class="fas fa-user-plus fa-3x text-primary"></i>
-                    </div>
-                    <h4>1. Cadastre-se</h4>
-                    <p>Crie sua conta em menos de 1 minuto</p>
-                </div>
-                <div class="col-md-3 text-center mb-4" data-aos="fade-right" data-aos-delay="100">
-                    <div class="bg-light p-4 rounded-circle d-inline-block mb-3">
-                        <i class="fas fa-cogs fa-3x text-primary"></i>
-                    </div>
-                    <h4>2. Personalize</h4>
-                    <p>Escolha temas e nível de dificuldade</p>
-                </div>
-                <div class="col-md-3 text-center mb-4" data-aos="fade-right" data-aos-delay="200">
-                    <div class="bg-light p-4 rounded-circle d-inline-block mb-3">
-                        <i class="fas fa-pencil-alt fa-3x text-primary"></i>
-                    </div>
-                    <h4>3. Pratique</h4>
-                    <p>Resolva provas adaptadas ao seu nível</p>
-                </div>
-                <div class="col-md-3 text-center mb-4" data-aos="fade-right" data-aos-delay="300">
-                    <div class="bg-light p-4 rounded-circle d-inline-block mb-3">
-                        <i class="fas fa-chart-bar fa-3x text-primary"></i>
-                    </div>
-                    <h4>4. Evolua</h4>
-                    <p>Acompanhe seu progresso e melhore</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="testimonials" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-5">O Que Nossos Usuários Dizem</h2>
+            <h2 class="text-center mb-5">Planes de Estudio</h2>
             <div class="row">
                 <div class="col-md-4 mb-4" data-aos="fade-up">
-                    <div class="testimonial">
-                        <p class="mb-3">"A Julia.ai transformou minha preparação para o ENEM. As questões são desafiadoras e relevantes!"</p>
-                        <strong>Ana Silva</strong>, Estudante
+                    <div class="card price-card h-100">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">Básico</h3>
+                            <h4 class="card-subtitle mb-2 text-muted">19,99€/mes</h4>
+                            <ul class="list-unstyled">
+                                <li>Acceso a exámenes personalizados</li>
+                                <li>Análisis básico de rendimiento</li>
+                                <li>Soporte por email</li>
+                            </ul>
+                            <a href="#" class="btn btn-primary mt-3">Elegir Plan</a>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
-                    <div class="testimonial">
-                        <p class="mb-3">"Como professor, vejo um grande avanço no desempenho dos meus alunos desde que começamos a usar a plataforma."</p>
-                        <strong>Carlos Oliveira</strong>, Professor
+                    <div class="card price-card h-100 border-primary">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">Premium</h3>
+                            <h4 class="card-subtitle mb-2 text-muted">39,99€/mes</h4>
+                            <ul class="list-unstyled">
+                                <li>Todo lo del plan Básico</li>
+                                <li>Análisis avanzado de rendimiento</li>
+                                <li>Tutorías personalizadas</li>
+                                <li>Acceso a recursos exclusivos</li>
+                            </ul>
+                            <a href="#" class="btn btn-primary mt-3">Elegir Plan</a>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
-                    <div class="testimonial">
-                        <p class="mb-3">"A análise detalhada me ajudou a focar nas áreas em que eu realmente precisava melhorar. Recomendo!"</p>
-                        <strong>Mariana Santos</strong>, Aprovada no ENEM
+                    <div class="card price-card h-100">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">Élite</h3>
+                            <h4 class="card-subtitle mb-2 text-muted">69,99€/mes</h4>
+                            <ul class="list-unstyled">
+                                <li>Todo lo del plan Premium</li>
+                                <li>Sesiones 1-a-1 con profesores expertos</li>
+                                <li>Garantía de mejora de puntuación</li>
+                                <li>Acceso prioritario a nuevas funciones</li>
+                            </ul>
+                            <a href="#" class="btn btn-primary mt-3">Elegir Plan</a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Nova seção de comparação -->
-    <section id="comparison" class="py-5">
+    <section id="upload-pdfs" class="py-5 bg-light">
         <div class="container">
-            <h2 class="text-center mb-5">Julia.ai vs ChatGPT</h2>
-            <div class="table-responsive">
-                <table class="table table-bordered comparison-table">
-                    <thead>
-                        <tr>
-                            <th>Características</th>
-                            <th>Julia.ai</th>
-                            <th>ChatGPT</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Foco em ENEM</td>
-                            <td><i class="fas fa-check-circle text-success"></i> Especializado</td>
-                            <td><i class="fas fa-times-circle text-danger"></i> Generalista</td>
-                        </tr>
-                        <tr>
-                            <td>Questões personalizadas</td>
-                            <td><i class="fas fa-check-circle text-success"></i> Adaptadas ao seu nível</td>
-                            <td><i class="fas fa-times-circle text-danger"></i> Não disponível</td>
-                        </tr>
-                        <tr>
-                            <td>Análise de desempenho</td>
-                            <td><i class="fas fa-check-circle text-success"></i> Detalhada e específica para ENEM</td>
-                            <td><i class="fas fa-times-circle text-danger"></i> Não disponível</td>
-                        </tr>
-                        <tr>
-                            <td>Simulados realistas</td>
-                            <td><i class="fas fa-check-circle text-success"></i> Baseados em provas anteriores do ENEM</td>
-                            <td><i class="fas fa-times-circle text-danger"></i> Não disponível</td>
-                        </tr>
-                        <tr>
-                            <td>Conteúdo atualizado</td>
-                            <td><i class="fas fa-check-circle text-success"></i> Sempre alinhado com o ENEM</td>
-                            <td><i class="fas fa-exclamation-triangle text-warning"></i> Pode estar desatualizado</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-    <section id="affiliate" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-5">Seja um Afiliado</h2>
+            <h2 class="text-center mb-5">Sube tus PDFs de Estudio</h2>
             <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <form action="https://formspree.io/f/xgvwqnoq" method="POST" data-aos="fade-up">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Nome completo</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">E-mail</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="website" class="form-label">Site ou canal (opcional)</label>
-                            <input type="url" class="form-control" id="website" name="website">
-                        </div>
-                        <div class="mb-3">
-                            <label for="message" class="form-label">Por que você quer ser um afiliado?</label>
-                            <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Enviar solicitação</button>
-                    </form>
+                <div class="col-lg-6">
+                    <div class="upload-section text-center p-5">
+                        <p class="lead mb-4">Sube tus propios materiales de estudio en formato PDF y personaliza tu experiencia.</p>
+                        <input type="file" class="form-control" accept="application/pdf">
+                        <button class="btn btn-accent mt-3">Subir Archivo</button>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
-    <section id="cta" class="py-5">
-        <div class="container text-center">
-            <h2 class="mb-4">Pronto para Revolucionar seus Estudos?</h2>
-            <p class="lead mb-4">Junte-se a milhares de estudantes que já estão se preparando melhor para o ENEM</p>
-            <!-- Botón de inicio de sesión con Google -->
-            <a href="{{ url_for('login_google') }}" class="btn btn-light btn-lg">Comece Gratuitamente com Google</a>
-        </div>
-    </section>
 
-    <footer class="py-4 text-center">
-        <div class="container">
-            <p>&copy; 2024 Julia.ai. Todos os direitos reservados.</p>
-            <div class="mt-3">
-                <a href="#" class="text-light me-3"><i class="fab fa-facebook-f"></i></a>
-                <a href="#" class="text-light me-3"><i class="fab fa-twitter"></i></a>
-                <a href="#" class="text-light me-3"><i class="fab fa-instagram"></i></a>
-                <a href="#" class="text-light"><i class="fab fa-linkedin-in"></i></a>
-            </div>
+    <footer class="py-4">
+        <div class="container text-center">
+            <p>&copy; 2024 SelectiPro - Todos los derechos reservados</p>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
-        AOS.init({
-            duration: 1000,
-            once: true
-        });
+        AOS.init();
     </script>
 </body>
 </html>

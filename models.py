@@ -28,3 +28,18 @@ class User(UserMixin, db.Model):
         if self.subscription_type == 'free' and self.questions_asked > 50:
             return False
         return True
+
+class UserQuestion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    question = db.Column(db.Text, nullable=False)
+    user_answer = db.Column(db.Text, nullable=True)  # Permitir NULL
+    correct_answer = db.Column(db.Text, nullable=True)
+    is_correct = db.Column(db.Boolean, default=False)
+    date_answered = db.Column(db.DateTime, default=datetime.utcnow)
+    subject = db.Column(db.String(50), nullable=False)
+    topic = db.Column(db.String(50), nullable=False)
+
+
+    user = db.relationship('User', backref='questions')
+
