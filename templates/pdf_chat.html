@@ -3,107 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat con PDF</title>
+    <title>Chat con PDF - Selección de Archivos Subidos</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+        :root {
+            --primary-color: #7c3aed;
+            --secondary-color: #e9d5ff;
+            --background-color: #f3f4f6;
+            --text-color: #1f2937;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        #app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        #sidebar {
+            width: 300px;
+            background-color: white;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+        }
+
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+        }
+
         #chat-container {
+            flex-grow: 1;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #file-selection {
+            background-color: var(--secondary-color);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        #file-selection h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        #pdf-select {
             width: 100%;
-            max-width: 800px;
-            margin: 50px auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 0.5rem;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            background-color: white;
+            margin-bottom: 1rem;
+        }
+
+        #upload-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #pdfFile {
+            width: 100%;
+            padding: 0.5rem;
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            background-color: white;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background-color: #6d28d9;
+            transform: translateY(-2px);
         }
 
         #messages {
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 300px;
-            overflow-y: scroll;
-            margin-bottom: 10px;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            animation: fadeIn 0.5s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
         }
 
         #input-form {
             display: flex;
+            padding: 1.5rem;
+            background-color: white;
+            border-top: 1px solid #e5e7eb;
         }
 
-        #input-form input {
-            width: 80%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+        #user-question {
+            flex-grow: 1;
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        #user-question:focus {
+            border-color: var(--primary-color);
         }
 
         #input-form button {
-            width: 20%;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            margin-left: 1rem;
         }
 
-        #input-form button:hover {
-            background-color: #45a049;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        #upload-section {
-            margin-bottom: 20px;
-        }
+        @media (max-width: 768px) {
+            #app-container {
+                flex-direction: column;
+            }
 
-        #upload-section input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
+            #sidebar {
+                width: 100%;
+                padding: 1rem;
+            }
 
-        #upload-section button {
-            width: 100%;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            padding: 10px;
-        }
-
-        #upload-section button:hover {
-            background-color: #0056b3;
+            #main-content {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="chat-container">
-        <!-- Section to upload the PDF file -->
-        <div id="upload-section">
-            <h3>Sube tu PDF</h3>
-            <form id="upload-form" enctype="multipart/form-data" method="post">
-                <input type="file" id="pdfFile" name="pdfFile" accept="application/pdf" required>
-                <button type="submit">Subir PDF</button>
-            </form>
-        </div>
+    <div id="app-container">
+        <aside id="sidebar">
+            <h2>Chat con PDF</h2>
+            <p>Selecciona un PDF existente o sube uno nuevo para hacer preguntas sobre su contenido.</p>
+        </aside>
+        <main id="main-content">
+            <div id="chat-container">
+                <div id="file-selection">
+                    <h3>Selecciona o sube un PDF</h3>
+                    <select id="pdf-select">
+                        <option value="">-- Selecciona un PDF --</option>
+                        <!-- Opciones se llenarán dinámicamente -->
+                    </select>
+                    <form id="upload-form" enctype="multipart/form-data" method="post">
+                        <input type="file" id="pdfFile" name="pdfFile" accept="application/pdf" required>
+                        <button type="submit">Subir nuevo PDF</button>
+                    </form>
+                </div>
 
-        <!-- Section for the chat interface -->
-        <div id="messages"></div>
-        <form id="input-form" onsubmit="sendQuestion(); return false;">
-            <input type="text" id="user-question" placeholder="Haz una pregunta..." required>
-            <button type="submit">Enviar</button>
-        </form>
+                <div id="messages"></div>
+
+                <form id="input-form" onsubmit="sendQuestion(); return false;">
+                    <input type="text" id="user-question" placeholder="Haz una pregunta sobre el PDF..." required>
+                    <button type="submit"><i class="fas fa-paper-plane"></i> Enviar</button>
+                </form>
+            </div>
+        </main>
     </div>
 
     <script>
-        let pdf_id = '';  // Will be set once the PDF is uploaded
+        let currentPdfId = '';
 
-        // Handle the PDF file upload
+        // Función para cargar la lista de PDFs subidos previamente
+        function loadPreviousPDFs() {
+            fetch('/get_pdfs')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('pdf-select');
+                    data.pdfs.forEach(pdf => {
+                        const option = document.createElement('option');
+                        option.value = pdf.name;  // Asegúrate de usar solo el nombre del archivo
+                        option.textContent = pdf.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Event listener para el cambio de selección de PDF
+        document.getElementById('pdf-select').addEventListener('change', function() {
+            currentPdfId = this.value;
+        });
+
         document.getElementById('upload-form').onsubmit = function(event) {
             event.preventDefault();
 
@@ -114,25 +251,38 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al subir el PDF.');
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.pdf_id) {
-                    pdf_id = data.pdf_id;
-                    alert('PDF subido correctamente. Ahora puedes hacer preguntas.');
+                if (data.pdf_id) {  // Usamos el nombre del archivo como pdf_id
+                    currentPdfId = data.pdf_id;
+                    const select = document.getElementById('pdf-select');
+                    const option = document.createElement('option');
+                    option.value = data.pdf_id;  // Guardamos solo el nombre del archivo
+                    option.textContent = data.pdf_id;  // Mostrar solo el nombre del archivo
+                    select.appendChild(option);
+                    select.value = data.pdf_id;
+                    alert('PDF subido correctamente.');
                 } else {
                     alert('Error al subir el PDF.');
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al subir el PDF.');
+            });
         };
 
-        // Function to send a question about the PDF
         function sendQuestion() {
             const question = document.getElementById('user-question').value;
-            appendMessage(question);
+            appendMessage(question, true);
 
-            if (!pdf_id) {
-                alert("Por favor, sube un archivo PDF primero.");
+            if (!currentPdfId) {
+                alert("Por favor, selecciona o sube un archivo PDF primero.");
                 return;
             }
 
@@ -141,7 +291,7 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
                     question: question,
-                    pdf_id: pdf_id
+                    pdf_id: currentPdfId  // Asegúrate de enviar solo el nombre del archivo
                 })
             })
             .then(response => response.json())
@@ -154,16 +304,17 @@
             document.getElementById('user-question').value = '';
         }
 
-        // Function to append a message in the chat
         function appendMessage(message, isUser = true) {
             const messagesDiv = document.getElementById('messages');
             const messageElement = document.createElement('div');
             messageElement.textContent = message;
-            messageElement.style.textAlign = isUser ? 'right' : 'left';
+            messageElement.className = isUser ? 'message user-message' : 'message bot-message';
             messagesDiv.appendChild(messageElement);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
+
+        // Cargar PDFs previos al iniciar la página
+        loadPreviousPDFs();
     </script>
 </body>
 </html>
-
