@@ -191,7 +191,7 @@
     <div id="app-container">
         <aside id="sidebar">
             <h2>Chat con PDF</h2>
-            <p>Selecciona un PDF existente o sube uno nuevo para hacer preguntas sobre su contenido.</p>
+            <p>Selecciona un PDF existente o sube uno nuevo para hacer preguntas o generar preguntas sobre su contenido.</p>
         </aside>
         <main id="main-content">
             <div id="chat-container">
@@ -199,12 +199,12 @@
                     <h3>Selecciona o sube un PDF</h3>
                     <select id="pdf-select">
                         <option value="">-- Selecciona un PDF --</option>
-                        <!-- Opciones se llenarán dinámicamente -->
                     </select>
                     <form id="upload-form" enctype="multipart/form-data" method="post">
                         <input type="file" id="pdfFile" name="pdfFile" accept="application/pdf" required>
                         <button type="submit">Subir nuevo PDF</button>
                     </form>
+                    <button onclick="generateQuestions()">Generar Preguntas del PDF</button>
                 </div>
 
                 <div id="messages"></div>
@@ -220,7 +220,6 @@
     <script>
         let currentPdfId = '';
 
-        // Función para cargar la lista de PDFs subidos previamente
         function loadPreviousPDFs() {
             fetch('/get_pdfs')
                 .then(response => response.json())
@@ -228,7 +227,7 @@
                     const select = document.getElementById('pdf-select');
                     data.pdfs.forEach(pdf => {
                         const option = document.createElement('option');
-                        option.value = pdf.name;  // Asegúrate de usar solo el nombre del archivo
+                        option.value = pdf.name;
                         option.textContent = pdf.name;
                         select.appendChild(option);
                     });
@@ -236,7 +235,6 @@
                 .catch(error => console.error('Error:', error));
         }
 
-        // Event listener para el cambio de selección de PDF
         document.getElementById('pdf-select').addEventListener('change', function() {
             currentPdfId = this.value;
         });
@@ -258,12 +256,12 @@
                 return response.json();
             })
             .then(data => {
-                if (data.pdf_id) {  // Usamos el nombre del archivo como pdf_id
+                if (data.pdf_id) {
                     currentPdfId = data.pdf_id;
                     const select = document.getElementById('pdf-select');
                     const option = document.createElement('option');
-                    option.value = data.pdf_id;  // Guardamos solo el nombre del archivo
-                    option.textContent = data.pdf_id;  // Mostrar solo el nombre del archivo
+                    option.value = data.pdf_id;
+                    option.textContent = data.pdf_id;
                     select.appendChild(option);
                     select.value = data.pdf_id;
                     alert('PDF subido correctamente.');
@@ -276,6 +274,29 @@
                 alert('Error al subir el PDF.');
             });
         };
+
+        function generateQuestions() {
+            if (!currentPdfId) {
+                alert("Por favor, selecciona o sube un archivo PDF primero.");
+                return;
+            }
+
+            fetch('/generate_questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ pdf_id: currentPdfId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Preguntas generadas correctamente.');
+                    window.location.href = '/test?pdf_id=' + currentPdfId;  // Redirige a la página de test
+                } else {
+                    alert('Error al generar las preguntas.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
 
         function sendQuestion() {
             const question = document.getElementById('user-question').value;
@@ -291,7 +312,7 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
                     question: question,
-                    pdf_id: currentPdfId  // Asegúrate de enviar solo el nombre del archivo
+                    pdf_id: currentPdfId
                 })
             })
             .then(response => response.json())
@@ -313,7 +334,6 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Cargar PDFs previos al iniciar la página
         loadPreviousPDFs();
     </script>
 </body>

@@ -7,6 +7,7 @@ from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract
 # from enem import generate_questions, check_answer, retrieve_documents, extract_relevant_context
 from langchain_community.chat_models import ChatDeepInfra
 from selectividad import generate_questions, check_answer, retrieve_documents, extract_relevant_context
+from study_guide_generator import generate_study_guide_from_pdf, save_progress, load_progress
 import os
 import requests as http_requests  # Renombrar la librería requests
 import logging
@@ -19,46 +20,27 @@ import re
 from flask_talisman import Talisman
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from datetime import datetime, timedelta
 import io
-
+from azure.search.documents import SearchClient
+from azure.core.credentials import AzureKeyCredential
+from PyPDF2 import PdfReader
+import tempfile
+import os
+import logging
 from werkzeug.utils import secure_filename
 import os
 
+# Configuración de Azure AI Search
+SEARCH_SERVICE_ENDPOINT = os.getenv("SEARCH_SERVICE_ENDPOINT")
+SEARCH_API_KEY = os.getenv("SEARCH_API_KEY")
+INDEX_NAME = os.getenv("INDEX_NAME")
+
+search_client = SearchClient(endpoint=SEARCH_SERVICE_ENDPOINT,
+                             index_name=INDEX_NAME,
+                             credential=AzureKeyCredential(SEARCH_API_KEY))
 app = Flask(__name__)
 load_dotenv()
-
-
-# Configuración de Azure Blob Storage
-AZURE_STORAGE_CONNECTION_STRING = "DefaultEndpointsProtocol=https;AccountName=juliastorage1236;AccountKey=Tj4EdJoBTJnPGx8x5DLO1OVV5Nz8kFJyDPZWBB8dkrFyhtv3uAthYxzc5vfW+mimbvbJ1Xfq0kPU+AStRw4Ydw==;EndpointSuffix=core.windows.net"  # Coloca aquí tu cadena de conexión
-blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-container_name = "julia"  # Asegúrate de usar el nombre del contenedor que creaste
-
-# Función para subir archivos PDF a Azure Blob Storage
-def upload_pdf_to_azure(pdf_file, user_id):
-    filename = secure_filename(pdf_file.filename)
-    blob_path = f"{user_id}/{filename}"  # Organizar por usuario en el contenedor
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_path)
-    
-    # Subir el archivo
-    blob_client.upload_blob(pdf_file)
-    print(f"Archivo {filename} subido a Azure Blob Storage.")
-    
-    # Generar un SAS Token para el archivo subido
-    sas_token = generate_blob_sas(
-        account_name=blob_client.account_name,
-        container_name=container_name,
-        blob_name=blob_path,
-        account_key="Tj4EdJoBTJnPGx8x5DLO1OVV5Nz8kFJyDPZWBB8dkrFyhtv3uAthYxzc5vfW+mimbvbJ1Xfq0kPU+AStRw4Ydw==",  # Coloca aquí tu clave de acceso a la cuenta de Azure Storage
-        permission=BlobSasPermissions(read=True),  # Solo permisos de lectura
-        expiry=datetime.utcnow() + timedelta(hours=1)  # El token expira en 1 hora
-    )
-    
-    # Generar la URL con el SAS Token
-    sas_url = f"https://{blob_client.account_name}.blob.core.windows.net/{container_name}/{blob_path}?{sas_token}"
-    return sas_url
-
 
 # Configuración de la aplicación usando variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -119,137 +101,131 @@ def app_index():
         questions_asked = 0
 
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
+#Empieza aqui lo de los pdfs y tipo test de pdfs
 
-import os
-from flask import Flask, request, jsonify, render_template
-from werkzeug.utils import secure_filename
-from langchain_chroma import Chroma  # Use Chroma from the langchain_chroma package
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings  # Correct embedding import
-from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import CharacterTextSplitter
-from sentence_transformers import SentenceTransformer
+import re
+def normalize_pdf_id(filename):
+    # Reemplaza cualquier carácter no permitido por un guion bajo o guion
+    return re.sub(r'[^A-Za-z0-9_\-]', '_', filename)
 
-# Configuración para la carpeta de uploads
-UPLOAD_FOLDER = 'uploads/'
-ALLOWED_EXTENSIONS = {'pdf'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Modifica la lógica de subida del PDF
+@app.route('/upload_pdf', methods=['POST'])
+def upload_pdf():
+    try:
+        # Verificar si se ha enviado el archivo PDF
+        if 'pdfFile' not in request.files:
+            print("No se ha seleccionado ningún archivo.")
+            return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
 
-# Inicializar el modelo de embeddings de Hugging Face
-embedding_model = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+        pdf_file = request.files['pdfFile']
+        user_id = request.form.get('user_id', 'default_user')
 
-# Inicializar Chroma para almacenar y consultar los embeddings
-chroma_db_path = "./chroma_db"  # Directorio de persistencia
-vectorstore = Chroma(embedding_function=embedding_model, persist_directory=chroma_db_path)
+        print(f"Archivo recibido: {pdf_file.filename}")
+        print(f"Usuario: {user_id}")
+
+        # Guardar el PDF temporalmente
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            temp_pdf.write(pdf_file.read())
+            temp_pdf_path = temp_pdf.name
+
+        print(f"Archivo temporal guardado en: {temp_pdf_path}")
+
+        # Normalizar el nombre del archivo para que sea una clave válida en Azure Search
+        pdf_id = normalize_pdf_id(secure_filename(pdf_file.filename))
+        print(f"Nombre del archivo normalizado para Azure Search (pdf_id): {pdf_id}")
+
+        # Subir el PDF por páginas a Azure Search
+        extract_and_store_in_azure_search(temp_pdf_path, pdf_id, user_id)
+
+        # Eliminar el archivo temporal
+        os.remove(temp_pdf_path)
+        print("Archivo temporal eliminado.")
+
+        return jsonify({"message": "PDF subido y procesado correctamente", "pdf_id": pdf_id}), 200
+    
+    except Exception as e:
+        print(f"Error durante la carga del PDF: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/get_pdfs', methods=['GET'])
+@app.route('/get_pdfs', methods=['GET'])
+def get_pdfs():
+    try:
+        # Realizar una consulta para obtener documentos en Azure AI Search
+        search_results = search_client.search(search_text="*", top=100)
+
+        # Crear un diccionario para almacenar los documentos únicos por pdf_id (nombre principal)
+        pdfs = {}
+
+        for result in search_results:
+            # Agrupar por 'pdf_id' para mostrar solo el nombre principal del documento
+            pdf_id = result.get('pdf_id', 'Desconocido')
+            if pdf_id not in pdfs:
+                pdfs[pdf_id] = {
+                    'name': pdf_id,  # Usar el 'pdf_id' como el nombre del documento principal
+                    'id': pdf_id  # El ID principal del PDF
+                }
+
+        # Convertir a lista para enviar al frontend
+        return jsonify({'pdfs': list(pdfs.values())})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 
 
 # Función para verificar si el archivo es un PDF
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-import tempfile  # Asegúrate de tener esta importación para trabajar con archivos temporales
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
-from werkzeug.utils import secure_filename
-import os
-import io
-from datetime import datetime, timedelta
+# Función para leer el contenido de un PDF
+def extract_pdf_content(pdf_path):
+    reader = PdfReader(pdf_path)
+    pdf_text = ""
+    
+    # Leer el contenido de cada página del PDF y concatenarlo en una sola cadena
+    for page in reader.pages:
+        pdf_text += page.extract_text()
 
-@app.route('/upload_pdf', methods=['POST'])
-def upload_pdf():
-    user_id = request.form.get('user_id')
-
-    if 'pdfFile' not in request.files:
-        return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
-
-    pdf_file = request.files['pdfFile']
-    if allowed_file(pdf_file.filename):
-        # Subir el archivo PDF a Azure Blob Storage
-        blob_url = upload_pdf_to_azure(pdf_file, user_id)
-        print(f"Archivo subido correctamente a Azure. URL con SAS: {blob_url}")
-        
-        # Descargar el PDF desde Azure para extraer su contenido
-        response = http_requests.get(blob_url)
-        if response.status_code != 200:
-            print(f"Error al descargar el PDF: {response.status_code}")
-            return jsonify({"error": "No se pudo descargar el PDF desde Azure."}), 500
-        else:
-            print(f"PDF descargado correctamente desde {blob_url}")
-
-        # Procesar el PDF descargado guardándolo en un archivo temporal
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-                temp_pdf.write(response.content)
-                temp_pdf_path = temp_pdf.name
-
-            print(f"PDF guardado temporalmente en {temp_pdf_path}, iniciando procesamiento con PyPDFLoader.")
-            loader = PyPDFLoader(temp_pdf_path)
-            documents = loader.load()
-            print("PDF procesado correctamente.")
-        except Exception as e:
-            print(f"Error procesando el PDF: {str(e)}")
-            return jsonify({"error": "Error procesando el PDF."}), 500
-
-        # Combinar el texto extraído en una cadena única
-        try:
-            pdf_text = " ".join([doc.page_content for doc in documents])
-            print(f"Texto extraído (primeros 500 caracteres): {pdf_text[:500]}")
-
-            # Dividir el texto en fragmentos más pequeños
-            text_splitter = CharacterTextSplitter(chunk_size=5000, chunk_overlap=0)
-            texts = text_splitter.split_text(pdf_text)
-            print(f"Texto dividido en {len(texts)} fragmentos.")
-
-            # Aquí indexamos los fragmentos en el vectorstore usando solo el nombre del archivo como `pdf_id`
-            pdf_id = secure_filename(pdf_file.filename)  # Solo el nombre del archivo
-            print(f"PDF ID utilizado para indexación: {pdf_id}")
-
-            # Añadir al vectorstore y verificar el contenido
-            vectorstore.add_texts(texts, metadatas=[{"pdf_id": pdf_id}] * len(texts))
-            print(f"Fragmentos indexados en el vectorstore: {texts[:3]}")  # Imprime los primeros 3 fragmentos
-
-            # Retornamos el `pdf_id` como el nombre del archivo
-            return jsonify({"message": "PDF subido y procesado correctamente", "url": blob_url, "pdf_id": pdf_id}), 200
-        except Exception as e:
-            print(f"Error durante la indexación: {str(e)}")
-            return jsonify({"error": "Error durante la indexación del PDF."}), 500
-    else:
-        return jsonify({"error": "Formato de archivo no válido. Por favor sube un archivo PDF."}), 400
-
+    # Retornar el contenido completo sin dividirlo en fragmentos
+    return pdf_text  # Devolvemos el texto completo del PDF en una sola cadena
 
 
 @app.route('/ask_question', methods=['POST'])
 def ask_question():
     question = request.form.get('question')
-    pdf_id = request.form.get('pdf_id')  # Recibimos el pdf_id
+    pdf_id = request.form.get('pdf_id')  # El `pdf_id` ahora se usa para agrupar fragmentos.
 
-    # Si el pdf_id es una URL, extraemos solo el nombre del archivo
-    if pdf_id.startswith("http"):
-        pdf_id = pdf_id.split('/')[-1].split('?')[0]  # Extraer solo el nombre del archivo
-    print(f"Pregunta: {question}, PDF ID (nombre del archivo): {pdf_id}")
-
-    if not pdf_id:
-        return jsonify({"error": "No se ha proporcionado un ID de PDF válido."}), 400
+    if not pdf_id or not question:
+        return jsonify({"error": "No se ha proporcionado un ID de PDF válido o la pregunta está vacía."}), 400
 
     try:
-        # Realizar la búsqueda semántica utilizando el embedding de la pregunta y el ID del PDF como filtro
-        results = vectorstore.similarity_search(query=question, filter={"pdf_id": pdf_id})
+        # Realizar una búsqueda en Azure Cognitive Search para obtener fragmentos relevantes basados en `pdf_id` y `question`
+        results = search_client.search(
+            search_text=question,  # El texto de la pregunta
+            filter=f"pdf_id eq '{pdf_id}'",  # Filtrar por `pdf_id` para obtener los fragmentos del documento correcto
+            top=10  # Limitar a los primeros 10 fragmentos relevantes
+        )
 
-        if not results:
-            print(f"No se encontraron resultados para el PDF ID: {pdf_id}")
-            return jsonify({"answer": "No se encontraron resultados relevantes para esta pregunta."}), 200
+        # Extraer los fragmentos relevantes
+        fragments = [doc['content'] for doc in results]
+        
+        if not fragments:
+            return jsonify({"answer": "No se encontraron fragmentos relevantes para esta pregunta."}), 200
 
-        # Extraer el contexto de los resultados de la búsqueda
-        context = " ".join([result.page_content for result in results])
-        print(f"Contexto encontrado: {context[:500]}")
+        # Combinar los fragmentos recuperados
+        combined_content = " ".join(fragments)
+        
+        # Generar una respuesta basada en los fragmentos combinados y la pregunta
+        response = generate_response(combined_content, question)
 
-        # Generar una respuesta basada en el contexto y la pregunta
-        response = generate_response(context, question)
-
-        # Ya que `generate_response` devuelve un diccionario, puedes devolverlo directamente
         return jsonify(response), 200
 
     except Exception as e:
-        print(f"Error durante la búsqueda en el vectorstore: {e}")
-        return jsonify({"error": "Ocurrió un error durante la búsqueda"}), 500
+        logging.error(f"Error durante la búsqueda en Azure Search: {e}")
+        return jsonify({"error": "Ocurrió un error durante la búsqueda."}), 500
 
 def generate_response(context, question):
     # Aquí se asume que estás usando un modelo de DeepInfra para generar la respuesta
@@ -291,15 +267,6 @@ def generate_response(context, question):
     # Devolver la respuesta en formato diccionario, que luego será serializado a JSON
     return {'answer': answer_text}
 
-
-
-
-from flask import Flask, render_template, request, jsonify, url_for
-import os
-from werkzeug.utils import secure_filename
-from tipotestpdf import retrieve_random_documents, generate_questions, check_answer  # Adjust import based on your module
-app.config['UPLOAD_FOLDER'] = 'uploads/'  # Ensure this directory exists or adjust accordingly
-
 # Add route for the PDF interaction page for test purposes
 @app.route('/pdf_page')
 def pdf_page():
@@ -309,130 +276,122 @@ def pdf_page():
 def test_pdf_page():
     return render_template('pdftest.html')
 
-es = Elasticsearch(
-        cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
-        basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
-    )
-from elasticsearch import Elasticsearch
-from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.prompts import ChatPromptTemplate
-from langchain_community.chat_models import ChatDeepInfra
-import os
-import re
-import logging
-
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
-
-# Configuración de Elasticsearch
-es = Elasticsearch(
-    cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
-    basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
-)
-UPLOAD_FOLDER = 'uploads/'
-ALLOWED_EXTENSIONS = {'pdf'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-from PyPDF2 import PdfReader
-from chromadb import Client
-import re
-import logging
-from flask import Flask, request, jsonify, send_file
 import tempfile
 import os
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-# Inicializamos Chroma
-chroma_client = Client()
-
-# Diccionario temporal para simular la base de datos
-questions_db = {}
 
 # Función modificada para extraer texto del PDF e indexarlo en Chroma
-def extract_and_store_in_chroma(filepath, filename):
-    logging.info(f"Iniciando la extracción e almacenamiento del archivo: {filename}")
-    
-    # Cargar el PDF
+from PyPDF2 import PdfReader
+
+def extract_and_store_in_azure_search(filepath, filename, user_id):
+    logging.info(f"Iniciando la indexación del archivo por páginas: {filename}")
+
+    # Leer el contenido completo del PDF
     reader = PdfReader(filepath)
-    pdf_text = ""
-    for page in reader.pages:
-        pdf_text += page.extract_text()
 
-    # Dividir el texto en fragmentos
-    chunks = re.split(r'\n+', pdf_text)
-    logging.info(f"Dividiendo el texto en {len(chunks)} fragmentos.")
+    # Iterar sobre cada página del PDF
+    for page_number, page in enumerate(reader.pages):
+        # Extraer el contenido de la página
+        pdf_text = page.extract_text()
 
-    # Crear una colección en Chroma para almacenar los fragmentos del PDF
-    collection_name = f"pdf_{filename}"
-    collection = chroma_client.create_collection(name=collection_name)
+        # Crear un documento por cada página con un fragment_id único
+        document = {
+            "pdf_id": filename,  # ID principal del PDF, compartido por todas las páginas
+            "fragment_id": f"{filename}_page_{page_number}",  # ID único para cada página
+            "content": pdf_text[:2000],  # Limitar el contenido de cada página si es necesario
+            "user_id": user_id,
+            "page_number": page_number
+        }
 
-    # Agregar los fragmentos a Chroma
-    indexed_count = 0
-    for idx, chunk in enumerate(chunks):
-        if chunk.strip():  # Asegurarse de que no se indexen fragmentos vacíos
-            collection.add(
-                documents=[chunk],
-                metadatas=[{"pdf_id": filename, "chunk_id": idx}],
-                ids=[f"{filename}_{idx}"]
-            )
-            indexed_count += 1
+        # Imprimir el documento para verificar su estructura
+        logging.info(f"Documento a subir a Azure Search: {document}")
 
-    logging.info(f"Se han almacenado {indexed_count} fragmentos del archivo {filename} en Chroma.")
+        # Subir el fragmento de la página a Azure Search
+        try:
+            result = search_client.upload_documents(documents=[document])
+            logging.info(f"Página {page_number} del documento {filename} subida correctamente.")
+        except Exception as e:
+            logging.error(f"Error al subir la página {page_number} del documento {filename}: {e}")
+            return None
+
 
 # Ruta para subir y procesar un PDF
 @app.route('/upload_pdf_test', methods=['POST'])
 def upload_pdf_test():
-    if 'pdfFile' not in request.files:
-        return jsonify({"error": "No PDF uploaded"}), 400
+    try:
+        # Verificar si se ha enviado el archivo PDF
+        if 'pdfFile' not in request.files:
+            print("No se ha seleccionado ningún archivo.")
+            return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
 
-    pdf_file = request.files['pdfFile']
-    user_id = request.form.get('user_id', 'default_user')  # Modifica según la lógica del usuario
+        pdf_file = request.files['pdfFile']
+        user_id = request.form.get('user_id', 'default_user')
 
-    # Subir el archivo a Azure Blob Storage (asumiendo que esta función ya está implementada)
-    blob_url = upload_pdf_to_azure(pdf_file, user_id)
+        print(f"Archivo recibido: {pdf_file.filename}")
+        print(f"Usuario: {user_id}")
 
-    # Descargar el archivo desde la URL generada por Azure
-    response = http_requests.get(blob_url)
-    if response.status_code != 200:
-        return jsonify({"error": "Error downloading PDF from Azure."}), 500
+        # Guardar el PDF temporalmente
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            temp_pdf.write(pdf_file.read())
+            temp_pdf_path = temp_pdf.name
 
-    # Guardar el archivo temporalmente y procesarlo
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-        temp_pdf.write(response.content)
-        temp_pdf_path = temp_pdf.name
+        print(f"Archivo temporal guardado en: {temp_pdf_path}")
 
-    # Procesar el PDF con PyPDF2 y almacenar en Chroma
-    extract_and_store_in_chroma(temp_pdf_path, secure_filename(pdf_file.filename))
+        # Normalizar el nombre del archivo para que sea una clave válida en Azure Search
+        pdf_id = normalize_pdf_id(secure_filename(pdf_file.filename))
+        print(f"Nombre del archivo normalizado para Azure Search (pdf_id): {pdf_id}")
 
-    # Generar un `pdf_id` y devolverlo
-    pdf_id = secure_filename(pdf_file.filename)
-    return jsonify({"message": "PDF uploaded and processed successfully", "pdf_id": pdf_id}), 200
+        # Extraer el contenido completo del PDF
+        pdf_content = extract_pdf_content(temp_pdf_path)
+        print(f"Contenido del PDF extraído (primeros 500 caracteres): {pdf_content[:500]}...")  # Muestra un resumen del contenido
 
+        # Crear el documento con la clave normalizada
+        document = {
+            "pdf_id": pdf_id,  # Usamos el pdf_id normalizado
+            "content": pdf_content,
+            "user_id": user_id
+        }
+        
+        print(f"Documento a subir a Azure Cognitive Search: {document}")
+
+        # Subir documento a Azure Search
+        result = search_client.upload_documents(documents=[document])
+        print(f"Resultado de la carga a Azure Search: {result}")
+
+        # Eliminar el archivo temporal
+        os.remove(temp_pdf_path)
+        print("Archivo temporal eliminado.")
+
+        return jsonify({"message": "PDF subido y procesado correctamente", "pdf_id": pdf_id}), 200
+    
+    except Exception as e:
+        print(f"Error durante la carga del PDF: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 import random
-
 
 
 # Ruta para generar preguntas basadas en el PDF
 @app.route('/generate_test_questions', methods=['POST'])
 def generate_test_questions():
-    num_questions = int(request.form.get('num_questions', 5))
-    pdf_id = request.form.get('pdf_id')
+    num_questions = int(request.form.get('num_questions', 5))  # Número de preguntas a generar
+    pdf_id = request.form.get('pdf_id')  # ID del PDF
 
-    # Recuperar fragmentos relevantes del PDF basados en la consulta de "generar preguntas tipo test del contenido"
-    query_text = "generar preguntas tipo test del contenido"  # Texto de consulta para fragmentos relevantes
-    documents = retrieve_pdf_content_from_chroma(pdf_id, query_text)
-    
-    print("Documents recuperados:")
-    print(documents)
-    
-    # Unir los fragmentos para formar el contenido del PDF
-    pdf_content = " ".join(documents)
-    print("Contenido del PDF:")
+    # Texto de consulta para buscar fragmentos relevantes del PDF
+    query_text = ""  
+
+    # Recuperar fragmentos relevantes del PDF desde Azure Cognitive Search
+    pdf_content = retrieve_pdf_content_from_azure_search(pdf_id, query_text)
+
+    if not pdf_content:
+        print(f"No se encontraron fragmentos relevantes en Azure Cognitive Search para el PDF ID: {pdf_id}")
+        return jsonify({"error": "No se encontraron fragmentos relevantes en el PDF."}), 404
+
+    print("Contenido recuperado del PDF:")
     print(pdf_content)
-    
-    # Generar preguntas basadas en el contenido del PDF
+
+    # Generar preguntas basadas en el contenido del PDF utilizando el modelo de DeepInfra
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct")
     questions = generate_questions_test(chat, pdf_content, num_questions)
     
@@ -443,6 +402,7 @@ def generate_test_questions():
     questions_db[pdf_id] = questions
 
     return jsonify({'questions': questions})
+
 
 
 
@@ -458,40 +418,41 @@ def get_generated_questions():
 
     return jsonify({"questions": questions})
 
-
-# Función para generar preguntas a partir del contenido del PDF
 def generate_questions_test(chat, pdf_content, num_questions):
-    system_text = f"""Eres un asistente experto que genera preguntas de opción múltiple sobre el contenido del texto proporcionado. 
-    Debes generar {num_questions} preguntas variadas, con 4 opciones de respuesta cada una. Las preguntas deben ser variadas y cubrir diferentes temas dentro del texto, no concentrarse solo en un tipo de información.
-    Añade tus conocimientos generales para generar preguntas que pongan a prueba diferentes habilidades, como conocimiento general, comprensión de lectura, y razonamiento lógico.
-    Si encuentras términos matemáticos, utilízalos con formato LaTeX: `\\(...\\)`.
-    Sigue este formato:
-
-    Pregunta 1: ¿Cuál es la capital de Francia?
+    # Definir el sistema de generación de preguntas con fragmentos relevantes
+    system_text = f"""Eres un asistente experto que genera preguntas de opción múltiple sobre fragmentos relevantes del contenido proporcionado.
+    Debes generar {num_questions} preguntas variadas, con 4 opciones de respuesta cada una. Las preguntas deben abarcar diferentes temas dentro del texto y estar relacionadas con los fragmentos proporcionados.
+    Asegúrate de que cada pregunta esté claramente relacionada con la información contenida en los fragmentos proporcionados.
+    Formatea las preguntas de esta manera:
+    
+    Pregunta: ¿Cuál es la capital de Francia?
     A) Madrid
     B) París
     C) Berlín
     D) Roma"""
 
-    human_text = f"Genera preguntas a partir del siguiente contenido del PDF:\n{pdf_content}"
+    # El texto humano será el contenido recuperado del PDF
+    human_text = f"Genera preguntas a partir de los siguientes fragmentos relevantes del PDF:\n{pdf_content}"
 
+    # Crear el prompt para el chat usando los fragmentos relevantes del PDF
     prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
 
+    # Generar las preguntas usando el modelo de IA
     response = prompt | chat
     response_msg = response.invoke({"pdf_content": pdf_content, "num_questions": num_questions})
-    
-    response_text = response_msg.content.strip()
 
-    questions = process_questions_test(response_text)
-    print(f"Preguntas generadas: {questions}")
-    
+    # Procesar las preguntas generadas
+    questions = process_questions_test(response_msg.content.strip())
     return questions
 
 
 
 # Función para procesar las preguntas generadas
+import re
+
 def process_questions_test(response_text):
     questions = []
+    # Dividir las preguntas usando un patrón que detecte "Pregunta" o su variante
     question_blocks = re.split(r"(\*\*Pregunta|\bPregunta\b|\bPregunta \d+\b|Pregunta\s+\d+:)", response_text, flags=re.IGNORECASE)
 
     for i in range(1, len(question_blocks), 2):
@@ -509,41 +470,64 @@ def process_questions_test(response_text):
         }
         questions.append(question)
     return questions
-    
-def retrieve_pdf_content_from_chroma(pdf_id, question_text):
-    # Obtener la colección correspondiente al PDF
-    collection_name = f"pdf_{pdf_id}"
-    
-    # Intentar obtener la colección
+
+import re
+
+def escape_query_string(query):
+    """Escapa caracteres especiales en la cadena de consulta para Azure Search."""
+    query = re.sub(r'[\+\-\&\|\!\(\)\{\}\[\]\^"~\*\?:\\\/]', ' ', query)  # Reemplazar caracteres no válidos
+    return query
+
+def limit_characters(text, max_characters=2000):
+    """Limitar el contenido a un número máximo de caracteres"""
+    if len(text) > max_characters:
+        return text[:max_characters]
+    return text
+
+def retrieve_pdf_content_from_azure_search(pdf_id, query_text, max_characters=2000):
+    """Realiza una búsqueda en Azure Cognitive Search y limita el contenido relevante por caracteres."""
     try:
-        collection = chroma_client.get_collection(name=collection_name)
-        print(f"Recuperada la colección: {collection_name}")
-    except Exception as e:
-        print(f"Error al recuperar la colección de Chroma para {collection_name}: {e}")
-        return ""
-    
-    # Realizar una consulta usando el texto de la pregunta
-    try:
-        results = collection.query(
-            query_texts=[question_text],  # Usar el texto de la pregunta como parte de la consulta
-            n_results=10  # Recuperar solo los fragmentos más relevantes
+        # Limpiar el query_text antes de la búsqueda
+        query_text = escape_query_string(query_text)
+
+        # Realizar una búsqueda en Azure Cognitive Search para obtener fragmentos relevantes
+        results = search_client.search(
+            search_text=query_text,  # El texto de la pregunta o consulta
+            filter=f"pdf_id eq '{pdf_id}'",  # Filtrar por ID del PDF
+            top=10,  # Limitar el número de fragmentos devueltos
+            query_type="full"  # Buscar coincidencias completas
         )
-        print(f"Se han recuperado {len(results['documents'])} documentos relacionados con la pregunta.")
+
+        # Verificar si se han recuperado resultados
+        relevant_fragments = []
+        current_length = 0
+        
+        for result in results:
+            content = result.get('content', '')
+            if content:
+                # Solo agregar contenido si todavía estamos por debajo del límite de caracteres
+                if current_length + len(content) <= max_characters:
+                    relevant_fragments.append(content)
+                    current_length += len(content)
+                else:
+                    # Si agregar este fragmento excedería el límite, solo agregar una parte del mismo
+                    remaining_chars = max_characters - current_length
+                    relevant_fragments.append(content[:remaining_chars])
+                    break
+
+        # Si no se encuentra contenido relevante
+        if not relevant_fragments:
+            logging.info(f"No se encontraron resultados relevantes para el pdf_id: {pdf_id} y la consulta: {query_text}")
+            return ""
+
+        # Concatenar los fragmentos obtenidos en un solo bloque de texto
+        pdf_content = " ".join(relevant_fragments)
+        logging.info(f"Contenido recuperado de Azure Search (primeros 500 caracteres): {pdf_content[:500]}")
+        return pdf_content
+    
     except Exception as e:
-        print(f"Error en la consulta a Chroma: {e}")
+        logging.error(f"Error al buscar contenido en Azure Search: {e}")
         return ""
-
-    # Unir todo el contenido en un solo texto
-    documents = results.get('documents', [])
-    if not documents:
-        print(f"No se encontraron documentos en Chroma para la pregunta '{question_text}' en el PDF {pdf_id}")
-        return ""
-
-    # Aplanar la lista de documentos si es necesario y unir en un solo string
-    pdf_content = " ".join([item for sublist in documents for item in (sublist if isinstance(sublist, list) else [sublist])])
-    print(f"Contenido recuperado relacionado con la pregunta (primeros 500 caracteres): {pdf_content[:500]}")
-
-    return pdf_content
 
 import json
 @app.route('/check_test_answer', methods=['POST'])
@@ -553,53 +537,82 @@ def check_test_answer():
         pdf_id = request.form.get('pdf_id')
         question = request.form.get('question')
         user_answer = request.form.get('user_answer')
+
+        # Logging para depuración
+        print(f"PDF ID recibido: {pdf_id}")
+        print(f"Pregunta recibida: {question}")
+        print(f"Respuesta del usuario recibida: {user_answer}")
+
         chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct")  # Crear una instancia de ChatDeepInfra
 
         # Verificar si la pregunta está presente
         if not question:
+            print("Error: No se ha enviado una pregunta.")
             return jsonify({'correctness': 'error', 'explanation': 'Pregunta no enviada o es None.'}), 400
 
         # Deserializar la pregunta desde JSON
-        question = json.loads(question)  # Convertir JSON en un diccionario de Python
+        question_data = json.loads(question)  # Convertir JSON en un diccionario de Python
 
-        # 1. Preparar el prompt para determinar la respuesta correcta
+        print(f"Datos de la pregunta deserializados: {question_data}")
+
+        # 1. Recuperar el contexto del PDF desde Azure Cognitive Search
+        query_text = question_data["question"]  # Utilizamos la pregunta como el texto de búsqueda
+        pdf_content = retrieve_pdf_content_from_azure_search(pdf_id, query_text)  # Obtener el contexto del PDF
+
+        print(f"Contenido del PDF recuperado: {pdf_content[:500] if pdf_content else 'No se encontró contenido'}")
+
+        if not pdf_content:
+            print(f"Error: No se encontró contenido relevante en el PDF para esta pregunta (pdf_id: {pdf_id}).")
+            return jsonify({"error": "No se encontró contenido relevante en el PDF para esta pregunta."}), 404
+
+        # 2. Preparar el prompt para determinar la respuesta correcta en función del contexto
         system_correct = (
             "Eres un asistente que determina la respuesta correcta a una pregunta de opción múltiple "
             "basada en el contexto proporcionado. Devuelve solo la opción correcta sin explicaciones adicionales."
         )
 
         # Formatear las opciones en una lista
-        options_correct = "".join("- " + choice + "\n" for choice in question["choices"])
-        human_correct = f'Pregunta: {question["question"]}\nOpciones:\n{options_correct}'
+        options_correct = "".join(f"- {choice}\n" for choice in question_data["choices"])
+        human_correct = f'Pregunta: {question_data["question"]}\nOpciones:\n{options_correct}\n\nContexto del PDF:\n{pdf_content}'
 
-        # Crear el prompt para la respuesta correcta
+        print(f"Prompt para determinar la respuesta correcta: {human_correct}")
+
+        # Crear el prompt para la respuesta correcta con el contexto
         prompt_correct = ChatPromptTemplate.from_messages(
             [("system", system_correct), ("human", human_correct)]
         )
 
-        # Obtener la respuesta correcta
+        # Obtener la respuesta correcta utilizando el contexto del PDF
         response_correct = prompt_correct | chat
         correct_answer = response_correct.invoke({}).content.strip()
 
+        print(f"Respuesta correcta obtenida del modelo: {correct_answer}")
+
         if not correct_answer:
+            print("Error: No se pudo obtener una respuesta correcta para la pregunta.")
             return jsonify({"correctness": "error", "explanation": "No se pudo obtener una respuesta correcta para la pregunta."}), 500
 
-        # 2. Preparar el prompt para obtener la explicación de la respuesta
+        # 3. Preparar el prompt para obtener la explicación de la respuesta correcta en función del contexto
         system_explanation = (
-            "Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta."
+            "Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta "
+            "basada en el contexto proporcionado."
         )
-        human_explanation = f'Pregunta: {question["question"]}\nRespuesta correcta: {correct_answer}'
+        human_explanation = f'Pregunta: {question_data["question"]}\nRespuesta correcta: {correct_answer}\n\nContexto del PDF:\n{pdf_content}'
 
-        # Crear el prompt para la explicación
+        print(f"Prompt para obtener la explicación: {human_explanation}")
+
+        # Crear el prompt para la explicación con el contexto
         prompt_explanation = ChatPromptTemplate.from_messages(
             [("system", system_explanation), ("human", human_explanation)]
         )
 
-        # Obtener la explicación
+        # Obtener la explicación utilizando el contexto del PDF
         response_explanation = prompt_explanation | chat
         explanation = response_explanation.invoke({}).content.strip()
 
-        # 3. Comparar la respuesta del usuario con la respuesta correcta
+        print(f"Explicación obtenida del modelo: {explanation}")
+
+        # 4. Comparar la respuesta del usuario con la respuesta correcta
         if user_answer.lower() in correct_answer.lower():
             final_explanation = (
                 f"Sí, la respuesta es correcta. La respuesta correcta es '{correct_answer}'.\n"
@@ -1194,6 +1207,59 @@ def charge():
     except stripe.error.StripeError as e:
         # Handle error
         return str(e)
+    
+
+# Ruta para servir la página HTML
+@app.route('/study_guide_page')
+def study_guide_page():
+    return render_template('study_guide.html')
+
+import tempfile
+import os
+import traceback
+
+@app.route('/generate_study_guide_from_pdf', methods=['POST'])
+def generate_study_guide_from_pdf_route():
+    if 'file' not in request.files:
+        return jsonify({"error": "No se encontró un archivo PDF"}), 400
+
+    file = request.files['file']
+    user_id = request.form.get('user_id', 'default_user')  # Identificar al usuario
+    if file.filename == '':
+        return jsonify({"error": "No se seleccionó un archivo"}), 400
+
+    # Usar el directorio temporal adecuado para el sistema operativo
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = os.path.join(temp_dir, file.filename)
+            file.save(pdf_path)
+
+            # Cargar el progreso del usuario si existe
+            progress = load_progress(user_id)
+
+            # Generar la guía de estudio usando LangChain y ChatDeep Infra
+            generated_guide = generate_study_guide_from_pdf(pdf_path, progress)
+            return jsonify(generated_guide)  # Enviar la guía generada al frontend
+
+    except Exception as e:
+        # Registrar toda la traza del error para obtener más detalles
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+
+# Ruta para guardar el progreso del usuario
+@app.route('/save_progress', methods=['POST'])
+def save_progress_route():
+    user_id = request.json.get('user_id')
+    progress = request.json.get('progress')
+
+    try:
+        save_progress(user_id, progress)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001) 

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Guía de Estudio</title>
+</head>
+<body>
+    <h1>Sube tu Guía de Estudio (PDF)</h1>
+
+    <form id="pdf-upload-form" enctype="multipart/form-data">
+        <label for="file">Archivo PDF:</label>
+        <input type="file" id="file" name="file" accept="application/pdf">
+        <button type="submit">Generar Guía de Estudio</button>
+    </form>
+
+    <h2>Progreso de la Guía</h2>
+    <ul id="study-guide-list"></ul>
+    <button id="mark-complete">Marcar como Completo</button>
+
+    <script>
+    let currentProgress = [];  // Array para guardar el progreso actual del usuario
+    const userId = 'default_user';  // Aquí puedes reemplazar con el ID real del usuario
+
+    // Función para renderizar la guía de estudio
+    function renderStudyGuide(guide) {
+        const guideList = document.getElementById('study-guide-list');
+        guideList.innerHTML = '';
+
+        // Añadimos los ítems de la guía al DOM
+        guide.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <label>
+                    <input type="checkbox" data-index="${index}" ${item.completed ? 'checked' : ''}>
+                    ${item.topic}
+                </label>
+            `;
+            guideList.appendChild(li);
+
+            // Actualizar el progreso según lo que está marcado
+            currentProgress[index] = item.completed;
+        });
+    }
+
+    // Función para guardar el progreso en el backend
+    function saveProgress() {
+        fetch('/save_progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                progress: currentProgress
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Progreso guardado exitosamente.');
+            }
+        })
+        .catch(error => {
+            console.error('Error al guardar el progreso:', error);
+        });
+    }
+
+    // Evento para marcar como completo y guardar el progreso
+    document.getElementById('mark-complete').addEventListener('click', () => {
+        document.querySelectorAll('input[type="checkbox"]').forEach((checkbox, index) => {
+            currentProgress[index] = checkbox.checked;
+        });
+        saveProgress();  // Guardar el progreso cuando el usuario marca como completo
+    });
+
+    // Evento de subir PDF
+    document.getElementById('pdf-upload-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        let formData = new FormData();
+        let fileInput = document.getElementById('file');
+
+        if (fileInput.files.length > 0) {
+            formData.append('file', fileInput.files[0]);
+
+            // Subir el PDF y generar la guía de estudio
+            fetch('/generate_study_guide_from_pdf', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.guide) {
+                    // Asumimos que data.guide es un string o array que contiene el contenido de la guía
+                    renderStudyGuide([{ topic: data.guide, completed: false }]);
+                }
+            })
+            .catch(error => {
+                console.error('Error al generar la guía:', error);
+            });
+        } else {
+            alert('Por favor, selecciona un archivo PDF.');
+        }
+    });
+    </script>
+</body>
+</html>
