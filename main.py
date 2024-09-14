@@ -1109,6 +1109,7 @@ def check():
 
 from collections import defaultdict
 
+
 @app.route('/saved_questions')
 @login_required
 def saved_questions():
@@ -1207,59 +1208,487 @@ def charge():
     except stripe.error.StripeError as e:
         # Handle error
         return str(e)
-    
+# main.py
 
-# Ruta para servir la página HTML
-@app.route('/study_guide_page')
-def study_guide_page():
-    return render_template('study_guide.html')
-
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user
+from werkzeug.utils import secure_filename
+from models import db, User, UserQuestion, UserProgress
+from study_generator import (
+    extract_text_from_pdf,
+    extract_topics_from_pdf,
+    filter_chunks_by_topics,
+    generate_study_guide_from_content,
+    save_study_session,
+    load_study_session,
+    extract_specific_topic_content
+)
 import tempfile
 import os
 import traceback
+import json
+from io import BytesIO
+import pdfkit  # Importar pdfkit para generar PDFs
+import markdown
+import logging
 
-@app.route('/generate_study_guide_from_pdf', methods=['POST'])
-def generate_study_guide_from_pdf_route():
+# Configurar el logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Ruta para servir la página de la guía de estudio
+@app.route('/study_guide_page')
+@login_required
+def study_guide_page():
+    return render_template('study_guide.html')
+
+# Ruta para extraer los temas del PDF
+@app.route('/get_pdf_topics', methods=['POST'])
+@login_required
+def get_pdf_topics():
     if 'file' not in request.files:
+        logger.info("No se encontró un archivo PDF en la solicitud.")
         return jsonify({"error": "No se encontró un archivo PDF"}), 400
 
     file = request.files['file']
-    user_id = request.form.get('user_id', 'default_user')  # Identificar al usuario
-    if file.filename == '':
+    filename = secure_filename(file.filename)
+    if filename == '':
+        logger.info("No se seleccionó ningún archivo.")
         return jsonify({"error": "No se seleccionó un archivo"}), 400
 
-    # Usar el directorio temporal adecuado para el sistema operativo
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            pdf_path = os.path.join(temp_dir, file.filename)
+            pdf_path = os.path.join(temp_dir, filename)
             file.save(pdf_path)
 
-            # Cargar el progreso del usuario si existe
-            progress = load_progress(user_id)
+            topics = extract_topics_from_pdf(pdf_path)
+            
+            # Imprimir los temas extraídos
+            logger.info(f"Temas extraídos del PDF {filename}: {topics}")
 
-            # Generar la guía de estudio usando LangChain y ChatDeep Infra
-            generated_guide = generate_study_guide_from_pdf(pdf_path, progress)
-            return jsonify(generated_guide)  # Enviar la guía generada al frontend
+            return jsonify({"topics": topics})
 
     except Exception as e:
-        # Registrar toda la traza del error para obtener más detalles
         traceback.print_exc()
+        logger.error(f"Error al extraer temas del PDF: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Ruta para iniciar el estudio con los temas seleccionados
+# main.py
 
+@app.route('/start_study', methods=['POST'])
+@login_required
+def start_study():
+    if 'file' not in request.files:
+        logger.info("No se encontró un archivo PDF en la solicitud.")
+        return jsonify({"error": "No se encontró un archivo PDF"}), 400
 
-# Ruta para guardar el progreso del usuario
-@app.route('/save_progress', methods=['POST'])
-def save_progress_route():
-    user_id = request.json.get('user_id')
-    progress = request.json.get('progress')
+    file = request.files['file']
+    filename = secure_filename(file.filename)
+    if filename == '':
+        logger.info("No se seleccionó ningún archivo.")
+        return jsonify({"error": "No se seleccionó un archivo"}), 400
+
+    selected_topics_json = request.form.get('selected_topics', '[]')
+    selected_topics = json.loads(selected_topics_json)
+    
+    # Imprimir los temas seleccionados
+    logger.info(f"Temas seleccionados: {selected_topics}")
+    logger.debug(f"Contenido de selected_topics: {selected_topics}")
+
+    if not selected_topics:
+        logger.info("No se seleccionaron temas.")
+        return jsonify({"error": "No se seleccionaron temas"}), 400
+
+    student_profile_json = request.form.get('student_profile', '{}')
+    student_profile = json.loads(student_profile_json)
+    
+    # Validar intereses
+    if not student_profile.get('interests'):
+        student_profile['interests'] = ['Matemáticas']  # Valor predeterminado
+    else:
+        # Eliminar cadenas vacías y espacios
+        student_profile['interests'] = [interest for interest in student_profile['interests'] if interest.strip()]
+        if not student_profile['interests']:
+            student_profile['interests'] = ['Matemáticas']
+    
+    # Imprimir el perfil del estudiante
+    logger.info(f"Perfil del estudiante: {student_profile}")
 
     try:
-        save_progress(user_id, progress)
-        return jsonify({"status": "success"})
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = os.path.join(temp_dir, filename)
+            file.save(pdf_path)
+
+            # Extraer los chunks del PDF
+            pdf_chunks = extract_text_from_pdf(pdf_path)
+            logger.info(f"Chunks extraídos del PDF: {len(pdf_chunks)}")
+            logger.debug(f"Contenido de pdf_chunks: {[chunk.page_content[:100] for chunk in pdf_chunks]}")  # Mostrar los primeros 100 caracteres de cada chunk
+
+            # Filtrar los chunks que corresponden a los temas seleccionados
+            selected_chunks = filter_chunks_by_topics(pdf_chunks, selected_topics)
+            logger.info(f"Chunks seleccionados para los temas: {len(selected_chunks)}")
+            logger.debug(f"Contenido de selected_chunks: {[chunk.page_content[:100] for chunk in selected_chunks]}")  # Mostrar los primeros 100 caracteres
+
+            if not selected_chunks:
+                logger.info("No se encontraron secciones correspondientes a los temas seleccionados.")
+                return jsonify({"error": "No se encontraron secciones correspondientes a los temas seleccionados."}), 400
+
+            # Inicializar el progreso y el contenido generado
+            progress = [False] * len(selected_chunks)
+            guide_content = [None] * len(selected_chunks)
+
+            # Guardar la sesión de estudio
+            save_study_session(current_user.id, selected_chunks, progress, guide_content)
+
+            # Generar la guía de estudio para cada chunk seleccionado
+            guides = []
+            for i, chunk in enumerate(selected_chunks):
+                if i >= len(selected_topics):
+                    logger.warning(f"Más chunks seleccionados que temas. Chunk index: {i}")
+                    break
+                topic_title = selected_topics[i]
+                topic_content = extract_specific_topic_content(chunk, topic_title)
+                if topic_content:
+                    generated_guide = generate_study_guide_from_content(topic_content, student_profile)
+                    guides.append(generated_guide)
+                else:
+                    logger.info(f"No se pudo extraer el contenido para el tema: {topic_title}")
+
+            # Combinar las guías generadas
+            combined_guide = {
+                'guide': '\n\n'.join([guide['guide'] for guide in guides if guide['guide']]),
+                'progress': [guide['progress'] for guide in guides],
+                'guide_content': [guide['guide_content'] for guide in guides],
+                'current_chunk_index': 0,
+                'total_chunks': len(guides)
+            }
+
+            # Guardar el progreso actualizado
+            save_study_session(current_user.id, selected_chunks, [True]*len(selected_chunks), [guide['guide'] for guide in guides])
+
+            return jsonify(combined_guide)
+
     except Exception as e:
+        traceback.print_exc()
+        logger.error(f"Error al iniciar el estudio: {e}")
         return jsonify({"error": str(e)}), 500
+
+# Ruta para obtener la siguiente sección de la guía
+@app.route('/next_section', methods=['GET'])
+@login_required
+def next_section():
+    try:
+        selected_chunks, progress, guide_content = load_study_session(current_user.id)
+
+        if selected_chunks is None:
+            logger.info("No hay una sesión de estudio activa.")
+            return jsonify({"error": "No hay una sesión de estudio activa."}), 400
+
+        # Determinar el siguiente chunk no completado
+        next_chunk_index = next((i for i, completed in enumerate(progress) if not completed), None)
+
+        if next_chunk_index is None:
+            logger.info("Ya has completado todas las secciones.")
+            return jsonify({"message": "Ya has completado todas las secciones."})
+
+        chunk = selected_chunks[next_chunk_index]
+        # Obtener el título del tema actual
+        lines = chunk.page_content.split('\n')
+        topic_title = next((line for line in lines if line.strip().lower().startswith('tema ')), "Tema")
+
+        topic_content = extract_specific_topic_content(chunk, topic_title)
+        if not topic_content:
+            logger.info(f"No se pudo extraer el contenido para el tema: {topic_title}")
+            return jsonify({"error": f"No se pudo extraer el contenido para el tema: {topic_title}"}), 400
+
+        # Cargar el perfil del estudiante si es necesario
+        student_profile = {}  # Puedes cargar el perfil del estudiante si es necesario
+
+        # Generar la guía de estudio para el siguiente chunk
+        generated_guide = generate_study_guide_from_content(topic_content, student_profile)
+        logger.info(f"Siguiente sección generada: {generated_guide}")
+
+        # Actualizar el progreso y el contenido generado
+        progress[next_chunk_index] = True
+        guide_content[next_chunk_index] = generated_guide['guide']
+
+        # Guardar el progreso actualizado
+        save_study_session(current_user.id, selected_chunks, progress, guide_content)
+
+        return jsonify(generated_guide)
+
+    except Exception as e:
+        traceback.print_exc()
+        logger.error(f"Error al obtener la siguiente sección: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# Ruta para marcar la sección actual como completada
+@app.route('/mark_section_complete', methods=['POST'])
+@login_required
+def mark_section_complete():
+    try:
+        selected_chunks, progress, guide_content = load_study_session(current_user.id)
+
+        if selected_chunks is None:
+            logger.info("No hay una sesión de estudio activa.")
+            return jsonify({"error": "No hay una sesión de estudio activa."}), 400
+
+        # Encontrar el índice del chunk actual
+        current_chunk_index = next((i for i, completed in enumerate(progress) if not completed), None)
+        logger.info(f"Índice del chunk actual: {current_chunk_index}")
+
+        if current_chunk_index is not None:
+            # Marcar el chunk actual como completado
+            progress[current_chunk_index] = True
+            logger.info(f"Marcar chunk {current_chunk_index} como completado.")
+
+            # Guardar el progreso actualizado
+            save_study_session(current_user.id, selected_chunks, progress, guide_content)
+
+            return jsonify({"status": "success"})
+        else:
+            logger.info("Ya has completado todas las secciones.")
+            return jsonify({"message": "Ya has completado todas las secciones."})
+
+    except Exception as e:
+        traceback.print_exc()
+        logger.error(f"Error al marcar la sección como completada: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# Ruta para descargar la guía completa en PDF
+from flask import send_file
+from io import BytesIO
+from xhtml2pdf import pisa
+import markdown2
+
+@app.route('/download_guide_pdf/<int:guide_id>', methods=['GET'])
+@login_required
+def download_guide_pdf(guide_id):
+    try:
+        # Cargar el progreso y el contenido generado del usuario
+        user_progress = db.session.query(UserProgress).filter_by(user_id=current_user.id, id=guide_id).first()
+
+        if not user_progress or not user_progress.guide_content:
+            return jsonify({"error": "No hay contenido de guía para descargar."}), 400
+
+        # Convertir el contenido de la guía de Markdown a HTML
+        full_guide_markdown = user_progress.guide_content
+        full_guide_html = markdown2.markdown(full_guide_markdown)
+
+        # Estilos básicos para hacer el PDF visualmente atractivo
+        styles = """
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }
+            h1, h2, h3 {
+                color: #333;
+            }
+            h1 {
+                font-size: 24px;
+                font-weight: bold;
+            }
+            h2 {
+                font-size: 20px;
+                margin-top: 20px;
+            }
+            h3 {
+                font-size: 16px;
+                margin-top: 15px;
+            }
+            p {
+                font-size: 14px;
+                line-height: 1.6;
+                color: #555;
+            }
+            ul, ol {
+                margin-left: 20px;
+            }
+            li {
+                margin-bottom: 5px;
+            }
+            .highlight {
+                background-color: #f0f0f0;
+                padding: 10px;
+                border-left: 4px solid #007BFF;
+                margin-bottom: 15px;
+            }
+        </style>
+        """
+
+        # Combinar el estilo con el contenido HTML generado
+        full_html = f"<html><head>{styles}</head><body>{full_guide_html}</body></html>"
+
+        # Generar el PDF desde el HTML
+        pdf_file = BytesIO()
+        pisa.CreatePDF(BytesIO(full_html.encode('utf-8')), dest=pdf_file)
+        pdf_file.seek(0)
+
+        # Enviar el archivo PDF
+        return send_file(pdf_file, as_attachment=True, download_name='guia_de_estudio.pdf', mimetype='application/pdf')
+
+    except Exception as e:
+        print(f"Error al descargar la guía en PDF: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# main.py
+from fpdf import FPDF
+import io
+from flask import send_file
+
+
+@app.route('/view_guides', methods=['GET'])
+@login_required
+def view_guides():
+    try:
+        # Obtener las guías guardadas del usuario
+        user_guides = db.session.query(UserProgress).filter_by(user_id=current_user.id).all()
+
+        if not user_guides:
+            flash('No se encontraron guías guardadas.', 'info')
+            return render_template('view_guides.html', guides=[])
+
+        return render_template('view_guides.html', guides=user_guides)
+
+    except Exception as e:
+        print(f"Error al consultar las guías de estudio: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/view_guide/<int:guide_id>', methods=['GET'])
+@login_required
+def view_guide(guide_id):
+    try:
+        # Consultar la guía por su ID y asegurarse de que pertenece al usuario actual
+        user_progress = db.session.query(UserProgress).filter_by(id=guide_id, user_id=current_user.id).first()
+
+        if not user_progress:
+            flash('No se encontró la guía solicitada o no tienes acceso a ella.', 'danger')
+            return redirect(url_for('view_guides'))
+
+        # Renderizar la plantilla view_guide.html con los datos de la guía
+        return render_template('view_guide.html', guide=user_progress)
+
+    except Exception as e:
+        print(f"Error al consultar la guía de estudio: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# en este caso preguntas para cualquier edad
+from models import db, UserQuestion, User
+from question_generation import (
+    validate_question,
+    generate_questions,
+    check_answer
+)
+from werkzeug.security import generate_password_hash, check_password_hash
+
+
+# Configurar el modelo de chat
+from langchain_community.chat_models import ChatDeepInfra
+chat_model = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
+
+
+@app.route('/generate_any_age_exam', methods=['GET', 'POST'])
+@login_required
+def generate_any_age_exam():
+    if request.method == 'POST':
+        # Obtener los valores ingresados en el formulario
+        nivel = request.form.get('nivel')
+        asignatura = request.form.get('asignatura')
+        topic = request.form.get('topic')
+        num_items = int(request.form.get('num_items', 0))
+
+        if not nivel or not asignatura or not topic or num_items <= 0:
+            return "Datos de formulario inválidos.", 400
+
+        # Generar el prompt basado en el nivel, la asignatura y el tema
+        prompt_text = f"""Eres un asistente que genera preguntas de opción múltiple para el segmento '{topic}' de la asignatura '{asignatura}' en el nivel '{nivel}'.
+        Debes proporcionar {num_items} preguntas sobre el tema dado, que sean adecuadas para el nivel educativo seleccionado, añadiendo tus conocimientos generales, con 4 opciones de respuesta cada una. 
+        En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`. 
+        Usa el siguiente formato:
+        
+        Pregunta 1: ¿Cuál es la capital de Francia?
+        A) Madrid.
+        B) París.
+        C) Berlín.
+        D) Roma.
+        """
+
+        # Generar preguntas utilizando el módulo separado
+        questions = generate_questions(chat_model, prompt_text, num_items)
+
+        # Validar y preparar las preguntas generadas
+        results = []
+        for question in questions:
+            # Añadir manualmente la asignatura, segmento y nivel a cada pregunta
+            question['subject'] = asignatura
+            question['topic'] = topic
+            question['level'] = nivel
+
+            if validate_question(question):
+                results.append(question)
+            else:
+                logging.warning(f"Pregunta inválida: {question}")
+
+        questions_generated = len(results)
+        reintentos = 0
+        max_reintentos = 5
+
+        # Intentar generar más preguntas si no se alcanzó el número requerido
+        while questions_generated < num_items and reintentos < max_reintentos:
+            additional_questions = generate_questions(chat_model, prompt_text, num_items - questions_generated)
+            for question in additional_questions:
+                question['subject'] = asignatura
+                question['topic'] = topic
+                question['level'] = nivel
+
+                if validate_question(question):
+                    results.append(question)
+                    questions_generated += 1
+
+                    if questions_generated == num_items:
+                        break
+
+            reintentos += 1
+
+        if questions_generated < num_items:
+            logging.warning(f"No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
+
+        # Guardar las preguntas generadas en la base de datos
+        for question in results:
+            user_question = UserQuestion(
+                user_id=current_user.id,
+                question=question['question'],
+                user_answer=None,  # No hay respuesta aún
+                correct_answer=None,  # La respuesta correcta se verificará después
+                is_correct=False,  # Esto se actualizará al comprobar la respuesta del usuario
+                subject=question['subject'],  # Asignatura
+                topic=question['topic'],  # Segmento
+                level=question['level']  # Nivel Educativo
+            )
+            db.session.add(user_question)
+
+        # Confirmar los cambios en la base de datos
+        db.session.commit()
+
+        # Incrementa el contador de preguntas para el usuario actual
+        current_user.increment_questions()
+
+        # Renderizar las preguntas en el HTML (quiz.html)
+        return render_template('quiz.html', questions=results)
+
+    # Si es GET, renderiza el formulario de generación de exámenes
+    return render_template('exam_form.html')
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001) 
+    app.run(host='0.0.0.0', port=5001)

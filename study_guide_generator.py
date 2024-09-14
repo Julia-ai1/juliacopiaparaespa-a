@@ -58,7 +58,8 @@ def generate_study_guide_from_pdf(pdf_path, progress=None):
     """
 
     response = chat.invoke(prompt)
-    guide_text = response.get('answer', 'No se pudo generar la guía.')
+    guide_text = response.content if hasattr(response, 'content') else 'No se pudo generar la guía.'
+
 
     return {
         'guide': guide_text,

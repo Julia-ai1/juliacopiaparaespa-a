@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Julia.ai - Prep Selectividad</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
     <script>
@@ -12,18 +12,21 @@
             theme: {
                 extend: {
                     colors: {
-                        violet: {
-                            50: '#f5f3ff',
-                            100: '#ede9fe',
-                            200: '#ddd6fe',
-                            300: '#c4b5fd',
-                            400: '#a78bfa',
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9',
-                            800: '#5b21b6',
-                            900: '#4c1d95',
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
                         },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
                     },
                 },
             },
@@ -31,18 +34,18 @@
     </script>
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f5f3ff;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff;
         }
 
         .gradient-bg {
-            background: linear-gradient(135deg, #5b21b6, #7c3aed);
+            background: linear-gradient(135deg, #0ea5e9, #0369a1);
         }
 
         .glass-effect {
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            border-radius: 10px;
+            border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.18);
         }
 
@@ -64,18 +67,18 @@
                     <i data-lucide="graduation-cap" class="w-10 h-10 mr-2"></i>
                     Julia.ai
                 </h1>
-                <p class="text-xl text-violet-100">Tu coach para la Selectividad</p>
+                <p class="text-xl text-primary-100">Tu coach para la Selectividad</p>
             </header>
 
-            <div class="bg-violet-50 rounded-t-3xl p-8">
+            <div class="bg-white rounded-t-3xl p-8">
                 {% if current_user.is_authenticated %}
-                    <div class="glass-effect p-6 mb-8 bg-violet-100 text-center">
-                        <h2 class="text-2xl font-semibold text-violet-900 mb-4 flex items-center justify-center">
+                    <div class="glass-effect p-6 mb-8 bg-gradient-to-r from-primary-100 to-primary-200 text-center">
+                        <h2 class="text-2xl font-semibold text-primary-800 mb-4 flex items-center justify-center">
                             <i data-lucide="user" class="w-6 h-6 mr-2"></i>
                             ¡Hola, {{ current_user.username }}!
                         </h2>
                         <div class="flex flex-wrap justify-center gap-4 mb-4">
-                            <div class="px-4 py-2 bg-violet-200 text-violet-800 rounded-full font-medium flex items-center">
+                            <div class="px-4 py-2 bg-primary-300 text-primary-800 rounded-full font-medium flex items-center">
                                 <i data-lucide="star" class="w-5 h-5 mr-2"></i>
                                 {% if subscription_type == 'paid' %}
                                     Premium
@@ -83,7 +86,7 @@
                                     Básico
                                 {% endif %}
                             </div>
-                            <div class="px-4 py-2 bg-violet-200 text-violet-800 rounded-full font-medium flex items-center">
+                            <div class="px-4 py-2 bg-primary-300 text-primary-800 rounded-full font-medium flex items-center">
                                 <i data-lucide="help-circle" class="w-5 h-5 mr-2"></i>
                                 {{ questions_asked }} / {% if subscription_type == 'free' %}50{% else %}∞{% endif %}
                             </div>
@@ -94,34 +97,38 @@
                         <div class="grid gap-4 mb-8">
                             <form method="POST" action="{{ url_for('select_exam') }}">
                                 <input type="hidden" name="exam_type" value="selectividad">
-                                <button type="submit" class="action-button w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                                <button type="submit" class="action-button w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                     <i data-lucide="play" class="w-5 h-5 mr-2"></i>
-                                    Iniciar Repaso
+                                    Iniciar Repaso para Selectividad y PCE
                                 </button>
                             </form>
 
-                            <a href="{{ url_for('test_pdf_page') }}" class="action-button w-full bg-violet-500 hover:bg-violet-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                            <a href="{{ url_for('test_pdf_page') }}" class="action-button w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="file-text" class="w-5 h-5 mr-2"></i>
                                 Generación de exámenes
                             </a>
-                            <a href="{{ url_for('study_guide_page') }}" class="action-button w-full bg-violet-300 hover:bg-violet-400 text-violet-900 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                            <a href="{{ url_for('study_guide_page') }}" class="action-button w-full bg-primary-400 hover:bg-primary-500 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="book-open" class="w-5 h-5 mr-2"></i>
                                 Generar Guía de Estudio
                             </a>
                             
-
-                            <a href="{{ url_for('saved_questions') }}" class="action-button w-full bg-violet-400 hover:bg-violet-500 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                            <a href="{{ url_for('saved_questions') }}" class="action-button w-full bg-primary-300 hover:bg-primary-400 text-primary-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="save" class="w-5 h-5 mr-2"></i>
                                 Mis Preguntas
                             </a>
 
-                            <a href="{{ url_for('pdf_page') }}" class="action-button w-full bg-violet-300 hover:bg-violet-400 text-violet-900 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                            <a href="{{ url_for('pdf_page') }}" class="action-button w-full bg-primary-200 hover:bg-primary-300 text-primary-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="file-plus" class="w-5 h-5 mr-2"></i>
                                 Subir Apuntes
                             </a>
 
+                            <a href="{{ url_for('generate_any_age_exam') }}" class="action-button w-full bg-primary-100 hover:bg-primary-200 text-primary-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                                <i data-lucide="question-mark" class="w-5 h-5 mr-2"></i>
+                                Generar Preguntas para cualquier edad
+                            </a>
+
                             <form action="{{ url_for('cancel_subscription') }}" method="post">
-                                <button type="submit" class="action-button w-full bg-violet-200 hover:bg-violet-300 text-violet-900 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                                <button type="submit" class="action-button w-full bg-red-100 hover:bg-red-200 text-red-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                     <i data-lucide="x-circle" class="w-5 h-5 mr-2"></i>
                                     Cancelar Plan
                                 </button>
@@ -129,31 +136,31 @@
                         </div>
                     {% else %}
                         <div class="text-center mb-8">
-                            <p class="mb-4 text-violet-700">Obtén acceso completo al preparador de Selectividad</p>
-                            <a href="{{ url_for('subscribe') }}" class="action-button block w-full bg-violet-500 hover:bg-violet-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                            <p class="mb-4 text-primary-700">Obtén acceso completo al preparador de Selectividad</p>
+                            <a href="{{ url_for('subscribe') }}" class="action-button block w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="zap" class="w-5 h-5 mr-2"></i>
                                 Activar Premium
                             </a>
                         </div>
                     {% endif %}
 
-                    <a href="{{ url_for('login_google') }}" class="block text-center text-violet-600 hover:text-violet-800 transition duration-300 flex items-center justify-center">
+                    <a href="{{ url_for('login_google') }}" class="block text-center text-primary-600 hover:text-primary-800 transition duration-300 flex items-center justify-center">
                         <i data-lucide="log-out" class="w-5 h-5 mr-2"></i>
                         Salir
                     </a>
                 {% else %}
                     <div class="text-center">
-                        <p class="mb-4 text-violet-700">Inicia sesión para comenzar</p>
-                        <a href="{{ url_for('login') }}" class="action-button block w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center mb-4">
+                        <p class="mb-4 text-primary-700">Inicia sesión para comenzar</p>
+                        <a href="{{ url_for('login') }}" class="action-button block w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center mb-4">
                             <i data-lucide="log-in" class="w-5 h-5 mr-2"></i>
                             Entrar
                         </a>
-                        <a href="{{ url_for('register') }}" class="action-button block w-full bg-violet-500 hover:bg-violet-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                        <a href="{{ url_for('register') }}" class="action-button block w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                             <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i>
                             Registrarse
                         </a>
-                        <p class="my-4 text-violet-500">o</p>
-                        <a href="{{ url_for('login_google') }}" class="action-button block w-full bg-violet-400 hover:bg-violet-500 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                        <p class="my-4 text-primary-500">o</p>
+                        <a href="{{ url_for('login_google') }}" class="action-button block w-full bg-primary-400 hover:bg-primary-500 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                             <i data-lucide="google" class="w-5 h-5 mr-2"></i>
                             Entrar con Google
                         </a>

@@ -1,0 +1,85 @@
+<!-- templates/view_guides.html -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mis Guías de Estudio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> <!-- Asegúrate de tener un archivo styles.css -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {background-color: #f5f5f5;}
+        a {
+            color: #1E90FF;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .no-guides {
+            margin-top: 20px;
+            font-style: italic;
+            color: #555;
+        }
+        .back-link {
+            margin-top: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mis Guías de Estudio Guardadas</h1>
+    
+    {% if guides and guides|length > 0 %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha de Creación</th>
+                    <th>Contenido</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for guide in guides %}
+                    <tr>
+                        <td>{{ guide.id }}</td>
+                        <td>{{ guide.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                        <td>{{ guide.guide_content | truncate(50, True, '...') }}</td>
+                        <td>
+                            <a href="{{ url_for('view_guide', guide_id=guide.id) }}">Ver</a> |
+                            <a href="{{ url_for('download_guide_pdf', guide_id=guide.id) }}">Descargar PDF</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="no-guides">No has generado ninguna guía de estudio aún.</p>
+    {% endif %}
+    
+    <div class="back-link">
+        <a href="{{ url_for('study_guide_page') }}">Volver a Generar Guía</a>
+    </div>
+</body>
+</html>
+

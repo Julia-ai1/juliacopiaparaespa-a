@@ -2,107 +2,384 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generar Guía de Estudio</title>
+    <title>Generador de Guías de Estudio</title>
+    <!-- Meta etiquetas para hacer la página responsiva -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Enlace a Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Estilos personalizados -->
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .guide-section {
+            background-color: #ffffff;
+            border-radius: 8px;
+        }
+        .progress {
+            height: 30px;
+        }
+        .progress-bar {
+            font-weight: bold;
+        }
+        .topic-checkbox {
+            margin-right: 10px;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .alert-position {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+    </style>
 </head>
 <body>
-    <h1>Sube tu Guía de Estudio (PDF)</h1>
 
-    <form id="pdf-upload-form" enctype="multipart/form-data">
-        <label for="file">Archivo PDF:</label>
-        <input type="file" id="file" name="file" accept="application/pdf">
-        <button type="submit">Generar Guía de Estudio</button>
-    </form>
+    <!-- Barra de navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-5">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Generador de Guías de Estudio</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Navegación">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Enlace a la página de consulta de guías guardadas -->
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('view_guides') }}">Mis Guías Guardadas</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-    <h2>Progreso de la Guía</h2>
-    <ul id="study-guide-list"></ul>
-    <button id="mark-complete">Marcar como Completo</button>
+    <!-- Contenido principal -->
+    <div class="container">
+        <!-- Alertas para notificaciones -->
+        <div class="alert-position" id="alert-container">
+            <!-- Las alertas se agregarán aquí dinámicamente mediante JavaScript -->
+        </div>
 
+        <!-- Formulario para subir el PDF -->
+        <div id="pdf-upload-section" class="mb-5">
+            <h2 class="mb-4">Paso 1: Sube tu archivo PDF</h2>
+            <form id="pdf-upload-form">
+                <div class="mb-3">
+                    <input type="file" class="form-control" id="file" accept=".pdf" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Extraer Temas</button>
+            </form>
+        </div>
+
+        <!-- Sección para mostrar los temas extraídos -->
+        <div id="topics-section" class="mb-5" style="display: none;">
+            <h2 class="mb-4">Paso 2: Selecciona los temas que deseas estudiar</h2>
+            <form id="topics-form">
+                <div id="topics-list" class="row">
+                    <!-- Los temas se agregarán aquí dinámicamente -->
+                </div>
+
+                <!-- Campos adicionales para el perfil del estudiante -->
+                <div class="mb-3">
+                    <label for="proficiency_level" class="form-label">Nivel de competencia</label>
+                    <select class="form-select" id="proficiency_level" name="proficiency_level">
+                        <option value="principiante">Principiante</option>
+                        <option value="intermedio" selected>Intermedio</option>
+                        <option value="avanzado">Avanzado</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="learning_style" class="form-label">Estilo de aprendizaje</label>
+                    <select class="form-select" id="learning_style" name="learning_style">
+                        <option value="visual" selected>Visual</option>
+                        <option value="auditivo">Auditivo</option>
+                        <option value="kinestésico">Kinestésico</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="interests" class="form-label">Intereses</label>
+                    <input type="text" class="form-control" id="interests" name="interests" placeholder="Ej. Matemáticas, Ciencias">
+                </div>
+
+                <button type="submit" class="btn btn-success mt-3">Iniciar Estudio</button>
+            </form>
+        </div>
+
+        <!-- Sección de guía de estudio -->
+        <div id="study-guide-section" class="mb-5" style="display: none;">
+            <h2 class="mb-4">Guía de Estudio</h2>
+            <div id="study-guide-content" class="guide-section p-4 mb-4 shadow-sm"></div>
+
+            <!-- Barra de progreso -->
+            <h3 class="mt-4">Progreso</h3>
+            <div class="progress mb-3">
+                <div id="progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%;">0%</div>
+            </div>
+
+            <!-- Botones de navegación -->
+            <button id="mark-complete" class="btn btn-primary">Siguiente Sección</button>
+            <button id="download-pdf" class="btn btn-secondary ms-2">Descargar Guía Completa en PDF</button>
+        </div>
+    </div>
+
+    <!-- Enlaces a las librerías JavaScript necesarias -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Librería Marked.js para convertir Markdown a HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Script personalizado -->
     <script>
-    let currentProgress = [];  // Array para guardar el progreso actual del usuario
-    const userId = 'default_user';  // Aquí puedes reemplazar con el ID real del usuario
+        // Variables globales
+        let currentProgress = [];  // Array para guardar el progreso actual del usuario
+        let uploadedFile = null;   // Variable global para almacenar el archivo PDF
 
-    // Función para renderizar la guía de estudio
-    function renderStudyGuide(guide) {
-        const guideList = document.getElementById('study-guide-list');
-        guideList.innerHTML = '';
-
-        // Añadimos los ítems de la guía al DOM
-        guide.forEach((item, index) => {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <label>
-                    <input type="checkbox" data-index="${index}" ${item.completed ? 'checked' : ''}>
-                    ${item.topic}
-                </label>
+        // Función para mostrar alertas
+        function showAlert(message, type='success') {
+            const alertContainer = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.role = 'alert';
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
             `;
-            guideList.appendChild(li);
+            alertContainer.appendChild(alert);
 
-            // Actualizar el progreso según lo que está marcado
-            currentProgress[index] = item.completed;
-        });
-    }
+            // Auto cerrar la alerta después de 5 segundos
+            setTimeout(() => {
+                alert.classList.remove('show');
+                alert.classList.add('hide');
+            }, 5000);
+        }
 
-    // Función para guardar el progreso en el backend
-    function saveProgress() {
-        fetch('/save_progress', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_id: userId,
-                progress: currentProgress
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert('Progreso guardado exitosamente.');
+        // Evento para manejar la subida del PDF y extraer los temas
+        document.getElementById('pdf-upload-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+
+            if (file) {
+                uploadedFile = file;  // Guardamos el archivo en la variable global
+
+                let formData = new FormData();
+                formData.append('file', file);
+
+                // Mostrar un spinner o indicador de carga si lo deseas
+                showAlert('Extrayendo temas del PDF...', 'info');
+
+                // Extraer los temas del PDF
+                fetch('/get_pdf_topics', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.topics) {
+                        showTopics(data.topics);
+                        showAlert('Temas extraídos exitosamente.', 'success');
+                    } else if (data.error) {
+                        showAlert('Error: ' + data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al obtener los temas:', error);
+                    showAlert('Ocurrió un error al extraer los temas.', 'danger');
+                });
+            } else {
+                showAlert('Por favor, selecciona un archivo PDF.', 'warning');
             }
-        })
-        .catch(error => {
-            console.error('Error al guardar el progreso:', error);
         });
-    }
 
-    // Evento para marcar como completo y guardar el progreso
-    document.getElementById('mark-complete').addEventListener('click', () => {
-        document.querySelectorAll('input[type="checkbox"]').forEach((checkbox, index) => {
-            currentProgress[index] = checkbox.checked;
+        // Función para mostrar los temas y permitir la selección
+        function showTopics(topics) {
+            const topicsSection = document.getElementById('topics-section');
+            const topicsList = document.getElementById('topics-list');
+
+            // Limpiar la lista de temas
+            topicsList.innerHTML = '';
+
+            if (topics.length === 0) {
+                topicsList.innerHTML = '<p>No se encontraron temas en el PDF.</p>';
+                return;
+            }
+
+            topics.forEach((topic, index) => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-2';
+
+                const div = document.createElement('div');
+                div.className = 'form-check';
+
+                const checkbox = document.createElement('input');
+                checkbox.className = 'form-check-input topic-checkbox';
+                checkbox.type = 'checkbox';
+                checkbox.id = 'topic-' + index;
+                checkbox.name = 'topics';
+                checkbox.value = topic;
+
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = 'topic-' + index;
+                label.textContent = topic;
+
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                col.appendChild(div);
+                topicsList.appendChild(col);
+            });
+
+            // Mostrar la sección de temas
+            topicsSection.style.display = 'block';
+
+            // Desplazarse hasta la sección de temas
+            topicsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Manejar el envío del formulario de temas seleccionados
+        document.getElementById('topics-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const selectedTopics = Array.from(document.querySelectorAll('input[name="topics"]:checked')).map(el => el.value);
+            
+            const proficiencyLevel = document.getElementById('proficiency_level').value;
+            const learningStyle = document.getElementById('learning_style').value;
+            const interests = document.getElementById('interests').value.split(',').map(item => item.trim());
+
+            const studentProfile = {
+                proficiency_level: proficiencyLevel,
+                learning_style: learningStyle,
+                interests: interests,
+                language: 'es',  // Puedes hacer esto dinámico si es necesario
+            };
+
+            if (selectedTopics.length > 0) {
+                // Iniciar el estudio con los temas seleccionados y el perfil del estudiante
+                startStudy(selectedTopics, studentProfile);
+            } else {
+                showAlert('Por favor, selecciona al menos un tema.', 'warning');
+            }
         });
-        saveProgress();  // Guardar el progreso cuando el usuario marca como completo
-    });
 
-    // Evento de subir PDF
-    document.getElementById('pdf-upload-form').addEventListener('submit', function(e) {
-        e.preventDefault();
+        function startStudy(selectedTopics, studentProfile) {
+            if (!uploadedFile) {
+                showAlert('No se encontró el archivo PDF. Por favor, vuelve a cargarlo.', 'warning');
+                return;
+            }
 
-        let formData = new FormData();
-        let fileInput = document.getElementById('file');
+            let formData = new FormData();
+            formData.append('file', uploadedFile);
+            formData.append('selected_topics', JSON.stringify(selectedTopics));
+            formData.append('student_profile', JSON.stringify(studentProfile));
 
-        if (fileInput.files.length > 0) {
-            formData.append('file', fileInput.files[0]);
+            // Imprimir los datos que se van a enviar para depuración
+            console.log("Iniciando estudio con los siguientes temas seleccionados:", selectedTopics);
+            console.log("Perfil del estudiante:", studentProfile);
 
-            // Subir el PDF y generar la guía de estudio
-            fetch('/generate_study_guide_from_pdf', {
+            // Mostrar un spinner o indicador de carga si lo deseas
+            showAlert('Generando la guía de estudio...', 'info');
+
+            fetch('/start_study', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Respuesta de /start_study:", data);
                 if (data.guide) {
-                    // Asumimos que data.guide es un string o array que contiene el contenido de la guía
-                    renderStudyGuide([{ topic: data.guide, completed: false }]);
+                    // Ocultar la sección de temas y mostrar la guía de estudio
+                    document.getElementById('topics-section').style.display = 'none';
+                    renderStudyGuide(data);
+                    showAlert('Guía de estudio generada exitosamente.', 'success');
+                } else if (data.error) {
+                    showAlert('Error: ' + data.error, 'danger');
                 }
             })
             .catch(error => {
-                console.error('Error al generar la guía:', error);
+                console.error('Error al iniciar el estudio:', error);
+                showAlert('Ocurrió un error al generar la guía de estudio.', 'danger');
             });
-        } else {
-            alert('Por favor, selecciona un archivo PDF.');
         }
-    });
+
+        // Función para renderizar la guía de estudio
+        function renderStudyGuide(data) {
+            const guideSection = document.getElementById('study-guide-section');
+            const guideContent = document.getElementById('study-guide-content');
+            const progressBar = document.getElementById('progress-bar');
+
+            guideSection.style.display = 'block';
+
+            // Convertir el texto Markdown a HTML de manera segura
+            const htmlContent = marked.parse(data.guide);
+            guideContent.innerHTML = htmlContent;
+
+            // Actualizar el progreso
+            currentProgress = data.progress;
+
+            // Calcular el progreso completado
+            let completedChunks = currentProgress.filter(item => item).length;
+            let totalChunks = currentProgress.length;
+            let progressPercentage = totalChunks === 0 ? 0 : Math.round((completedChunks / totalChunks) * 100);
+
+            progressBar.style.width = progressPercentage + '%';
+            progressBar.textContent = progressPercentage + '%';
+        }
+
+        // Función para obtener la siguiente sección de la guía
+        function fetchNextGuideSection() {
+            fetch('/next_section', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.guide) {
+                    renderStudyGuide(data);
+                    showAlert('Sección actualizada exitosamente.', 'success');
+                } else if (data.message) {
+                    showAlert(data.message, 'info');
+                    // Ocultar la sección de guía si se ha completado todo
+                    document.getElementById('study-guide-section').style.display = 'none';
+                } else if (data.error) {
+                    showAlert('Error: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener la siguiente sección:', error);
+                showAlert('Ocurrió un error al obtener la siguiente sección.', 'danger');
+            });
+        }
+
+        // Evento para marcar como completo y solicitar la siguiente sección
+        document.getElementById('mark-complete').addEventListener('click', () => {
+            // Guardar el progreso en el backend y obtener la siguiente sección
+            fetch('/mark_section_complete', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    fetchNextGuideSection();
+                } else if (data.error) {
+                    showAlert('Error: ' + data.error, 'danger');
+                } else if (data.message) {
+                    showAlert(data.message, 'info');
+                    // Ocultar la sección de guía si se ha completado todo
+                    document.getElementById('study-guide-section').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error al marcar la sección como completada:', error);
+                showAlert('Ocurrió un error al marcar la sección como completada.', 'danger');
+            });
+        });
+
+        // Evento para descargar la guía completa en PDF
+        document.getElementById('download-pdf').addEventListener('click', () => {
+            window.location.href = '/download_guide_pdf';
+        });
     </script>
 </body>
 </html>

@@ -65,6 +65,7 @@
             color: white;
             position: relative;
             overflow: hidden;
+            text-align: center;
         }
         #hero::before {
             content: "";
@@ -121,6 +122,8 @@
         footer {
             background-color: var(--dark-color);
             color: var(--light-color);
+            text-align: center;
+            padding: 2rem 0;
         }
         .price-card {
             border: none;
@@ -132,11 +135,36 @@
             transform: translateY(-10px);
             box-shadow: 0 15px 30px rgba(0,0,0,0.2);
         }
-        .upload-section {
-            background-color: var(--light-color);
-            border-radius: 15px;
-            padding: 2rem;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        /* Nueva sección de garantía */
+        .guarantee-section {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 4rem 0;
+            text-align: center;
+        }
+        .guarantee-section h2 {
+            margin-bottom: 2rem;
+        }
+        .guarantee-feature {
+            margin-bottom: 1.5rem;
+        }
+        .guarantee-feature i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+        /* Sección de Acknowledgements */
+        .acknowledgements {
+            background-color: #f8f9fa;
+            padding: 2rem 0;
+            text-align: center;
+        }
+        .acknowledgements p {
+            margin-bottom: 1rem;
+        }
+        /* Ajustes adicionales para centrado y espacios */
+        .container {
+            max-width: 1200px;
         }
     </style>
 </head>
@@ -159,9 +187,6 @@
                         <a class="nav-link" href="#pricing">Precios</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#upload-pdfs">Subir PDFs</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link btn btn-primary text-white" href="{{ url_for('login_google') }}">Iniciar Sesión con Google</a>
                     </li>
                 </ul>
@@ -178,33 +203,124 @@
         </div>
     </section>
 
-    <!-- Nueva sección de comparación con ChatGPT -->
-    <section id="comparison" class="py-5 bg-light">
+    <!-- Sección de comparación con ChatGPT -->
+    <section id="comparison" class="py-5">
         <div class="container">
-            <h2 class="text-center mb-5">Comparación entre ChatGPT y SelectiPro</h2>
-            <div class="row">
-                <div class="col-md-6" data-aos="fade-right">
-                    <h3 class="text-primary">SelectiPro</h3>
-                    <ul>
-                        <li>Personalización del estudio en base a tus respuestas</li>
-                        <li>Generación de exámenes específicos para Selectividad</li>
-                        <li>Acceso a clases en grupo e individuales</li>
-                        <li>Análisis detallado del rendimiento</li>
-                    </ul>
+            <h2 class="text-center mb-5">SelectiPro vs. ChatGPT</h2>
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="comparison-table">
+                        <div class="comparison-header">
+                            <div class="comparison-feature">Característica</div>
+                            <div class="comparison-selectipro">SelectiPro</div>
+                            <div class="comparison-chatgpt">ChatGPT</div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Especialización en Selectividad</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Generación de exámenes personalizados</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Análisis de rendimiento</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Clases grupales</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Adaptación al plan de estudios español</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Seguimiento del progreso</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Recursos específicos para Selectividad</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                        <div class="comparison-row">
+                            <div class="comparison-feature">Preparación para PCE</div>
+                            <div class="comparison-selectipro"><i class="fas fa-check-circle"></i></div>
+                            <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-6" data-aos="fade-left">
-                    <h3 class="text-secondary">ChatGPT</h3>
-                    <ul>
-                        <li>Respuestas generales de múltiples temas</li>
-                        <li>No está especializado en Selectividad</li>
-                        <li>No ofrece clases en grupo ni sesiones individuales</li>
-                        <li>No dispone de análisis de rendimiento</li>
-                    </ul>
-                </div>
+            </div>
+            <div class="text-center mt-5">
+                <a href="#" class="btn btn-primary btn-lg">Prueba SelectiPro gratis</a>
             </div>
         </div>
     </section>
-
+    
+    <style>
+        #comparison {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .comparison-table {
+            background-color: #ffffff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        .comparison-header, .comparison-row {
+            display: flex;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .comparison-header {
+            font-weight: bold;
+            background-color: #e9ecef;
+        }
+        .comparison-feature, .comparison-selectipro, .comparison-chatgpt {
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .comparison-feature {
+            justify-content: flex-start;
+            font-weight: 500;
+        }
+        .comparison-selectipro {
+            background-color: #e8f5e9;
+        }
+        .comparison-chatgpt {
+            background-color: #ffebee;
+        }
+        .fa-check-circle {
+            color: #4caf50;
+            font-size: 1.5rem;
+        }
+        .fa-times-circle {
+            color: #f44336;
+            font-size: 1.5rem;
+        }
+        .btn-primary {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 12px 30px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
     <section id="features" class="py-5">
         <div class="container">
             <h2 class="text-center mb-5">Características Exclusivas</h2>
@@ -253,82 +369,213 @@
         </div>
     </section>
 
-    <section id="pricing" class="py-5">
+    <section id="pricing" class="py-5 bg-light">
         <div class="container">
             <h2 class="text-center mb-5">Planes de Estudio</h2>
-            <div class="row">
-                <div class="col-md-4 mb-4" data-aos="fade-up">
-                    <div class="card price-card h-100">
-                        <div class="card-body text-center">
-                            <h3 class="card-title">Básico</h3>
-                            <h4 class="card-subtitle mb-2 text-muted">7,99€/mes</h4>
-                            <p class="text-muted">7 días gratis</p>
-                            <ul class="list-unstyled">
-                                <li>Acceso a exámenes personalizados</li>
-                                <li>Análisis básico de rendimiento</li>
-                                <li>Soporte por email</li>
+            <div class="row row-cols-1 row-cols-md-3 mb-3 text-center">
+                <div class="col" data-aos="fade-up">
+                    <div class="card mb-4 rounded-3 shadow-sm">
+                        <div class="card-header py-3">
+                            <h4 class="my-0 fw-normal">Básico</h4>
+                        </div>
+                        <div class="card-body">
+                            <h1 class="card-title pricing-card-title">7,99€<small class="text-muted fw-light">/mes</small></h1>
+                            <p class="text-success">7 días gratis</p>
+                            <ul class="list-unstyled mt-3 mb-4">
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Acceso a exámenes personalizados</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Análisis básico de rendimiento</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Soporte por email</li>
                             </ul>
-                            <a href="#" class="btn btn-primary mt-3">Elegir Plan</a>
+                            <button type="button" class="w-100 btn btn-lg btn-outline-primary">Elegir Plan</button>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
-                    <div class="card price-card h-100 border-primary">
-                        <div class="card-body text-center">
-                            <h3 class="card-title">Experto</h3>
-                            <h4 class="card-subtitle mb-2 text-muted">49,99€/mes</h4>
-                            <ul class="list-unstyled">
-                                <li>Clases ilimitadas en grupos</li>
-                                <li>Análisis avanzado de rendimiento</li>
-                                <li>Acceso a recursos exclusivos</li>
+                <div class="col" data-aos="fade-up" data-aos-delay="100">
+                    <div class="card mb-4 rounded-3 shadow-sm border-primary">
+                        <div class="card-header py-3 text-white bg-primary border-primary">
+                            <h4 class="my-0 fw-normal">Experto</h4>
+                        </div>
+                        <div class="card-body">
+                            <h1 class="card-title pricing-card-title">49,99€<small class="text-muted fw-light">/mes</small></h1>
+                            <p class="text-primary">Recomendado</p>
+                            <ul class="list-unstyled mt-3 mb-4">
+                                <li><i class="fas fa-check-circle text-primary me-2"></i>Clases grupales ilimitadas</li>
+                                <li><i class="fas fa-check-circle text-primary me-2"></i>Análisis avanzado de rendimiento</li>
+                                <li><i class="fas fa-check-circle text-primary me-2"></i>Acceso a recursos exclusivos</li>
                             </ul>
-                            <a href="#" class="btn btn-primary mt-3">Elegir Plan</a>
+                            <button type="button" class="w-100 btn btn-lg btn-primary">Elegir Plan</button>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
-                    <div class="card price-card h-100">
-                        <div class="card-body text-center">
-                            <h3 class="card-title">Premium</h3>
-                            <h4 class="card-subtitle mb-2 text-muted">19,99€/mes</h4>
-                            <ul class="list-unstyled">
-                                <li>4 clases al mes</li>
-                                <li>Todo lo del plan Básico</li>
-                                <li>Acceso a recursos exclusivos</li>
+                <div class="col" data-aos="fade-up" data-aos-delay="200">
+                    <div class="card mb-4 rounded-3 shadow-sm">
+                        <div class="card-header py-3">
+                            <h4 class="my-0 fw-normal">Premium</h4>
+                        </div>
+                        <div class="card-body">
+                            <h1 class="card-title pricing-card-title">19,99€<small class="text-muted fw-light">/mes</small></h1>
+                            <p class="text-muted">Mejor valor</p>
+                            <ul class="list-unstyled mt-3 mb-4">
+                                <li><i class="fas fa-check-circle text-success me-2"></i>4 clases al mes</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Todo lo del plan Básico</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Acceso a recursos exclusivos</li>
                             </ul>
-                            <a href="#" class="btn btn-primary mt-3">Elegir Plan</a>
+                            <button type="button" class="w-100 btn btn-lg btn-outline-primary">Elegir Plan</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+    
+    <style>
+    #pricing .card {
+        transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    }
+    
+    #pricing .card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    #pricing .card-header {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+    
+    #pricing .btn-lg {
+        padding: 0.75rem 1.25rem;
+        font-size: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        #pricing .card {
+            margin-bottom: 2rem;
+        }
+    }
+    </style>
 
-    <section id="upload-pdfs" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-5">Sube tus PDFs de Estudio</h2>
-            <div class="row justify-content-center">
-                <div class="col-lg-6">
-                    <div class="upload-section text-center p-5">
-                        <p class="lead mb-4">Sube tus propios materiales de estudio en formato PDF y personaliza tu experiencia.</p>
-                        <input type="file" class="form-control" accept="application/pdf">
-                        <button class="btn btn-accent mt-3">Subir Archivo</button>
-                    </div>
+<section id="guarantee" class="guarantee-section py-5">
+    <div class="container">
+        <h2 class="text-center text-white mb-4">Garantía de Aprobado o Te Devolvemos el Dinero</h2>
+        <p class="text-center text-light mb-5">Nos comprometemos a tu éxito en la Selectividad y PCE. Si no alcanzas tus objetivos, te devolvemos el dinero.</p>
+        <div class="row justify-content-center">
+            <div class="col-lg-5 col-md-6 mb-4" data-aos="fade-up">
+                <div class="guarantee-card">
+                    <h3 class="card-title"><i class="fas fa-book-open me-2"></i>Deberes y Estudio</h3>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check-circle me-2"></i>Aprende a resolver los deberes de cualquier asignatura.</li>
+                        <li><i class="fas fa-check-circle me-2"></i>Realiza ejercicios personalizados para que no se te olvide lo aprendido.</li>
+                        <li><i class="fas fa-check-circle me-2"></i>Agenda las fechas de entrega de los deberes de una manera única, nosotros nos encargaremos de recordártelo.</li>
+                    </ul>
+                    <a href="#" class="btn btn-light btn-lg mt-3">¡Pruébalo gratis!</a>
+                </div>
+            </div>
+            <div class="col-lg-5 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="guarantee-card">
+                    <h3 class="card-title"><i class="fas fa-file-alt me-2"></i>Prepara tus Exámenes</h3>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check-circle me-2"></i>Resuelve y prepara exámenes de selectividad como nunca antes se había podido.</li>
+                        <li><i class="fas fa-check-circle me-2"></i>Corrige cualquier examen que tengas con solo hacer una foto y te ayudamos a que tengas un diez.</li>
+                        <li><i class="fas fa-check-circle me-2"></i>Analizamos dónde fallas y te lo explicamos hasta que lo entiendas. Garantizado.</li>
+                    </ul>
+                    <a href="#" class="btn btn-light btn-lg mt-3">¡Pruébalo gratis!</a>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <footer class="py-4">
+<style>
+.guarantee-section {
+    background: linear-gradient(135deg, #1e88e5, #1565c0);
+    color: white;
+}
+
+.guarantee-card {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 2rem;
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.guarantee-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.guarantee-card .card-title {
+    color: #ffffff;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.guarantee-card ul li {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: start;
+}
+
+.guarantee-card ul li i {
+    color: #4fc3f7;
+    margin-top: 0.25rem;
+}
+
+.guarantee-card .btn-light {
+    background-color: white;
+    color: #1e88e5;
+    border: none;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.guarantee-card .btn-light:hover {
+    background-color: #e3f2fd;
+    transform: translateY(-3px);
+}
+
+@media (max-width: 768px) {
+    .guarantee-card {
+        margin-bottom: 2rem;
+    }
+}
+</style>
+
+    <footer class="py-5 bg-light">
         <div class="container text-center">
-            <p>&copy; 2024 SelectiPro - Todos los derechos reservados</p>
+            <p class="mb-4">&copy; 2024 SelectiPro - Todos los derechos reservados</p>
+            <div class="acknowledgements">
+                <p class="text-muted mb-3">Con el apoyo de:</p>
+                <a href="https://startups.microsoft.com" target="_blank" rel="noopener noreferrer" class="me-4">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft for Startups Hub" height="30">
+                </a>
+                <p class="text-muted mt-4 mb-3">Powered by:</p>
+                <a href="https://openai.com" target="_blank" rel="noopener noreferrer" class="me-4">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg" alt="OpenAI" height="30">
+                </a>
+                <a href="https://meta.com" target="_blank" rel="noopener noreferrer">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg" alt="Meta" height="30">
+                </a>
+            </div>
         </div>
     </footer>
-
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init();
     </script>
-</body>
-</html>
+    </body>
+    </html>
+    
+    <style>
+    footer {
+        border-top: 1px solid #e9ecef;
+    }
+    .acknowledgements img {
+        transition: transform 0.3s ease;
+    }
+    .acknowledgements img:hover {
+        transform: scale(1.1);
+    }
+    </style>
+

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Guía de Estudio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> <!-- Asegúrate de tener un archivo styles.css -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Biblioteca para procesar Markdown -->
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #007bff;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .content h2 {
+            color: #333;
+            margin-top: 20px;
+        }
+        .content ul, .content ol {
+            padding-left: 20px;
+        }
+        .content p {
+            margin-bottom: 10px;
+        }
+        .back-link {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .back-link a {
+            font-size: 1.1rem;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Guía de Estudio</h1>
+    
+    <!-- Mostrar el contenido de la guía como Markdown -->
+    <div class="content" id="markdown-content">
+        <!-- El contenido de la guía será renderizado aquí -->
+    </div>
+
+    <div class="back-link">
+        <a href="{{ url_for('view_guides') }}"><i class="fas fa-arrow-left"></i> Volver a Mis Guías</a>
+    </div>
+
+    <script>
+        // Obtén el contenido de la guía desde el backend y convierte el markdown a HTML
+        const guideContent = `{{ guide.guide_content | safe }}`;
+
+        // Usamos Marked.js para convertir el contenido Markdown a HTML
+        const markdownContent = marked.parse(guideContent);
+
+        // Renderizamos el contenido procesado en el div con id="markdown-content"
+        document.getElementById('markdown-content').innerHTML = markdownContent;
+    </script>
+</body>
+</html>
+
+
