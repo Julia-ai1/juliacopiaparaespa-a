@@ -71,7 +71,7 @@ def process_questions(response_text):
     logging.info(f"Preguntas procesadas correctamente: {len(questions)}")
     return questions
 
-def generate_questions(chat, prompt_text, num_questions):
+def generate_questions1(chat, prompt_text, num_questions):
     """
     Genera preguntas utilizando el modelo de chat basado en el prompt proporcionado.
 
@@ -100,56 +100,48 @@ def generate_questions(chat, prompt_text, num_questions):
         logging.error(f"Error en generate_questions: {e}")
         return []
 
-def check_answer(question, user_answer, chat):
-    try:
-        # Preparar el contenido de la pregunta y las opciones
-        question_text = question["question"].replace("{", "{{").replace("}", "}}") 
-         # Escapamos las llaves
-        # Reemplazar $...$ por \( ... \) para inline math
-        question_text = question_text.replace("$", "\\(").replace("$", "\\)")
-    
-        options = "\n".join([f"{chr(65 + i)}. {choice.replace('{', '{{').replace('}', '}}')}" for i, choice in enumerate(question["choices"])])  # Escapamos las llaves en las opciones
-    
-        # Primer mensaje para obtener la respuesta correcta
-        system_message = """Eres un asistente que evalúa respuestas de opción múltiple. Dada la pregunta y las opciones, determina la respuesta correcta. 
-        Tu respuesta debe comenzar con la letra de la opción correcta (A, B, C, D o E) seguida de una breve explicación. Si se trata de una matriz, usa notación LaTeX para representarla."""
-    
-        human_message = f"Pregunta: {question_text}\n\nOpciones:\n{options}"
-    
-        # Generar el prompt para el modelo de chat
-        prompt = ChatPromptTemplate.from_messages([("system", system_message), ("human", human_message)])
-        response = prompt | chat
-        response_text = response.invoke({}).content.strip()
-    
-        # Intentar extraer la respuesta correcta (A, B, C, D o E)
-        match = re.match(r"^(A|B|C|D|E)", response_text, re.IGNORECASE)
-        if match:
-            correct_answer_letter = match.group(1).upper()  # Letra de la opción correcta
-            correct_answer_index = ord(correct_answer_letter) - 65  # Convierte la letra en índice numérico (A=0, B=1, ...)
-            correct_answer_text = question["choices"][correct_answer_index]  # El texto de la opción correcta
-        else:
-            # Si no se puede determinar la respuesta correcta, usar una opción predeterminada
-            correct_answer_letter = "A"
-            correct_answer_text = question["choices"][0]  # Primera opción como predeterminada
-    
-        # Segundo mensaje para obtener la explicación
-        system_explanation = """Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta. 
-        Proporcione una explicación que también incluya términos matemáticos en formato LaTeX si es necesario."""
-        human_explanation = f"Pregunta: {question_text}\nRespuesta correcta: {correct_answer_letter}"
-    
-        # Generar el prompt para la explicación
-        prompt_explanation = ChatPromptTemplate.from_messages([("system", system_explanation), ("human", human_explanation)])
-        response_explanation = prompt_explanation | chat
-        explanation = response_explanation.invoke({}).content.strip()
-    
-        # Comparar la respuesta del usuario con la respuesta correcta
-        if user_answer.upper() == correct_answer_letter:
-            return "correct", f"Sí, la respuesta es correcta. La respuesta correcta es '{correct_answer_letter}'.\nExplicación: {explanation}", correct_answer_text
-        else:
-            return "incorrect", f"No, la respuesta es incorrecta. La respuesta correcta es '{correct_answer_letter}', no '{user_answer}'.\nExplicación: {explanation}", correct_answer_text
+def check_answer1(question, user_answer, chat):
+    system_correct = (
+        "Eres un asistente que determina la respuesta correcta a una pregunta de opción múltiple "
+        "basada en el contexto proporcionado. Devuelve solo la opción correcta sin explicaciones adicionales.Hazlo en inglés"
+    )
 
-    except Exception as e:
-        # Capturar errores y proporcionar al menos una explicación
-        logging.error(f"Error en check_answer: {e}")
-        explanation = "Se ha producido un error al evaluar la respuesta, pero aquí tienes una explicación general basada en el contexto."
-        return "error", f"Error al evaluar la respuesta: {e}\nExplicación: {explanation}", None
+    options_correct = "".join("- " + choice + "\n" for choice in question["choices"])
+
+    human_correct = f'Pregunta: {question["question"]}\nOpciones:\n{options_correct}'
+
+    prompt_correct = ChatPromptTemplate.from_messages(
+        [("system", system_correct), ("human", human_correct)]
+    )
+
+    response_correct = prompt_correct | chat
+    correct_answer = response_correct.invoke({}).content.strip()
+
+    if not correct_answer:
+        return "error", "No se pudo obtener una respuesta correcta para la pregunta."
+
+    system_explanation = (
+        "Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta. Responde en inglés"
+    )
+
+    human_explanation = f'Pregunta: {question["question"]}\nRespuesta correcta: {correct_answer}'
+
+    prompt_explanation = ChatPromptTemplate.from_messages(
+        [("system", system_explanation), ("human", human_explanation)]
+    )
+
+    response_explanation = prompt_explanation | chat
+    explanation = response_explanation.invoke({}).content.strip()
+
+    if user_answer.lower() in correct_answer.lower():
+        final_explanation = (
+            f"Yes, the answer is correct. The correct answer is '{correct_answer}'.\n"
+            f"Explanation: {explanation}"
+        )
+        return "correct", final_explanation
+    else:
+        final_explanation = (
+            f"No, the answer is incorrect. The correct answer is '{correct_answer}', "
+            f"no '{user_answer}'.\nExplanation: {explanation}"
+        )
+        return "incorrect", final_explanation

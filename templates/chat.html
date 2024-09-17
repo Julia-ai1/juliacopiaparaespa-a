@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Estudiantil - Julia.ai</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f4f8;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .action-button {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .action-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+        }
+
+        #loader {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        #loader span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin: 3px;
+            background-color: #6366f1;
+            border-radius: 50%;
+            animation: loader 1s infinite ease-in-out;
+        }
+
+        @keyframes loader {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        #input-area {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        #text-input {
+            flex-grow: 1;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+        }
+
+        .user {
+            background-color: #e0e7ff;
+            align-self: flex-end;
+        }
+
+        .assistant {
+            background-color: #f3f4f6;
+            align-self: flex-start;
+        }
+
+        .error {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="container max-w-4xl mx-auto">
+        <div class="gradient-bg rounded-3xl shadow-2xl overflow-hidden">
+            <header class="text-center py-8 px-6">
+                <h1 class="text-4xl font-bold text-white mb-2 flex items-center justify-center">
+                    <i data-lucide="brain" class="w-10 h-10 mr-2"></i>
+                    Chat Estudiantil
+                </h1>
+                <p class="text-xl text-indigo-100">Aprende y explora con Julia.ai</p>
+            </header>
+
+            <div class="bg-white rounded-t-3xl p-8">
+                <div class="glass-effect p-6 mb-8 bg-gradient-to-r from-indigo-100 to-indigo-200 text-center">
+                    <h2 class="text-2xl font-semibold text-indigo-800 mb-4">¡Bienvenido al Chat Inteligente!</h2>
+                    <p class="text-indigo-600">Haz preguntas, comparte ideas y aprende algo nuevo</p>
+                </div>
+
+                <div class="grid gap-4 mb-8">
+                    <div id="chat-container" class="glass-effect p-4 bg-white shadow rounded-lg">
+                        <div id="messages" class="h-96 overflow-y-scroll mb-4 p-2 border rounded flex flex-col">
+                            <!-- Mensajes del chat aparecerán aquí -->
+                        </div>
+                        <div id="input-area" class="space-y-3">
+                            <textarea id="text-input" placeholder="Escribe tu pregunta o idea..." class="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                            <div class="flex items-center justify-between">
+                                <label for="image-input" class="flex items-center space-x-2 cursor-pointer text-indigo-600 hover:text-indigo-800">
+                                    <i data-lucide="image" class="w-5 h-5"></i>
+                                    <span>Adjuntar imagen</span>
+                                </label>
+                                <input type="file" id="image-input" accept="image/*" class="hidden">
+                                <button id="send-button" onclick="sendMessage()" class="action-button bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-full flex items-center">
+                                    <i data-lucide="send" class="w-5 h-5 mr-2"></i>
+                                    Enviar
+                                </button>
+                            </div>
+                        </div>
+                        <div id="loader" class="flex justify-center">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+
+                    <!-- Enlace al inicio -->
+                    <a href="{{ url_for('app_index') }}" class="action-button bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-full flex items-center justify-center">
+                        <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+                        Volver al Inicio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Íconos Lucide -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <script>
+        // Inicializar los íconos
+        lucide.createIcons();
+
+        // Función para enviar mensajes
+        async function sendMessage() {
+            const textInput = document.getElementById('text-input').value.trim();
+            const imageInput = document.getElementById('image-input').files[0];
+            const messagesDiv = document.getElementById('messages');
+            const loader = document.getElementById('loader');
+
+            // Validar que hay al menos texto o imagen
+            if (!textInput && !imageInput) {
+                alert("Debes enviar un mensaje de texto o una imagen.");
+                return;
+            }
+
+            // Mostrar el mensaje del usuario
+            if (textInput) {
+                appendMessage('Tú', textInput, 'user');
+            }
+
+            let imageBase64 = null;
+            if (imageInput) {
+                // Validar el tipo de imagen
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(imageInput.type)) {
+                    alert("Solo se permiten imágenes JPEG, PNG o GIF.");
+                    return;
+                }
+
+                // Validar el tamaño de la imagen (máximo 5MB)
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                if (imageInput.size > maxSize) {
+                    alert("La imagen es demasiado grande. El tamaño máximo permitido es 5MB.");
+                    return;
+                }
+
+                imageBase64 = await convertImageToBase64(imageInput);
+                appendImageMessage('Tú', imageBase64, 'user');
+            }
+
+            // Mostrar el loader
+            loader.style.display = 'flex';
+
+            // Preparar la solicitud al backend
+            let payload = {};
+            if (textInput) {
+                payload.text = textInput;
+            }
+            if (imageBase64) {
+                payload.image_base64 = imageBase64;
+            }
+
+            // Enviar la solicitud al backend
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Mostrar la respuesta del asistente
+                    appendMessage('Julia.ai', data.gpt_response, 'assistant');
+                } else {
+                    appendMessage('Error', data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                appendMessage('Error', 'Ocurrió un error al procesar tu solicitud.', 'error');
+            }
+
+            // Ocultar el loader
+            loader.style.display = 'none';
+
+            // Limpiar los inputs
+            document.getElementById('text-input').value = '';
+            document.getElementById('image-input').value = '';
+        }
+
+        // Función para mostrar mensajes de texto
+        function appendMessage(sender, text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', type);
+            messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Función para mostrar mensajes con imágenes
+        function appendImageMessage(sender, imageBase64, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', type);
+            messageDiv.innerHTML = `<strong>${sender}:</strong> <br><img src="${imageBase64}" alt="Imagen enviada" class="max-w-full h-auto rounded mt-2">`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Función para convertir la imagen a base64
+        function convertImageToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
+</html>
+

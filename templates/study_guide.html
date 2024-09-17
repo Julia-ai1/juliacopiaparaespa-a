@@ -178,6 +178,7 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Temas extraídos del PDF:", data.topics);  // Depuración
                     if (data.topics) {
                         showTopics(data.topics);
                         showAlert('Temas extraídos exitosamente.', 'success');
@@ -256,6 +257,9 @@
                 language: 'es',  // Puedes hacer esto dinámico si es necesario
             };
 
+            console.log("Temas seleccionados:", selectedTopics);  // Depuración
+            console.log("Perfil del estudiante:", studentProfile);  // Depuración
+
             if (selectedTopics.length > 0) {
                 // Iniciar el estudio con los temas seleccionados y el perfil del estudiante
                 startStudy(selectedTopics, studentProfile);
@@ -275,9 +279,7 @@
             formData.append('selected_topics', JSON.stringify(selectedTopics));
             formData.append('student_profile', JSON.stringify(studentProfile));
 
-            // Imprimir los datos que se van a enviar para depuración
-            console.log("Iniciando estudio con los siguientes temas seleccionados:", selectedTopics);
-            console.log("Perfil del estudiante:", studentProfile);
+            console.log("Iniciando estudio con los siguientes datos:", formData);  // Depuración
 
             // Mostrar un spinner o indicador de carga si lo deseas
             showAlert('Generando la guía de estudio...', 'info');
@@ -288,7 +290,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log("Respuesta de /start_study:", data);
+                console.log("Respuesta del servidor (/start_study):", data);  // Depuración
                 if (data.guide) {
                     // Ocultar la sección de temas y mostrar la guía de estudio
                     document.getElementById('topics-section').style.display = 'none';
@@ -335,6 +337,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Siguiente sección obtenida:", data);  // Depuración
                 if (data.guide) {
                     renderStudyGuide(data);
                     showAlert('Sección actualizada exitosamente.', 'success');
@@ -360,6 +363,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Sección marcada como completada:", data);  // Depuración
                 if (data.status === 'success') {
                     fetchNextGuideSection();
                 } else if (data.error) {

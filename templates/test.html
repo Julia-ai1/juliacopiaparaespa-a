@@ -97,6 +97,17 @@
             border-radius: 10px;
             font-style: italic;
         }
+        .form-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            margin-bottom: 3rem;
+        }
+        .form-section h2 {
+            margin-bottom: 1.5rem;
+            color: #4a90e2;
+        }
     </style>
 </head>
 <body>
@@ -106,11 +117,23 @@
         <p>Selecciona una respuesta para cada pregunta</p>
     </header>
 
+    <!-- Formulario para ingresar el número de preguntas -->
+    <div class="form-section">
+        <h2>Configurar Número de Preguntas</h2>
+        <form @submit.prevent="generateQuestions">
+            <div class="mb-3">
+                <label for="numQuestions" class="form-label">Número de Preguntas:</label>
+                <input type="number" id="numQuestions" v-model.number="inputNumQuestions" class="form-control" min="1" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Generar Preguntas</button>
+        </form>
+    </div>
+
     <transition-group name="fade" tag="div">
         <div v-for="(question, index) in questions" :key="index" class="question-card">
             <h2><span class="question-number">[[ index + 1 ]]</span> [[ question.question ]]</h2>
             <div class="choices">
-                <button v-for="(choice, choiceIndex) in question.choices" 
+                <button v-for="(choice, choiceIndex) in question.options" 
                         :key="choiceIndex"
                         class="choice-button"
                         :class="{
@@ -144,20 +167,26 @@ new Vue({
         questions: [],
         results: {},
         pdfId: '',
-        numQuestions: 5  // Valor por defecto
+        numQuestions: 5,         // Valor por defecto inicial
+        inputNumQuestions: 5    // Enlazado al formulario de entrada
     },
     methods: {
         fetchQuestions() {
-            const urlParams = new URLSearchParams(window.location.search);
-            this.pdfId = urlParams.get('pdf_id');
-            this.numQuestions = urlParams.get('num_questions') || 5;  // Obtener el número de preguntas o usar valor por defecto
-            
+            // Asegurarse de tener un pdf_id válido
+            if (!this.pdfId) {
+                alert("ID del PDF no proporcionado.");
+                return;
+            }
+
             fetch('/get_generated_questions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams({ pdf_id: this.pdfId, num_questions: this.numQuestions })
+                body: new URLSearchParams({ 
+                    pdf_id: this.pdfId, 
+                    num_questions: this.numQuestions 
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -165,6 +194,7 @@ new Vue({
                     alert("No se encontraron preguntas para este PDF.");
                 } else {
                     this.questions = data.questions;
+                    this.results = {}; // Resetear resultados al generar nuevas preguntas
                 }
             })
             .catch(error => console.error("Error al obtener las preguntas: ", error));
@@ -198,10 +228,33 @@ new Vue({
             .catch(error => console.error("Error al verificar respuesta: ", error));
         },
         downloadPDF() {
+            if (!this.pdfId) {
+                alert("ID del PDF no proporcionado.");
+                return;
+            }
             window.location.href = '/download_test_pdf?pdf_id=' + this.pdfId;
+        },
+        generateQuestions() {
+            if (this.inputNumQuestions < 1 || !Number.isInteger(this.inputNumQuestions)) {
+                alert("Por favor, ingresa un número válido de preguntas.");
+                return;
+            }
+            this.numQuestions = this.inputNumQuestions;
+            this.fetchQuestions();
         }
     },
     mounted() {
+        // Obtener el pdf_id de los parámetros de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        this.pdfId = urlParams.get('pdf_id');
+
+        // Opcional: obtener el número de preguntas de los parámetros de la URL
+        const urlNumQuestions = parseInt(urlParams.get('num_questions'));
+        if (urlNumQuestions && Number.isInteger(urlNumQuestions) && urlNumQuestions > 0) {
+            this.numQuestions = urlNumQuestions;
+            this.inputNumQuestions = urlNumQuestions;
+        }
+
         this.fetchQuestions();
     }
 });

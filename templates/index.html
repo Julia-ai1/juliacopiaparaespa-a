@@ -110,8 +110,10 @@
                             <a href="{{ url_for('study_guide_page') }}" class="action-button w-full bg-primary-400 hover:bg-primary-500 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="book-open" class="w-5 h-5 mr-2"></i>
                                 Generar Guía de Estudio
+                            <a href="{{ url_for('chat1') }}" class="action-button w-full bg-primary-700 hover:bg-primary-800 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                                <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>
+                                Abrir Chat Multimodal
                             </a>
-                            
                             <a href="{{ url_for('saved_questions') }}" class="action-button w-full bg-primary-300 hover:bg-primary-400 text-primary-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                                 <i data-lucide="save" class="w-5 h-5 mr-2"></i>
                                 Mis Preguntas
@@ -123,9 +125,14 @@
                             </a>
 
                             <a href="{{ url_for('generate_any_age_exam') }}" class="action-button w-full bg-primary-100 hover:bg-primary-200 text-primary-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
-                                <i data-lucide="question-mark" class="w-5 h-5 mr-2"></i>
+                                <i data-lucide="help-circle" class="w-5 h-5 mr-2"></i>
                                 Generar Preguntas para cualquier edad
                             </a>
+                            <a href="{{ url_for('esquema') }}" class="action-button w-full bg-primary-200 hover:bg-primary-300 text-primary-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                                <i data-lucide="layout" class="w-5 h-5 mr-2"></i>
+                                Generar Esquema Interactivo
+                            </a>
+                            
 
                             <form action="{{ url_for('cancel_subscription') }}" method="post">
                                 <button type="submit" class="action-button w-full bg-red-100 hover:bg-red-200 text-red-800 font-bold py-3 px-6 rounded-lg flex items-center justify-center">

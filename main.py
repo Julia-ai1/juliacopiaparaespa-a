@@ -1,14 +1,19 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from decorators import pro_required
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 # from exani import questions_exani, check_answer_exani, generate_new_questions_exani
 from baccaulareat import generate_solutions_bac, retrieve_documents_bac, extract_relevant_context_bac
 # from enem import generate_questions, check_answer, retrieve_documents, extract_relevant_context
 from langchain_community.chat_models import ChatDeepInfra
-from selectividad import generate_questions, check_answer, retrieve_documents, extract_relevant_context
+from selectividad import generate_questions, check_answer, retrieve_documents, extract_relevant_context, process_questions
 from study_guide_generator import generate_study_guide_from_pdf, save_progress, load_progress
 import os
+import tempfile
+import os
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 import requests as http_requests  # Renombrar la librería requests
 import logging
 from datetime import datetime, timezone
@@ -35,7 +40,6 @@ import os
 SEARCH_SERVICE_ENDPOINT = os.getenv("SEARCH_SERVICE_ENDPOINT")
 SEARCH_API_KEY = os.getenv("SEARCH_API_KEY")
 INDEX_NAME = os.getenv("INDEX_NAME")
-
 search_client = SearchClient(endpoint=SEARCH_SERVICE_ENDPOINT,
                              index_name=INDEX_NAME,
                              credential=AzureKeyCredential(SEARCH_API_KEY))
@@ -148,7 +152,6 @@ def upload_pdf():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/get_pdfs', methods=['GET'])
 @app.route('/get_pdfs', methods=['GET'])
 def get_pdfs():
     try:
@@ -276,11 +279,6 @@ def pdf_page():
 def test_pdf_page():
     return render_template('pdftest.html')
 
-import tempfile
-import os
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-
 
 # Función modificada para extraer texto del PDF e indexarlo en Chroma
 from PyPDF2 import PdfReader
@@ -343,22 +341,8 @@ def upload_pdf_test():
         pdf_id = normalize_pdf_id(secure_filename(pdf_file.filename))
         print(f"Nombre del archivo normalizado para Azure Search (pdf_id): {pdf_id}")
 
-        # Extraer el contenido completo del PDF
-        pdf_content = extract_pdf_content(temp_pdf_path)
-        print(f"Contenido del PDF extraído (primeros 500 caracteres): {pdf_content[:500]}...")  # Muestra un resumen del contenido
-
-        # Crear el documento con la clave normalizada
-        document = {
-            "pdf_id": pdf_id,  # Usamos el pdf_id normalizado
-            "content": pdf_content,
-            "user_id": user_id
-        }
-        
-        print(f"Documento a subir a Azure Cognitive Search: {document}")
-
-        # Subir documento a Azure Search
-        result = search_client.upload_documents(documents=[document])
-        print(f"Resultado de la carga a Azure Search: {result}")
+        # Subir el PDF por páginas a Azure Search
+        extract_and_store_in_azure_search(temp_pdf_path, pdf_id, user_id)
 
         # Eliminar el archivo temporal
         os.remove(temp_pdf_path)
@@ -373,103 +357,120 @@ import random
 
 
 # Ruta para generar preguntas basadas en el PDF
+import openai
+questions_db = {}
+openai.api_key = os.getenv("OPENAI_API_KEY")
 @app.route('/generate_test_questions', methods=['POST'])
 def generate_test_questions():
-    num_questions = int(request.form.get('num_questions', 5))  # Número de preguntas a generar
-    pdf_id = request.form.get('pdf_id')  # ID del PDF
+    num_questions = int(request.form.get('num_questions', 5))
+    pdf_id = request.form.get('pdf_id')
 
-    # Texto de consulta para buscar fragmentos relevantes del PDF
-    query_text = ""  
-
-    # Recuperar fragmentos relevantes del PDF desde Azure Cognitive Search
+    query_text = "Genera preguntas tipo test aleatoriamente del texto"
     pdf_content = retrieve_pdf_content_from_azure_search(pdf_id, query_text)
 
     if not pdf_content:
-        print(f"No se encontraron fragmentos relevantes en Azure Cognitive Search para el PDF ID: {pdf_id}")
         return jsonify({"error": "No se encontraron fragmentos relevantes en el PDF."}), 404
 
-    print("Contenido recuperado del PDF:")
-    print(pdf_content)
 
-    # Generar preguntas basadas en el contenido del PDF utilizando el modelo de DeepInfra
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct")
-    questions = generate_questions_test(chat, pdf_content, num_questions)
-    
-    print("Preguntas generadas finales:")
-    print(questions)
-    
-    # Guardar las preguntas en la "base de datos" temporal
+    questions = generate_questions_test(pdf_content, num_questions)
+
+    if not questions:
+        return jsonify({"error": "Error al generar las preguntas."}), 500
+
     questions_db[pdf_id] = questions
 
     return jsonify({'questions': questions})
 
-
-
-
-# Ruta para obtener las preguntas generadas
 @app.route('/get_generated_questions', methods=['POST'])
 def get_generated_questions():
     pdf_id = request.form.get('pdf_id')
-
-    # Recuperar preguntas desde el diccionario temporal
     questions = questions_db.get(pdf_id)
     if not questions:
-        return jsonify({"error": "No questions found for this PDF"}), 404
+        return jsonify({"error": "No se encontraron preguntas para este PDF"}), 404
 
     return jsonify({"questions": questions})
 
-def generate_questions_test(chat, pdf_content, num_questions):
-    # Definir el sistema de generación de preguntas con fragmentos relevantes
-    system_text = f"""Eres un asistente experto que genera preguntas de opción múltiple sobre fragmentos relevantes del contenido proporcionado.
-    Debes generar {num_questions} preguntas variadas, con 4 opciones de respuesta cada una. Las preguntas deben abarcar diferentes temas dentro del texto y estar relacionadas con los fragmentos proporcionados.
-    Asegúrate de que cada pregunta esté claramente relacionada con la información contenida en los fragmentos proporcionados.
+from openai import OpenAI
+
+# Inicializar el cliente de OpenAI
+client = OpenAI(api_key="sk-Ih-9O47lbt5zz6qkYD31-Ylwd4AS18Qj2PPfQycSgST3BlbkFJqO8CRe-viu01Zuf2Msdc5s3vUxLl1jFapzPSXuLkgA")
+
+def generate_questions_test(pdf_content, num_questions):
+    prompt = f"""Eres un asistente experto que genera preguntas de opción múltiple sobre el contenido proporcionado.
+    Debes generar {num_questions} preguntas variadas, con 4 opciones de respuesta cada una, e indicar la respuesta correcta.
+    Las preguntas deben estar relacionadas con el texto y cubrir diferentes temas.
     Formatea las preguntas de esta manera:
-    
-    Pregunta: ¿Cuál es la capital de Francia?
-    A) Madrid
-    B) París
-    C) Berlín
-    D) Roma"""
 
-    # El texto humano será el contenido recuperado del PDF
-    human_text = f"Genera preguntas a partir de los siguientes fragmentos relevantes del PDF:\n{pdf_content}"
+    Pregunta: [Enunciado de la pregunta]
+    A) [Opción A]
+    B) [Opción B]
+    C) [Opción C]
+    D) [Opción D]
+    Respuesta correcta: [Letra de la opción correcta]
 
-    # Crear el prompt para el chat usando los fragmentos relevantes del PDF
-    prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
+    Contenido del texto:
+    {pdf_content}
 
-    # Generar las preguntas usando el modelo de IA
-    response = prompt | chat
-    response_msg = response.invoke({"pdf_content": pdf_content, "num_questions": num_questions})
+    Por favor, proporciona solo las preguntas con sus opciones y respuestas correctas, sin información adicional.
+    """
 
-    # Procesar las preguntas generadas
-    questions = process_questions_test(response_msg.content.strip())
-    return questions
+    try:
+        # Cambiar a la nueva API
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Eres un asistente experto en generar preguntas tipo test."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=2000,
+            temperature=0.7
+        )
 
+        # Ahora se usa model_dump() para extraer el resultado
+        generated_text = response.model_dump()['choices'][0]['message']['content'].strip()
+        print("generated_text")
+        print(generated_text)
+        questions = process_questions_test(generated_text)
+        return questions
 
+    except Exception as e:
+        print(f"Error al generar preguntas: {e}")
+        return None
 
-# Función para procesar las preguntas generadas
-import re
-
-def process_questions_test(response_text):
+def process_questions_test(generated_text):
     questions = []
-    # Dividir las preguntas usando un patrón que detecte "Pregunta" o su variante
-    question_blocks = re.split(r"(\*\*Pregunta|\bPregunta\b|\bPregunta \d+\b|Pregunta\s+\d+:)", response_text, flags=re.IGNORECASE)
+    lines = generated_text.strip().split('\n')
+    question = {}
 
-    for i in range(1, len(question_blocks), 2):
-        question_text_block = question_blocks[i] + question_blocks[i + 1]
-        question_text_match = re.search(r"(.*?)(?=\n[A-D]\))", question_text_block, re.DOTALL)
-        if not question_text_match:
-            continue
-        question_text = question_text_match.group(1).strip()
-        options = re.findall(r"([A-D])\)\s*(.+)", question_text_block)
-        if len(options) < 4:
-            continue
-        question = {
-            'question': question_text,
-            'choices': [option[1].strip() for option in options]
-        }
+    for line in lines:
+        line = line.strip()
+
+        # Detecta el comienzo de una nueva pregunta
+        if line.startswith('Pregunta'):
+            if question:
+                questions.append(question)
+                question = {}
+            question_text = line.replace('Pregunta', '').strip()
+            question['question'] = question_text
+            question['options'] = []  # Añadir lista vacía para las opciones
+
+        # Añade las opciones a la pregunta
+        elif line.startswith(('A)', 'B)', 'C)', 'D)')):
+            option_text = line[2:].strip()
+            question['options'].append(option_text)
+
+        # Añade la respuesta correcta
+        elif line.startswith('Respuesta correcta'):
+            correct_answer = line.replace('Respuesta correcta:', '').strip()
+            question['correct_answer'] = correct_answer
+
+    # Añade la última pregunta procesada si no ha sido añadida antes
+    if question:
         questions.append(question)
+
     return questions
+
+# Asegúrate de definir 'retrieve_pdf_content_from_azure_search' o reemplázalo por tu propia lógica.
 
 import re
 
@@ -478,14 +479,13 @@ def escape_query_string(query):
     query = re.sub(r'[\+\-\&\|\!\(\)\{\}\[\]\^"~\*\?:\\\/]', ' ', query)  # Reemplazar caracteres no válidos
     return query
 
-def limit_characters(text, max_characters=2000):
+def limit_characters(text, max_characters=5000):
     """Limitar el contenido a un número máximo de caracteres"""
     if len(text) > max_characters:
         return text[:max_characters]
     return text
 
-def retrieve_pdf_content_from_azure_search(pdf_id, query_text, max_characters=2000):
-    """Realiza una búsqueda en Azure Cognitive Search y limita el contenido relevante por caracteres."""
+def retrieve_pdf_content_from_azure_search(pdf_id, query_text, max_characters=8000):
     try:
         # Limpiar el query_text antes de la búsqueda
         query_text = escape_query_string(query_text)
@@ -529,7 +529,9 @@ def retrieve_pdf_content_from_azure_search(pdf_id, query_text, max_characters=20
         logging.error(f"Error al buscar contenido en Azure Search: {e}")
         return ""
 
+
 import json
+
 @app.route('/check_test_answer', methods=['POST'])
 def check_test_answer():
     try:
@@ -543,76 +545,71 @@ def check_test_answer():
         print(f"Pregunta recibida: {question}")
         print(f"Respuesta del usuario recibida: {user_answer}")
 
-        chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct")  # Crear una instancia de ChatDeepInfra
-
         # Verificar si la pregunta está presente
         if not question:
             print("Error: No se ha enviado una pregunta.")
             return jsonify({'correctness': 'error', 'explanation': 'Pregunta no enviada o es None.'}), 400
 
         # Deserializar la pregunta desde JSON
-        question_data = json.loads(question)  # Convertir JSON en un diccionario de Python
+        question_data = json.loads(question)
 
-        print(f"Datos de la pregunta deserializados: {question_data}")
-
-        # 1. Recuperar el contexto del PDF desde Azure Cognitive Search
-        query_text = question_data["question"]  # Utilizamos la pregunta como el texto de búsqueda
-        pdf_content = retrieve_pdf_content_from_azure_search(pdf_id, query_text)  # Obtener el contexto del PDF
-
-        print(f"Contenido del PDF recuperado: {pdf_content[:500] if pdf_content else 'No se encontró contenido'}")
+        # Recuperar el contexto del PDF desde Azure Cognitive Search
+        query_text = question_data["question"]
+        pdf_content = retrieve_pdf_content_from_azure_search(pdf_id, query_text)
 
         if not pdf_content:
             print(f"Error: No se encontró contenido relevante en el PDF para esta pregunta (pdf_id: {pdf_id}).")
             return jsonify({"error": "No se encontró contenido relevante en el PDF para esta pregunta."}), 404
 
-        # 2. Preparar el prompt para determinar la respuesta correcta en función del contexto
-        system_correct = (
-            "Eres un asistente que determina la respuesta correcta a una pregunta de opción múltiple "
-            "basada en el contexto proporcionado. Devuelve solo la opción correcta sin explicaciones adicionales."
+        # Preparar el prompt para determinar la respuesta correcta en función del contexto
+        prompt_correct = f"""
+        Eres un asistente que determina la respuesta correcta a una pregunta de opción múltiple
+        basada en el contexto proporcionado. 
+        Pregunta: {question_data['question']}
+        Opciones:
+        {"".join(f"{chr(65+i)}) {option}\n" for i, option in enumerate(question_data['options']) )}
+        Contexto del PDF:
+        {pdf_content}
+        """
+
+        # Crear la solicitud a la API de OpenAI para determinar la respuesta correcta
+        response_correct = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Determina la respuesta correcta."},
+                {"role": "user", "content": prompt_correct}
+            ]
         )
 
-        # Formatear las opciones en una lista
-        options_correct = "".join(f"- {choice}\n" for choice in question_data["choices"])
-        human_correct = f'Pregunta: {question_data["question"]}\nOpciones:\n{options_correct}\n\nContexto del PDF:\n{pdf_content}'
-
-        print(f"Prompt para determinar la respuesta correcta: {human_correct}")
-
-        # Crear el prompt para la respuesta correcta con el contexto
-        prompt_correct = ChatPromptTemplate.from_messages(
-            [("system", system_correct), ("human", human_correct)]
-        )
-
-        # Obtener la respuesta correcta utilizando el contexto del PDF
-        response_correct = prompt_correct | chat
-        correct_answer = response_correct.invoke({}).content.strip()
-
-        print(f"Respuesta correcta obtenida del modelo: {correct_answer}")
+        # Acceder correctamente al contenido del mensaje
+        correct_answer = response_correct.choices[0].message.content.strip()
 
         if not correct_answer:
-            print("Error: No se pudo obtener una respuesta correcta para la pregunta.")
-            return jsonify({"correctness": "error", "explanation": "No se pudo obtener una respuesta correcta para la pregunta."}), 500
+            return jsonify({"correctness": "error", "explanation": "No se pudo obtener una respuesta correcta."}), 500
 
-        # 3. Preparar el prompt para obtener la explicación de la respuesta correcta en función del contexto
-        system_explanation = (
-            "Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta "
-            "basada en el contexto proporcionado."
+        # Preparar el prompt para obtener la explicación de la respuesta correcta
+        prompt_explanation = f"""
+        Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta
+        basada en el contexto proporcionado.
+        Pregunta: {question_data['question']}
+        Respuesta correcta: {correct_answer}
+        Contexto del PDF:
+        {pdf_content}
+        """
+
+        # Crear la solicitud a la API de OpenAI para obtener la explicación
+        response_explanation = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Proporciona una explicación detallada."},
+                {"role": "user", "content": prompt_explanation}
+            ]
         )
-        human_explanation = f'Pregunta: {question_data["question"]}\nRespuesta correcta: {correct_answer}\n\nContexto del PDF:\n{pdf_content}'
 
-        print(f"Prompt para obtener la explicación: {human_explanation}")
+        # Acceder correctamente al contenido del mensaje
+        explanation = response_explanation.choices[0].message.content.strip()
 
-        # Crear el prompt para la explicación con el contexto
-        prompt_explanation = ChatPromptTemplate.from_messages(
-            [("system", system_explanation), ("human", human_explanation)]
-        )
-
-        # Obtener la explicación utilizando el contexto del PDF
-        response_explanation = prompt_explanation | chat
-        explanation = response_explanation.invoke({}).content.strip()
-
-        print(f"Explicación obtenida del modelo: {explanation}")
-
-        # 4. Comparar la respuesta del usuario con la respuesta correcta
+        # Comparar la respuesta del usuario con la respuesta correcta
         if user_answer.lower() in correct_answer.lower():
             final_explanation = (
                 f"Sí, la respuesta es correcta. La respuesta correcta es '{correct_answer}'.\n"
@@ -637,7 +634,6 @@ def check_test_answer():
     except Exception as e:
         print(f"Error en check_test_answer: {e}")
         return jsonify({'correctness': 'error', 'explanation': f"Error: {str(e)}"}), 500
-
 
 #PDF
 from flask import Flask, request, jsonify, send_file
@@ -912,16 +908,11 @@ def format_solutions(solutions_text):
 
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
-    # Obtener los valores ingresados en el formulario
     segmento = request.form['segmento']
     asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
-    # Inicializar el modelo de chat
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
-    results = []
-
-    # Configuración de Elasticsearch con el cloud_id proporcionado
+    # Configuración de Elasticsearch con tus credenciales
     es = Elasticsearch(
         cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
         basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
@@ -930,86 +921,67 @@ def generate_exam():
     # Recuperar documentos relevantes usando el segmento ingresado
     print(f"Recuperando documentos para el segmento: {segmento}")
     relevant_docs = retrieve_documents(segmento, es, "exam_questions_sel", 20)
-
-    # Verificar los documentos recuperados
     if not relevant_docs:
-        print("No se recuperaron documentos de Elasticsearch.")
-    else:
-        print(f"Documentos recuperados: {len(relevant_docs)}")
+        print("No se recuperaron documentos relevantes.")
+        return jsonify({"error": "No se recuperaron documentos."})
 
-    # Extraer el contexto
     context = extract_relevant_context(relevant_docs)
-    print(f"Contexto extraído: {context[:200]}...")  # Muestra los primeros 200 caracteres del contexto
+    print(f"Contexto extraído: {context[:500]}")  # Muestra el contenido del contexto
 
+    results = []
     reintentos = 0
-    max_reintentos = 5  # Límite máximo de reintentos
+    max_reintentos = 5
     questions_generated = 0
 
     while questions_generated < num_items and reintentos < max_reintentos:
         try:
-            print(f"Generando preguntas. Reintento: {reintentos + 1}")
-            # Generar preguntas usando la función generate_questions
-            questions = generate_questions(chat, context, num_items - questions_generated, segmento, asignatura)
+            # Crear el prompt para GPT-4o-mini
+            system_text = f"Eres un asistente que genera preguntas para el segmento {segmento} de la asignatura {asignatura}."
+            human_text = f"Genera {num_items} preguntas con sus opciones basadas en el siguiente contenido:\n{context}"
 
-            # Verificar las preguntas generadas
-            if not questions:
-                print("No se generaron preguntas.")
-            else:
-                print(f"Preguntas generadas por la IA: {len(questions)}")
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_text},
+                    {"role": "user", "content": human_text}
+                ],
+                max_tokens=2000,
+                temperature=0.7
+            )
 
-            # Validar preguntas generadas
-            valid_questions = []
-            for question in questions:
-                # Añadir manualmente la asignatura y segmento a cada pregunta
-                question['subject'] = asignatura
-                question['topic'] = segmento
+            # Procesar las preguntas
+            questions = process_questions(response.choices[0].message.content)
+            print(f"Preguntas generadas: {questions}")
 
-                if validate_question(question):
-                    valid_questions.append(question)
-                else:
-                    print(f"Pregunta inválida: {question}")
-
-            # Agregar preguntas válidas a los resultados
+            # Validar y almacenar las preguntas
+            valid_questions = [q for q in questions if validate_question(q)]
             results.extend(valid_questions)
             questions_generated = len(results)
 
-            print(f"Preguntas válidas generadas hasta ahora: {questions_generated} de {num_items}")
-
-            # Si no se alcanzó el número requerido de preguntas, incrementar reintentos
             if questions_generated < num_items:
-                print(f"No se generaron suficientes preguntas válidas. Reintento {reintentos + 1}...")
                 reintentos += 1
-
         except Exception as e:
-            print(f"Error al generar preguntas: {str(e)}")
+            print(f"Error generando preguntas: {e}")
             reintentos += 1
 
     if questions_generated < num_items:
-        print(f"Advertencia: No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
+        print(f"Advertencia: No se generaron suficientes preguntas ({questions_generated}/{num_items}).")
 
-    # Guardar las preguntas generadas en la base de datos antes de que el usuario responda
+    # Guardar preguntas y mostrar
     for question in results:
+        print(f"Pregunta guardada: {question}")  # Imprimir las preguntas antes de guardarlas
         user_question = UserQuestion(
             user_id=current_user.id,
             question=question['question'],
-            user_answer=None,  # No hay respuesta aún
-            correct_answer=None,  # La respuesta correcta se verificará después
-            is_correct=False,  # Esto se actualizará al comprobar la respuesta del usuario
-            subject=question['subject'],  # Asignatura
-            topic=question['topic']  # Segmento
+            subject=asignatura,
+            topic=segmento
         )
         db.session.add(user_question)
 
-    # Confirmar los cambios en la base de datos
     db.session.commit()
-
-    # Incrementa el contador de preguntas para el usuario actual
     current_user.increment_questions()
 
-    # Renderizar las preguntas en el HTML (quiz.html)
     return render_template('quiz.html', questions=results)
-
-
 
 
 # Función para validar preguntas
@@ -1028,39 +1000,20 @@ def validate_question(question):
     return True
 
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    user_message = request.json['message']
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
-    system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen. Responde en brasileño"
-    human_text = user_message
-    prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
-    
-    response = prompt | chat
-    response_msg = response.invoke({})
-    response_text = response_msg.content
-    
-    return jsonify({"response": response_text})
-
-
-from models import UserQuestion  # Asegúrate de importar el modelo UserQuestion que se creó anteriormente
-from flask_login import current_user
-
 @app.route('/check', methods=['POST'])
 def check():
     data = request.get_json()
-    
+
     # Verificar si se recibieron datos
     if not data:
         return jsonify({"error": "No se recibieron datos"}), 400
-    
+
     questions = data.get('questions')
     user_answers = data.get('answers')
 
     if not questions or not user_answers:
         return jsonify({"error": "Faltan preguntas o respuestas"}), 400
 
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
     results = []
 
     for i, question in enumerate(questions):
@@ -1077,7 +1030,12 @@ def check():
             continue
 
         try:
-            correctness, explanation, correct_answer = check_answer(question, user_answer, chat)
+            # Añadir prints para depurar respuestas
+            print(f"Verificando pregunta: {question}")
+            print(f"Respuesta del usuario: {user_answer}")
+            correctness, explanation, correct_answer = check_answer(question, user_answer)
+
+            print(f"Correcta: {correctness}, Explicación: {explanation}, Respuesta correcta: {correct_answer}")
 
             # Actualizar la pregunta existente en la base de datos con la respuesta del usuario
             user_question = UserQuestion.query.filter_by(user_id=current_user.id, question=question['question']).first()
@@ -1094,6 +1052,7 @@ def check():
                 'explanation': explanation
             })
         except Exception as e:
+            print(f"Error al verificar respuesta: {e}")
             results.append({
                 'question': question,
                 'selected_option': user_answer,
@@ -1103,6 +1062,21 @@ def check():
 
     return jsonify(results)
 
+
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    user_message = request.json['message']
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
+    system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen. Responde en brasileño"
+    human_text = user_message
+    prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
+    
+    response = prompt | chat
+    response_msg = response.invoke({})
+    response_text = response_msg.content
+    
+    return jsonify({"response": response_text})
 
 
 
@@ -1586,8 +1560,8 @@ def view_guide(guide_id):
 from models import db, UserQuestion, User
 from question_generation import (
     validate_question,
-    generate_questions,
-    check_answer
+    generate_questions1,
+    check_answer1
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -1599,6 +1573,7 @@ chat_model = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_to
 
 @app.route('/generate_any_age_exam', methods=['GET', 'POST'])
 @login_required
+@pro_required
 def generate_any_age_exam():
     if request.method == 'POST':
         # Obtener los valores ingresados en el formulario
@@ -1612,19 +1587,20 @@ def generate_any_age_exam():
 
         # Generar el prompt basado en el nivel, la asignatura y el tema
         prompt_text = f"""Eres un asistente que genera preguntas de opción múltiple para el segmento '{topic}' de la asignatura '{asignatura}' en el nivel '{nivel}'.
+        Aclaración: 1 de primaria corresponde a la edad de seis años, 2 primaria 7, y así sucesivamente, hasta 1 de la eso, que es 12 años.
         Debes proporcionar {num_items} preguntas sobre el tema dado, que sean adecuadas para el nivel educativo seleccionado, añadiendo tus conocimientos generales, con 4 opciones de respuesta cada una. 
         En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`. 
         Usa el siguiente formato:
-        
         Pregunta 1: ¿Cuál es la capital de Francia?
         A) Madrid.
         B) París.
         C) Berlín.
         D) Roma.
         """
-
+        print("prompt")
+        print(prompt_text)
         # Generar preguntas utilizando el módulo separado
-        questions = generate_questions(chat_model, prompt_text, num_items)
+        questions = generate_questions1(chat_model, prompt_text, num_items)
 
         # Validar y preparar las preguntas generadas
         results = []
@@ -1645,7 +1621,7 @@ def generate_any_age_exam():
 
         # Intentar generar más preguntas si no se alcanzó el número requerido
         while questions_generated < num_items and reintentos < max_reintentos:
-            additional_questions = generate_questions(chat_model, prompt_text, num_items - questions_generated)
+            additional_questions = generate_questions1(chat_model, prompt_text, num_items - questions_generated)
             for question in additional_questions:
                 question['subject'] = asignatura
                 question['topic'] = topic
@@ -1689,6 +1665,110 @@ def generate_any_age_exam():
     # Si es GET, renderiza el formulario de generación de exámenes
     return render_template('exam_form.html')
 
+
+from esquema import leer_archivo, obtener_estructura_jerarquica, limpiar_json, parsear_json_a_listas, generar_esquema_interactivo
+import json5
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'txt'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route('/esquema', methods=['GET', 'POST'])
+@login_required
+@pro_required
+def esquema():
+    if request.method == 'POST':
+        # Verificar si el archivo está en la solicitud
+        if 'file' not in request.files:
+            flash('No se seleccionó ningún archivo')
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash('No se seleccionó ningún archivo')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            ruta_archivo = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(ruta_archivo)
+            # Procesar el archivo y generar el esquema
+            texto = leer_archivo(ruta_archivo)
+            conceptos_json = obtener_estructura_jerarquica(texto)
+
+            # Limpiar el JSON
+            conceptos_json = limpiar_json(conceptos_json)
+            if not conceptos_json:
+                flash("No se pudo generar el esquema debido a un JSON inválido.")
+                return redirect(request.url)
+            else:
+                try:
+                    data = json5.loads(conceptos_json)
+                    labels, parents, descriptions = parsear_json_a_listas(data)
+                    esquema_html = generar_esquema_interactivo(labels, parents, descriptions)
+                    print(esquema_html)
+                    return render_template('esquema.html', esquema_html=esquema_html)
+                except Exception as e:
+                    print(f"Error al procesar el JSON: {e}")
+                    flash("No se pudo generar el esquema debido a un error en el procesamiento del JSON.")
+                    return redirect(request.url)
+        else:
+            flash('Archivo no permitido. Solo se permiten archivos PDF o TXT.')
+            return redirect(request.url)
+    else:
+        return render_template('subir_esquema.html')
+
+
+# Ruta API para recibir texto o imágenes
+# backend/main.py
+import os
+import uuid
+import base64
+import tempfile
+from flask import Flask, request, jsonify, render_template
+from image_processing import analyze_image, query_gpt4  # Importar las funciones desde processing.py
+
+
+# Ruta para la página de chat
+@app.route('/chat1')
+def chat1():
+    return render_template('chat.html')
+
+# Ruta API para recibir texto o imágenes
+@app.route('/api/chat', methods=['POST'])
+def chat_api():
+    data = request.json
+    text_input = data.get('text')
+    image_base64 = data.get('image_base64')
+
+    try:
+        if image_base64:
+            # Generar un nombre único para la imagen
+            filename = f"{uuid.uuid4()}.jpg"
+
+            # Decodificar la imagen de base64
+            header, encoded = image_base64.split(",", 1)
+            image_bytes = base64.b64decode(encoded)
+
+            # Guardar la imagen en un archivo temporal
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_image:
+                temp_image.write(image_bytes)
+                temp_image_path = temp_image.name
+
+            # Analizar la imagen y obtener el texto extraído
+            extracted_text = analyze_image(temp_image_path)
+
+            # Eliminar el archivo temporal
+            os.remove(temp_image_path)
+
+            # Consultar GPT-4 con el texto extraído
+            gpt_response = query_gpt4(f"Describe esta imagen basándote en el siguiente texto: {extracted_text}")
+        elif text_input:
+            # Si se envía texto, usar GPT-4 directamente
+            gpt_response = query_gpt4(text_input)
+        else:
+            return jsonify({"error": "Debes enviar texto o una imagen"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"gpt_response": gpt_response})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)
