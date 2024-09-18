@@ -25,3 +25,18 @@ __pycache__/
 # Archivos específicos del sistema operativo
 Thumbs.db
 desktop.ini
+# Ignorar archivos DLL y Python en la carpeta site-packages
+antenv/Lib/site-packages/*.dll
+antenv/Lib/site-packages/*.py
+antenv/Lib/site-packages/*.pth
+# Ignorar entorno virtual y bases de datos
+antenv/
+chroma_db/
+instance/
+uploads/
+
+# Ignorar archivos específicos
+.env
+replace.txt
+tudy-guide-branch
+
