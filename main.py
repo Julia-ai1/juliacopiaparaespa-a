@@ -635,8 +635,6 @@ def check_test_answer():
         print(f"Error en check_test_answer: {e}")
         return jsonify({'correctness': 'error', 'explanation': f"Error: {str(e)}"}), 500
 
-#PDF
-from flask import Flask, request, jsonify, send_file
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import os
@@ -1184,9 +1182,6 @@ def charge():
         return str(e)
 # main.py
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from werkzeug.utils import secure_filename
 from models import db, User, UserQuestion, UserProgress
 from study_generator import (
@@ -1517,7 +1512,6 @@ def download_guide_pdf(guide_id):
 # main.py
 from fpdf import FPDF
 import io
-from flask import send_file
 
 
 @app.route('/view_guides', methods=['GET'])
@@ -1722,7 +1716,6 @@ import os
 import uuid
 import base64
 import tempfile
-from flask import Flask, request, jsonify, render_template
 from image_processing import  analyze_document, query_gpt4  # Importar las funciones desde processing.py
 
 
