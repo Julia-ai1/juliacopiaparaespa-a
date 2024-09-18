@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from flask_migrate import Migrate
+
+# from flask_migrate import Migrate
 from decorators import pro_required
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 # from exani import questions_exani, check_answer_exani, generate_new_questions_exani
