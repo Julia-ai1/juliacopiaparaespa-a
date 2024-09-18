@@ -10,6 +10,8 @@
         body {
             font-family: 'Poppins', sans-serif;
             background-color: #f0f4f8;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
         .gradient-bg {
@@ -56,7 +58,7 @@
 
         #input-area {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             flex-direction: column;
             align-items: stretch;
         }
@@ -64,13 +66,18 @@
         #text-input {
             flex-grow: 1;
             resize: vertical;
-            min-height: 60px;
+            min-height: 80px;
+            font-size: 1rem;
+            line-height: 1.5;
+            padding: 12px;
         }
 
         .message {
-            padding: 10px;
+            padding: 15px;
             border-radius: 12px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            line-height: 1.6;
         }
 
         .user {
@@ -89,38 +96,38 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-6">
     <div class="container max-w-4xl mx-auto">
         <div class="gradient-bg rounded-3xl shadow-2xl overflow-hidden">
-            <header class="text-center py-8 px-6">
-                <h1 class="text-4xl font-bold text-white mb-2 flex items-center justify-center">
-                    <i data-lucide="brain" class="w-10 h-10 mr-2"></i>
+            <header class="text-center py-10 px-8">
+                <h1 class="text-5xl font-bold text-white mb-4 flex items-center justify-center">
+                    <i data-lucide="brain" class="w-12 h-12 mr-3"></i>
                     Chat Estudiantil
                 </h1>
-                <p class="text-xl text-indigo-100">Aprende y explora con Julia.ai</p>
+                <p class="text-2xl text-indigo-100">Aprende y explora con Julia.ai</p>
             </header>
 
-            <div class="bg-white rounded-t-3xl p-8">
-                <div class="glass-effect p-6 mb-8 bg-gradient-to-r from-indigo-100 to-indigo-200 text-center">
-                    <h2 class="text-2xl font-semibold text-indigo-800 mb-4">¡Bienvenido al Chat Inteligente!</h2>
-                    <p class="text-indigo-600">Haz preguntas, comparte ideas y aprende algo nuevo</p>
+            <div class="bg-white rounded-t-3xl p-10">
+                <div class="glass-effect p-8 mb-10 bg-gradient-to-r from-indigo-100 to-indigo-200 text-center">
+                    <h2 class="text-3xl font-semibold text-indigo-800 mb-4">¡Bienvenido al Chat Inteligente!</h2>
+                    <p class="text-xl text-indigo-600">Haz preguntas, comparte ideas y aprende algo nuevo</p>
                 </div>
 
-                <div class="grid gap-4 mb-8">
-                    <div id="chat-container" class="glass-effect p-4 bg-white shadow rounded-lg">
-                        <div id="messages" class="h-96 overflow-y-scroll mb-4 p-2 border rounded flex flex-col">
+                <div class="grid gap-6 mb-10">
+                    <div id="chat-container" class="glass-effect p-6 bg-white shadow rounded-lg">
+                        <div id="messages" class="h-96 overflow-y-scroll mb-6 p-4 border rounded flex flex-col space-y-4">
                             <!-- Mensajes del chat aparecerán aquí -->
                         </div>
-                        <div id="input-area" class="space-y-3">
-                            <textarea id="text-input" placeholder="Escribe tu pregunta o idea..." class="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                        <div id="input-area" class="space-y-4">
+                            <textarea id="text-input" placeholder="Escribe tu pregunta o idea..." class="w-full p-4 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
                             <div class="flex items-center justify-between">
-                                <label for="image-input" class="flex items-center space-x-2 cursor-pointer text-indigo-600 hover:text-indigo-800">
-                                    <i data-lucide="image" class="w-5 h-5"></i>
+                                <label for="image-input" class="flex items-center space-x-3 cursor-pointer text-indigo-600 hover:text-indigo-800 text-lg">
+                                    <i data-lucide="image" class="w-6 h-6"></i>
                                     <span>Adjuntar imagen</span>
                                 </label>
                                 <input type="file" id="image-input" accept="image/*" class="hidden">
-                                <button id="send-button" onclick="sendMessage()" class="action-button bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-full flex items-center">
-                                    <i data-lucide="send" class="w-5 h-5 mr-2"></i>
+                                <button id="send-button" onclick="sendMessage()" class="action-button bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full flex items-center text-lg">
+                                    <i data-lucide="send" class="w-6 h-6 mr-2"></i>
                                     Enviar
                                 </button>
                             </div>
@@ -131,8 +138,8 @@
                     </div>
 
                     <!-- Enlace al inicio -->
-                    <a href="{{ url_for('app_index') }}" class="action-button bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-full flex items-center justify-center">
-                        <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+                    <a href="{{ url_for('app_index') }}" class="action-button bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-full flex items-center justify-center text-lg">
+                        <i data-lucide="arrow-left" class="w-6 h-6 mr-2"></i>
                         Volver al Inicio
                     </a>
                 </div>
@@ -227,14 +234,17 @@
             document.getElementById('image-input').value = '';
         }
 
-        // Función para mostrar mensajes de texto
         function appendMessage(sender, text, type) {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message', type);
-            messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        const messagesDiv = document.getElementById('messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message', type);
+        
+        // Reemplaza los saltos de línea en el texto para que sean visibles en HTML
+        const formattedText = text.replace(/\n/g, '<br>');
+        
+        messageDiv.innerHTML = `<strong>${sender}:</strong> ${formattedText}`;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
         // Función para mostrar mensajes con imágenes
@@ -242,7 +252,7 @@
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', type);
-            messageDiv.innerHTML = `<strong>${sender}:</strong> <br><img src="${imageBase64}" alt="Imagen enviada" class="max-w-full h-auto rounded mt-2">`;
+            messageDiv.innerHTML = `<strong class="text-lg">${sender}:</strong><br><img src="${imageBase64}" alt="Imagen enviada" class="max-w-full h-auto rounded mt-3">`;
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
@@ -259,4 +269,3 @@
     </script>
 </body>
 </html>
-

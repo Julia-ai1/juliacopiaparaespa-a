@@ -391,9 +391,9 @@ def get_generated_questions():
     return jsonify({"questions": questions})
 
 from openai import OpenAI
-
+openai.api_key = os.getenv("OPENAI_API_KEY")
 # Inicializar el cliente de OpenAI
-client = OpenAI(api_key="sk-Ih-9O47lbt5zz6qkYD31-Ylwd4AS18Qj2PPfQycSgST3BlbkFJqO8CRe-viu01Zuf2Msdc5s3vUxLl1jFapzPSXuLkgA")
+client = OpenAI(api_key=openai.api_key)
 
 def generate_questions_test(pdf_content, num_questions):
     prompt = f"""Eres un asistente experto que genera preguntas de opción múltiple sobre el contenido proporcionado.
@@ -1573,7 +1573,7 @@ chat_model = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_to
 
 @app.route('/generate_any_age_exam', methods=['GET', 'POST'])
 @login_required
-@pro_required
+# @pro_required
 def generate_any_age_exam():
     if request.method == 'POST':
         # Obtener los valores ingresados en el formulario
@@ -1674,7 +1674,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/esquema', methods=['GET', 'POST'])
 @login_required
-@pro_required
+# @pro_required
 def esquema():
     if request.method == 'POST':
         # Verificar si el archivo está en la solicitud
@@ -1723,7 +1723,7 @@ import uuid
 import base64
 import tempfile
 from flask import Flask, request, jsonify, render_template
-from image_processing import analyze_image, query_gpt4  # Importar las funciones desde processing.py
+from image_processing import  analyze_document, query_gpt4  # Importar las funciones desde processing.py
 
 
 # Ruta para la página de chat
@@ -1731,6 +1731,7 @@ from image_processing import analyze_image, query_gpt4  # Importar las funciones
 def chat1():
     return render_template('chat.html')
 
+# Ruta API para recibir texto o imágenes
 # Ruta API para recibir texto o imágenes
 @app.route('/api/chat', methods=['POST'])
 def chat_api():
@@ -1753,7 +1754,7 @@ def chat_api():
                 temp_image_path = temp_image.name
 
             # Analizar la imagen y obtener el texto extraído
-            extracted_text = analyze_image(temp_image_path)
+            extracted_text = analyze_document(temp_image_path)
 
             # Eliminar el archivo temporal
             os.remove(temp_image_path)
@@ -1769,6 +1770,28 @@ def chat_api():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"gpt_response": gpt_response})
+
+from ruta_aprendizaje import generar_ruta_aprendizaje, generar_detalle_subtema
+
+@app.route('/ruta', methods=['GET', 'POST'])
+def ruta():
+    if request.method == 'POST':
+        tema = request.form['tema']
+        conocimientos_previos = request.form['conocimientos']
+        ruta_personalizada = generar_ruta_aprendizaje(tema, conocimientos_previos)
+        return render_template('ruta.html', ruta=ruta_personalizada)
+    else:
+        return render_template('ruta.html')
+
+@app.route('/detalle_subtema', methods=['POST'])
+def detalle_subtema():
+    subtema = request.json.get('subtema')
+    if subtema:
+        detalle = generar_detalle_subtema(subtema)
+        return jsonify({'detalle': detalle})
+    else:
+        return jsonify({'error': 'No se proporcionó el subtema'}), 400
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)

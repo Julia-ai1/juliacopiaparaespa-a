@@ -1,11 +1,15 @@
 import os
 import logging
 import re
+import openai
 from openai import OpenAI
 from elasticsearch import Elasticsearch
 import random
-
-client = OpenAI(api_key="sk-Ih-9O47lbt5zz6qkYD31-Ylwd4AS18Qj2PPfQycSgST3BlbkFJqO8CRe-viu01Zuf2Msdc5s3vUxLl1jFapzPSXuLkgA")  # Añade tu clave API
+from dotenv import load_dotenv
+from openai import OpenAI
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=openai.api_key)
 
 # Configurar el índice en Elasticsearch
 INDEX_NAME = "exam_questions_sel"

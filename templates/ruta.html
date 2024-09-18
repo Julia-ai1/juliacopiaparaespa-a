@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Ruta de Aprendizaje</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="submit"] {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        input[type="submit"]:hover {
+            background-color: #2980b9;
+        }
+        .tema, .subtema {
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        .tema {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .subtema {
+            font-size: 16px;
+            margin-left: 20px;
+            color: #34495e;
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+        .subtema:hover {
+            background-color: #d5dbdb;
+        }
+        .subtema:before {
+            content: "• ";
+            color: #3498db;
+        }
+        .detalles {
+            display: none;
+            margin-left: 40px;
+            padding: 15px;
+            background-color: #fff;
+            border-left: 3px solid #3498db;
+            margin-top: 5px;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .loading {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+    </style>
+    <script>
+        function obtenerDetalleSubtema(elemento, subtema) {
+            var detalles = elemento.nextElementSibling;
+            if (detalles.innerHTML.trim() === "") {
+                detalles.innerHTML = '<p class="loading">Cargando detalles...</p>';
+                detalles.style.display = "block";
+
+                fetch('/detalle_subtema', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 'subtema': subtema })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.detalle) {
+                        detalles.innerHTML = formatearDetalle(data.detalle);
+                    } else {
+                        detalles.innerHTML = '<p>No se pudo obtener el detalle.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    detalles.innerHTML = '<p>Error al obtener el detalle.</p>';
+                });
+            } else {
+                detalles.style.display = detalles.style.display === "none" ? "block" : "none";
+            }
+        }
+
+        function formatearDetalle(detalle) {
+            // Dividir el contenido en párrafos
+            let parrafos = detalle.split('\n\n');
+            let html = '';
+
+            parrafos.forEach(parrafo => {
+                if (parrafo.startsWith('# ')) {
+                    // Título principal
+                    html += '<h3>' + parrafo.substring(2) + '</h3>';
+                } else if (parrafo.startsWith('* ')) {
+                    // Lista no ordenada
+                    let items = parrafo.split('* ').filter(item => item.trim() !== '');
+                    html += '<ul>' + items.map(item => '<li>' + item.trim() + '</li>').join('') + '</ul>';
+                } else if (parrafo.match(/^\d+\. /)) {
+                    // Lista ordenada
+                    let items = parrafo.split(/\d+\. /).filter(item => item.trim() !== '');
+                    html += '<ol>' + items.map(item => '<li>' + item.trim() + '</li>').join('') + '</ol>';
+                } else {
+                    // Párrafo normal
+                    html += '<p>' + parrafo + '</p>';
+                }
+            });
+
+            // Formatear negritas, cursivas, enlaces y código en línea
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                       .replace(/\_([^_]+)\_/g, '<em>$1</em>')
+                       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                       .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            return html;
+        }
+    </script>
+</head>
+<body>
+    <h1>Generar Ruta de Aprendizaje</h1>
+    <form method="post">
+        <label for="tema">¿Qué quieres estudiar?</label>
+        <input type="text" id="tema" name="tema" required>
+        
+        <label for="conocimientos">Describe tus conocimientos actuales sobre el tema:</label>
+        <textarea id="conocimientos" name="conocimientos" rows="4" required></textarea>
+        
+        <input type="submit" value="Generar Ruta">
+    </form>
+
+    {% if ruta %}
+    <h2>Tu Ruta de Aprendizaje Personalizada:</h2>
+    <div>
+        <div class="tema">{{ ruta.tema_principal }}</div>
+        <div class="subtemas">
+            {% for subtema in ruta.subtemas %}
+            <div class="subtema" onclick="obtenerDetalleSubtema(this, '{{ subtema.nombre }}')">
+                {{ subtema.nombre }}
+            </div>
+            <div class="detalles"></div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</body>
+</html>

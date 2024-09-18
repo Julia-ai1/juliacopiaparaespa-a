@@ -1,49 +1,45 @@
 import os
 import openai
 import requests
+import os
+from azure.ai.formrecognizer import DocumentAnalysisClient
+from azure.core.credentials import AzureKeyCredential
 from dotenv import load_dotenv
-import tempfile
 
 # Cargar variables de entorno desde .env
 load_dotenv()
-
-# Configurar las claves desde variables de entorno
-AZURE_SUBSCRIPTION_KEY = os.getenv('AZURE_SUBSCRIPTION_KEY')
-AZURE_ENDPOINT = os.getenv('AZURE_ENDPOINT')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # Inicializar el cliente de OpenAI utilizando el método moderno
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
-# Variable para almacenar el historial de los últimos 15 mensajes
+# Configurar las claves y el endpoint desde las variables de entorno
+FORM_RECOGNIZER_ENDPOINT = os.getenv('AZURE_FORM_RECOGNIZER_ENDPOINT')
+FORM_RECOGNIZER_KEY = os.getenv('AZURE_FORM_RECOGNIZER_KEY')
 conversation_history = []
+# Crear el cliente para Azure Document Intelligence (anteriormente Form Recognizer)
+document_analysis_client = DocumentAnalysisClient(
+    endpoint=FORM_RECOGNIZER_ENDPOINT,
+    credential=AzureKeyCredential(FORM_RECOGNIZER_KEY)
+)
 
-def analyze_image(file_path):
-    """Analiza una imagen usando la API de Computer Vision de Azure y extrae texto con OCR."""
-    ocr_url = f"{AZURE_ENDPOINT}/vision/v3.2/ocr"
+def analyze_document(file_path):
+    """Analiza un documento usando Azure Document Intelligence y extrae su contenido."""
+    with open(file_path, "rb") as document:
+        poller = document_analysis_client.begin_analyze_document(
+            model_id="prebuilt-document",  # Usar el modelo preentrenado general
+            document=document
+        )
+        result = poller.result()
 
-    headers = {
-        'Ocp-Apim-Subscription-Key': AZURE_SUBSCRIPTION_KEY,
-        'Content-Type': 'application/octet-stream'
-    }
-
-    # Leer la imagen en binario
-    with open(file_path, 'rb') as image_file:
-        image_data = image_file.read()
-
-    response = requests.post(ocr_url, headers=headers, data=image_data)
-
-    if response.status_code != 200:
-        raise Exception(f"Error al analizar la imagen: {response.status_code} - {response.text}")
-
-    ocr_result = response.json()
     extracted_text = ""
-    for region in ocr_result.get('regions', []):
-        for line in region.get('lines', []):
-            for word in line.get('words', []):
-                extracted_text += word['text'] + " "
-    
+
+    # Procesar el contenido extraído
+    for page in result.pages:
+        for line in page.lines:
+            extracted_text += line.content + "\n"
+
     return extracted_text.strip()
+
 
 def query_gpt4(content):
     """Envía una consulta a la API de GPT-4 utilizando el cliente moderno de OpenAI y retorna la respuesta."""
@@ -57,7 +53,7 @@ def query_gpt4(content):
     
     # Crear la conversación con los mensajes previos y el nuevo contenido
     response = client.chat.completions.create(
-        model="gpt-4",  # Modelo a utilizar
+        model="gpt-4o-mini",  # Modelo a utilizar
         messages=[
             {"role": "system", "content": "Eres un asistente útil capaz de procesar imágenes y texto. Organiza tus respuestas claramente y usa párrafos separados."}
         ] + conversation_history,  # Incluir el historial en la consulta
