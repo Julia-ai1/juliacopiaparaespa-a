@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from decorators import pro_required
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
@@ -12,6 +11,7 @@ from study_guide_generator import generate_study_guide_from_pdf, save_progress, 
 import os
 import tempfile
 import os
+from flask_sqlalchemy import SQLAlchemy
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import requests as http_requests  # Renombrar la librería requests
@@ -1794,4 +1794,4 @@ def detalle_subtema():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    app.run(host='0.0.0.0', port=5001)
