@@ -1637,7 +1637,8 @@ import json5
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'txt'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 @app.route('/esquema', methods=['GET', 'POST'])
 @login_required
 @pro_required
