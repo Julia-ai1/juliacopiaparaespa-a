@@ -3,12 +3,6 @@
 <head>
     {% include 'head.html' %}
     <title>Esquema Interactivo - Julia.ai</title>
-    <style>
-        .button-disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-    </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
     <div class="container max-w-4xl mx-auto">
@@ -17,33 +11,15 @@
             <!-- Aquí se insertará el gráfico -->
             {{ esquema_html | safe }}
             <div class="mt-6 text-center">
-                <button id="generate-button" onclick="generateNewSchema()" class="action-button w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                <a href="{{ url_for('esquema') }}" class="action-button w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                     <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
-                    <span id="button-text">Generar otro esquema</span>
-                </button>
+                    Generar otro esquema
+                </a>
             </div>
         </div>
     </div>
     <script>
         lucide.createIcons();
-
-        function generateNewSchema() {
-            const button = document.getElementById('generate-button');
-            const buttonText = document.getElementById('button-text');
-            
-            // Deshabilitamos el botón y cambiamos su apariencia
-            button.disabled = true;
-            button.classList.add('button-disabled');
-            buttonText.textContent = 'Pensando...';
-            
-            // Removemos el evento onclick para prevenir clics adicionales
-            button.onclick = null;
-            
-            // Simular una demora antes de redirigir
-            setTimeout(() => {
-                window.location.href = "{{ url_for('esquema') }}";
-            }, 1000);
-        }
     </script>
 </body>
 </html>

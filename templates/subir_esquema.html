@@ -3,6 +3,12 @@
 <head>
     {% include 'head.html' %}
     <title>Generar Esquema - Julia.ai</title>
+    <style>
+        .button-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
     <div class="container max-w-2xl mx-auto">
@@ -17,7 +23,7 @@
                 </div>
                 <button type="submit" id="submitButton" class="action-button w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
                     <i data-lucide="upload" class="w-5 h-5 mr-2"></i>
-                    Generar Esquema
+                    <span id="buttonText">Generar Esquema</span>
                 </button>
             </form>
         </div>
@@ -28,10 +34,27 @@
         document.getElementById('schemaForm').addEventListener('submit', function(e) {
             e.preventDefault();
             var submitButton = document.getElementById('submitButton');
+            var buttonText = document.getElementById('buttonText');
+            
+            // Deshabilitar el botón
             submitButton.disabled = true;
-            submitButton.innerHTML = '<i data-lucide="loader" class="w-5 h-5 mr-2 animate-spin"></i>Pensando...';
+            submitButton.classList.add('button-disabled');
+            
+            // Cambiar el texto y el icono
+            buttonText.textContent = 'Pensando...';
+            submitButton.querySelector('i').setAttribute('data-lucide', 'loader');
+            submitButton.querySelector('i').classList.add('animate-spin');
+            
+            // Actualizar los iconos
             lucide.createIcons();
-            this.submit();
+            
+            // Remover el evento submit para prevenir múltiples envíos
+            this.removeEventListener('submit', arguments.callee);
+            
+            // Enviar el formulario después de un pequeño retraso
+            setTimeout(() => {
+                this.submit();
+            }, 100);
         });
     </script>
 </body>

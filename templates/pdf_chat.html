@@ -112,6 +112,12 @@
             transform: translateY(-2px);
         }
 
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         #messages {
             flex-grow: 1;
             overflow-y: auto;
@@ -202,9 +208,9 @@
                     </select>
                     <form id="upload-form" enctype="multipart/form-data" method="post">
                         <input type="file" id="pdfFile" name="pdfFile" accept="application/pdf" required>
-                        <button type="submit">Subir nuevo PDF</button>
+                        <button type="submit" id="uploadButton">Subir nuevo PDF</button>
                     </form>
-                    <button onclick="generateQuestions()">Generar Preguntas del PDF</button>
+                    <button onclick="generateQuestions()" id="generateButton">Generar Preguntas del PDF</button>
                 </div>
 
                 <div id="messages"></div>
@@ -219,6 +225,8 @@
 
     <script>
         let currentPdfId = '';
+        const uploadButton = document.getElementById('uploadButton');
+        const generateButton = document.getElementById('generateButton');
 
         function loadPreviousPDFs() {
             fetch('/get_pdfs')
@@ -237,10 +245,13 @@
 
         document.getElementById('pdf-select').addEventListener('change', function() {
             currentPdfId = this.value;
+            updateButtonStates();
         });
 
         document.getElementById('upload-form').onsubmit = function(event) {
             event.preventDefault();
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'Subiendo...';
 
             const formData = new FormData();
             formData.append('pdfFile', document.getElementById('pdfFile').files[0]);
@@ -265,6 +276,7 @@
                     select.appendChild(option);
                     select.value = data.pdf_id;
                     alert('PDF subido correctamente.');
+                    updateButtonStates();
                 } else {
                     alert('Error al subir el PDF.');
                 }
@@ -272,6 +284,10 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert('Error al subir el PDF.');
+            })
+            .finally(() => {
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Subir nuevo PDF';
             });
         };
 
@@ -280,6 +296,9 @@
                 alert("Por favor, selecciona o sube un archivo PDF primero.");
                 return;
             }
+
+            generateButton.disabled = true;
+            generateButton.textContent = 'Generando...';
 
             fetch('/generate_questions', {
                 method: 'POST',
@@ -295,7 +314,11 @@
                     alert('Error al generar las preguntas.');
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => console.error('Error:', error))
+            .finally(() => {
+                generateButton.disabled = false;
+                generateButton.textContent = 'Generar Preguntas del PDF';
+            });
         }
 
         function sendQuestion() {
@@ -334,7 +357,12 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
+        function updateButtonStates() {
+            generateButton.disabled = !currentPdfId;
+        }
+
         loadPreviousPDFs();
+        updateButtonStates();
     </script>
 </body>
 </html>
