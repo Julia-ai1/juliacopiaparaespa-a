@@ -59,7 +59,7 @@ login_manager.login_view = 'login'
 # Configuración de OAuth usando variabdles de entorno
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
-# app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 oauth = OAuth(app)
 google = oauth.register(
@@ -675,7 +675,7 @@ def test_page1():
 
 @app.route('/login')
 def login_google():
-    redirect_uri = url_for('callback', _external=True)
+    redirect_uri = url_for('callback', _external=True, _scheme='https')
     print("Redirigiendo")
     print(redirect_uri)
     return google.authorize_redirect(redirect_uri)
@@ -726,7 +726,7 @@ def subscribe():
     # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada
     if has_used_trial(current_user.stripe_customer_id):
         # Redirigir a un enlace de pago sin trial
-        payment_link = "https://buy.stripe.com/4gw0417Po5bTeCQaEG"  # Enlace de pago sin trial
+        payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
         flash("Ya has utilizado tu período de prueba o tu suscripción está pausada. Puedes suscribirte con un plan pago.", 'info')
     else:
         # Redirigir a un enlace de pago con trial
