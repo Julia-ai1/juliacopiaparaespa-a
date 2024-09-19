@@ -48,9 +48,10 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            transition: background-color 0.3s;
         }
 
-        #input-form button:hover {
+        #input-form button:hover:not(:disabled) {
             background-color: #45a049;
         }
 
@@ -63,7 +64,7 @@
 <body>
     <div id="chat-container">
         <div id="messages"></div>
-        <form id="input-form" onsubmit="sendQuestion(); return false;">
+        <form id="input-form">
             <input type="text" id="user-question" placeholder="Haz una pregunta..." required>
             <button type="submit" id="submit-button">Enviar</button>
         </form>
@@ -77,13 +78,18 @@
             const messageElement = document.createElement('div');
             messageElement.textContent = message;
             messageElement.style.textAlign = isUser ? 'right' : 'left';
+            messageElement.style.marginBottom = '10px';
             messagesDiv.appendChild(messageElement);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function sendQuestion() {
+        function sendQuestion(event) {
+            event.preventDefault(); // Previene el comportamiento por defecto del formulario
+            
             const question = document.getElementById('user-question').value;
             const submitButton = document.getElementById('submit-button');
+            
+            if (!question.trim()) return; // No envía si la pregunta está vacía
             
             appendMessage(question);
             
@@ -103,7 +109,10 @@
                 const answers = data.answers;
                 answers.forEach(answer => appendMessage(answer, false));
             })
-            .catch(error => console.error('Error:', error))
+            .catch(error => {
+                console.error('Error:', error);
+                appendMessage('Lo siento, ha ocurrido un error.', false);
+            })
             .finally(() => {
                 submitButton.disabled = false;
                 submitButton.textContent = 'Enviar';
@@ -111,6 +120,9 @@
 
             document.getElementById('user-question').value = '';
         }
+
+        // Añadir el event listener al formulario
+        document.getElementById('input-form').addEventListener('submit', sendQuestion);
     </script>
 </body>
 </html>
