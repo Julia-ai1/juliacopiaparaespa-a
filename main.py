@@ -589,7 +589,7 @@ def check_test_answer():
 
         # Preparar el prompt para obtener la explicación de la respuesta correcta
         prompt_explanation = f"""
-        Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta
+        Eres un asistente que proporciona una explicación concisa y clara de por qué una respuesta es correcta o incorrecta
         basada en el contexto proporcionado.
         Pregunta: {question_data['question']}
         Respuesta correcta: {correct_answer}
