@@ -1253,6 +1253,7 @@ def get_pdf_topics():
 # main.py
 
 @app.route('/start_study', methods=['POST'])
+@pro_required
 @login_required
 def start_study():
     if 'file' not in request.files:
@@ -1533,6 +1534,7 @@ def view_guides():
 
 @app.route('/view_guide/<int:guide_id>', methods=['GET'])
 @login_required
+@pro_required
 def view_guide(guide_id):
     try:
         # Consultar la guía por su ID y asegurarse de que pertenece al usuario actual
@@ -1567,7 +1569,7 @@ chat_model = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_to
 
 @app.route('/generate_any_age_exam', methods=['GET', 'POST'])
 @login_required
-# @pro_required
+@pro_required
 def generate_any_age_exam():
     if request.method == 'POST':
         # Obtener los valores ingresados en el formulario
@@ -1668,7 +1670,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/esquema', methods=['GET', 'POST'])
 @login_required
-# @pro_required
+@pro_required
 def esquema():
     if request.method == 'POST':
         # Verificar si el archivo está en la solicitud
@@ -1727,6 +1729,7 @@ def chat1():
 # Ruta API para recibir texto o imágenes
 # Ruta API para recibir texto o imágenes
 @app.route('/api/chat', methods=['POST'])
+@pro_required
 def chat_api():
     data = request.json
     text_input = data.get('text')
@@ -1767,6 +1770,7 @@ def chat_api():
 from ruta_aprendizaje import generar_ruta_aprendizaje, generar_detalle_subtema
 
 @app.route('/ruta', methods=['GET', 'POST'])
+@pro_required
 def ruta():
     if request.method == 'POST':
         tema = request.form['tema']
@@ -1787,4 +1791,4 @@ def detalle_subtema():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8001)
+    app.run(host='0.0.0.0', port=5001)
