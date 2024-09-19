@@ -53,6 +53,11 @@
         #input-form button:hover {
             background-color: #45a049;
         }
+
+        #input-form button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -60,7 +65,7 @@
         <div id="messages"></div>
         <form id="input-form" onsubmit="sendQuestion(); return false;">
             <input type="text" id="user-question" placeholder="Haz una pregunta..." required>
-            <button type="submit">Enviar</button>
+            <button type="submit" id="submit-button">Enviar</button>
         </form>
     </div>
 
@@ -78,7 +83,12 @@
 
         function sendQuestion() {
             const question = document.getElementById('user-question').value;
+            const submitButton = document.getElementById('submit-button');
+            
             appendMessage(question);
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Pensando...';
 
             fetch('/ask_question', {
                 method: 'POST',
@@ -93,7 +103,11 @@
                 const answers = data.answers;
                 answers.forEach(answer => appendMessage(answer, false));
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => console.error('Error:', error))
+            .finally(() => {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Enviar';
+            });
 
             document.getElementById('user-question').value = '';
         }

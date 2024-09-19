@@ -66,9 +66,12 @@ def extract_text_from_pdf(pdf_path):
 
 
 
-def extract_topics_from_pdf(pdf_path):
+def extract_topics_from_pdf(pdf_path, max_tokens_per_chunk=4000):
     """
-    Función para extraer los temas del PDF utilizando ChatDeepInfra.
+    Función para extraer los temas del PDF utilizando ChatDeepInfra con un límite en el contenido de los chunks.
+    
+    :param pdf_path: Ruta al archivo PDF.
+    :param max_tokens_per_chunk: Número máximo de tokens permitidos por chunk para el modelo. Default: 4000.
     """
     # Cargar el contenido del PDF
     loader = PyPDFLoader(pdf_path)
@@ -77,17 +80,21 @@ def extract_topics_from_pdf(pdf_path):
     # Unir todo el texto del PDF
     full_text = "\n".join([doc.page_content for doc in documents])
 
-    # Dividir el texto en trozos manejables para el modelo
+    # Dividir el texto en trozos manejables para el modelo, respetando el límite de tokens
     text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
     text_chunks = text_splitter.split_text(full_text)
 
     # Inicializar el modelo ChatDeepInfra
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=max_tokens_per_chunk)
 
     # Lista para almacenar los temas extraídos
     topics = []
 
     for chunk in text_chunks:
+        # Truncar el chunk si excede el número máximo de tokens
+        if len(chunk) > max_tokens_per_chunk:
+            chunk = chunk[:max_tokens_per_chunk]
+        
         # Crear el prompt para extraer los temas en formato JSON
         prompt = f"""
         Analiza el siguiente texto y extrae una lista de los temas o títulos principales que se abordan. Proporciona la lista en formato JSON (una lista de cadenas de texto), sin ninguna explicación adicional.
@@ -116,6 +123,7 @@ def extract_topics_from_pdf(pdf_path):
     unique_topics = list(dict.fromkeys(topics))
 
     return unique_topics
+
 
 
 def extract_specific_topic_content(selected_chunk, topic_title):
