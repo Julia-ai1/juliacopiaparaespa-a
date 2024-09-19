@@ -763,7 +763,7 @@ def has_used_trial(stripe_customer_id):
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = os.getenv('STRIPE_ENDPOINT_SECRET')  # Usa una variable de entorno para el secreto del webhook
+    endpoint_secret = "whsec_kLfD8vN65B47s55VkehEjBdxg6CK2llW" # Usa una variable de entorno para el secreto del webhook
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
@@ -1132,36 +1132,6 @@ def create_checkout_session():
 # Webhook route to handle Stripe events
 import stripe
 
-@app.route('/', methods=['POST'])
-def webhook():
-    payload = request.get_data(as_text=True)
-    sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = "whsec_kLfD8vN65B47s55VkehEjBdxg6CK2llW" # Asegúrate de que esta sea la clave secreta correcta
-    
-    print("Payload recibido:", payload)  # Imprimir el payload recibido
-    print("Cabecera de firma recibida:", sig_header)  # Imprimir la cabecera de firma recibida
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
-        print("Firma validada exitosamente.")
-    except ValueError as e:
-        # Payload inválido
-        print("Error: Payload inválido:", e)
-        return '', 400
-    except stripe.error.SignatureVerificationError as e:
-        # Firma inválida
-        print("Error de verificación de firma:", e)
-        print("Cabecera de firma esperada:", endpoint_secret)  # Imprimir la clave de firma esperada para comparación
-        return '', 400
-
-    # Manejar el evento (por ejemplo, un pago completado)
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        handle_checkout_session(session)
-
-    return '', 200
 
 @app.route('/charge', methods=['POST'])
 def charge():
