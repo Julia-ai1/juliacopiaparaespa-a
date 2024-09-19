@@ -746,7 +746,7 @@ def has_used_trial(stripe_customer_id):
     # Obtener suscripciones previas del cliente en Stripe
     subscriptions = stripe.Subscription.list(customer=stripe_customer_id)
 
-    # Si no hay suscripciones, el usuario no ha usado un trial
+    # Si no hay suscripciones, el usuario no ha usadso un trial
     if not subscriptions['data']:
         return False  # Usuario nuevo, puede usar el trial
 
