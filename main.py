@@ -924,6 +924,7 @@ search_client1 = SearchClient(
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
     segmento = request.form['segmento']
+    asignatura = request.form['subject']
     num_items = int(request.form['num_items'])
 
     query = segmento
@@ -953,7 +954,7 @@ def generate_exam():
         try:
             # Crear el prompt para el modelo de lenguaje
             system_text = (
-                f"Eres un asistente que genera preguntas para el segmento '{segmento}', "
+                f"Eres un asistente que genera preguntas para el segmento '{segmento}'de la asignatura'{asignatura}, "
                 f"con el suficiente contexto para poder resolverlas."
             )
             human_text = (
@@ -995,7 +996,7 @@ def generate_exam():
         user_question = UserQuestion(
             user_id=current_user.id,
             question=question['question'],
-            subject=None,  # Ya no se guarda asignatura, ya que no se usa
+            subject=asignatura,  # Ya no se guarda asignatura, ya que no se usa
             topic=segmento
         )
         db.session.add(user_question)
