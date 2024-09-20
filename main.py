@@ -155,8 +155,14 @@ def upload_pdf():
 @app.route('/get_pdfs', methods=['GET'])
 def get_pdfs():
     try:
-        # Realizar una consulta para obtener documentos en Azure AI Search
-        search_results = search_client.search(search_text="*", top=100)
+        # Obtener el user_id desde los parámetros de la solicitud
+        user_id = request.args.get('user_id', 'default_user')
+
+        if not user_id:
+            return jsonify({'error': 'El user_id es necesario para filtrar los PDFs'}), 400
+
+        # Realizar una consulta para obtener documentos en Azure AI Search filtrados por user_id
+        search_results = search_client.search(search_text="*", filter=f"user_id eq '{user_id}'", top=100)
 
         # Crear un diccionario para almacenar los documentos únicos por pdf_id (nombre principal)
         pdfs = {}
@@ -175,8 +181,6 @@ def get_pdfs():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
 
 
 # Función para verificar si el archivo es un PDF
@@ -752,7 +756,7 @@ def has_used_trial(stripe_customer_id):
 
     # Verificar si alguna suscripción anterior tenía un trial o está pausada
     for sub in subscriptions['data']:
-        if sub.trial_end and sub.status in ['trialing', 'active', 'past_due', 'paused', 'canceled']:
+        if sub.trial_end and sub.status in ['trialing', 'trial', 'active', 'past_due', 'paused', 'canceled']:
             return True  # Ya ha usado un trial o la suscripción está pausada
 
     return False  # No ha usado un trial previamente ni tiene la suscripción pausada
@@ -838,7 +842,11 @@ def handle_subscription_update(subscription):
         if subscription['status'] == 'trialing':
             user.subscription_type = 'trial'
         elif subscription['status'] == 'active':
-            user.subscription_type = 'paid'
+            # Verificar si hay un método de pago asociado
+            if subscription.get('default_payment_method'):
+                user.subscription_type = 'paid'
+            else:
+                user.subscription_type = 'paused'
         elif subscription['status'] == 'past_due':
             user.subscription_type = 'past_due'
         elif subscription['status'] == 'canceled':
@@ -848,6 +856,7 @@ def handle_subscription_update(subscription):
 
         user.stripe_customer_id = customer_id
         db.session.commit()
+
 
 
 
