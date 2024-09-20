@@ -934,7 +934,7 @@ def generate_exam():
 
     # Recuperar documentos relevantes
     print(f"Generando examen con la consulta: {query}")
-    relevant_docs = retrieve_documents(query, search_client, num_docs=5)
+    relevant_docs = retrieve_documents(query, search_client1, num_docs=5)
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
         return jsonify({"error": "No se recuperaron documentos."})
