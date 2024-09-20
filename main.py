@@ -924,16 +924,16 @@ search_client1 = SearchClient(
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
     segmento = request.form['segmento']
-    asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
     query = segmento
-    print(f"Generando examen con la consulta: '{query}' y asignatura: '{asignatura}'")
+    print(f"Generando examen con la consulta: '{query}'")
+    
+    # Llamada a retrieve_documents sin el filtro de asignatura
     relevant_docs = retrieve_documents(
         query=query,
         search_client=search_client1,
-        asignatura=asignatura,
-        num_docs=100
+        num_docs=100  # Ya no se pasa la asignatura como parámetro
     )
     
     if not relevant_docs:
@@ -953,13 +953,12 @@ def generate_exam():
         try:
             # Crear el prompt para el modelo de lenguaje
             system_text = (
-                f"Eres un asistente que genera preguntas para el segmento '{segmento}' "
-                f"de la asignatura '{asignatura}', con el suficiente contexto para poder resolverlas."
+                f"Eres un asistente que genera preguntas para el segmento '{segmento}', "
+                f"con el suficiente contexto para poder resolverlas."
             )
             human_text = (
                 f"Genera {num_items} preguntas con sus opciones con estructura similar a la del siguiente contenido:\n"
-                f"{context}, pero en los ejercicios, no en los enunciados, y debe tener el suficiente contexto para poder resolverlas. "
-                f"Debe tratar sobre el segmento '{segmento}'. Si no encuentra documentos relevantes, usa conocimientos generales."
+                f"{context}. Debe tratar sobre el segmento '{segmento}'. Si no encuentra documentos relevantes, usa conocimientos generales."
             )
     
             response = client.chat.completions.create(
@@ -996,7 +995,7 @@ def generate_exam():
         user_question = UserQuestion(
             user_id=current_user.id,
             question=question['question'],
-            subject=asignatura,
+            subject=None,  # Ya no se guarda asignatura, ya que no se usa
             topic=segmento
         )
         db.session.add(user_question)

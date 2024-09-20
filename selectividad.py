@@ -75,40 +75,30 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
 
 # Función para recuperar documentos de Azure Cognitive Search
 import random
-def retrieve_documents(query, search_client, asignatura=None, num_docs=100):
+from azure.search.documents import SearchClient
+from azure.search.documents.models import QueryType, SearchMode
+
+def retrieve_documents(query, search_client, num_docs=100):
     """
-    Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada,
-    filtrando por asignatura si se proporciona.
+    Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada
+    sin aplicar ningún filtro.
     
     Args:
         query (str): La consulta de búsqueda (segmento).
         search_client (SearchClient): Instancia del cliente de búsqueda de Azure.
-        asignatura (str, optional): La asignatura por la cual filtrar los documentos. Por defecto es None.
         num_docs (int, optional): Número máximo de documentos a recuperar. Por defecto es 100.
     
     Returns:
         list: Lista de documentos recuperados con contenido y metadatos.
     """
     try:
-        # Escapar comillas simples en asignatura para evitar errores en la consulta
-        if asignatura:
-            asignatura = asignatura.replace("'", "''")
-        
-        # Construir los filtros dinámicamente en función de los parámetros proporcionados
-        filters = []
-        if asignatura:
-            filters.append(f"asignatura eq '{asignatura}'")
-        filter_query = " and ".join(filters) if filters else None
-        
         # Configurar los parámetros de búsqueda
         response = search_client.search(
             search_text=query,                 # La consulta principal es el segmento
             top=num_docs,
             query_type=QueryType.FULL,         # Usar consultas avanzadas
             search_mode=SearchMode.ALL,        # Todas las palabras deben estar presentes
-            filter=filter_query,               # Aplicar filtro de asignatura si existe
             include_total_count=True
-            # No se especifican search_fields ni select para hacer la búsqueda general
         )
         
         documents = []
@@ -126,7 +116,7 @@ def retrieve_documents(query, search_client, asignatura=None, num_docs=100):
             return []
         
         # Retornar los documentos más relevantes sin aleatorizar
-        return documents[:15]  # Retorna los 5 documentos más relevantes
+        return documents[:15]  # Retorna los 15 documentos más relevantes
         
     except Exception as e:
         print(f"Error al recuperar documentos: {e}")
