@@ -104,11 +104,34 @@ def extract_relevant_context(documents, max_length=1000):
 
 # Función para verificar si la respuesta del usuario es correcta
 def check_answer(question, user_answer):
+    """
+    Evalúa la respuesta del usuario a una pregunta de opción múltiple, determina la respuesta correcta
+    utilizando GPT-4o-mini y proporciona una explicación detallada.
+
+    Args:
+        question (dict): Diccionario que contiene la pregunta y las opciones. Ejemplo:
+                         {
+                             "question": "¿Cuál es la derivada de $f(x) = x^2$?",
+                             "choices": [
+                                 "A. $2x$",
+                                 "B. $x$",
+                                 "C. $x^2$",
+                                 "D. $2$",
+                                 "E. Ninguna de las anteriores"
+                             ]
+                         }
+        user_answer (str): Respuesta proporcionada por el usuario (por ejemplo, "A").
+
+    Returns:
+        tuple: Una tupla que contiene el estado ("correct", "incorrect", "error"), la explicación, y el texto de la respuesta correcta.
+    """
     try:
-        question_text = question["question"].replace("{", "{{").replace("}", "}}")
+        # Preparar el contenido de la pregunta y las opciones
+        question_text = question["question"].replace("{", "{{").replace("}", "}}") 
         question_text = question_text.replace("$", "\\(").replace("$", "\\)")
 
-        options = "\n".join([f"{chr(65 + i)}. {choice.replace('{', '{{').replace('}', '}}')}"
+        # Formatear las opciones y escapar las llaves
+        options = "\n".join([f"{chr(65 + i)}. {choice.replace('{', '{{').replace('}', '}}')}" 
                              for i, choice in enumerate(question["choices"])])
 
         system_correct = (
@@ -118,7 +141,7 @@ def check_answer(question, user_answer):
 
         human_correct = f"Question: {question_text}\n\nOptions:\n{options}"
 
-        response_correct = client.ChatCompletion.create(
+        response_correct = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_correct},
@@ -126,7 +149,7 @@ def check_answer(question, user_answer):
             ]
         )
 
-        correct_answer = response_correct.choices[0].message["content"].strip()
+        correct_answer = response_correct.choices[0].message.content.strip()
 
         system_explanation = (
             "You are an assistant that provides a detailed explanation of why an answer is correct or incorrect."
@@ -134,7 +157,7 @@ def check_answer(question, user_answer):
 
         human_explanation = f"Question: {question_text}\nCorrect Answer: {correct_answer}"
 
-        response_explanation = client.ChatCompletion.create(
+        response_explanation = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_explanation},
@@ -142,7 +165,7 @@ def check_answer(question, user_answer):
             ]
         )
 
-        explanation = response_explanation.choices[0].message["content"].strip()
+        explanation = response_explanation.choices[0].message.content.strip()
 
         if user_answer.lower() in correct_answer.lower():
             return "correct", explanation, correct_answer

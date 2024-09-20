@@ -3,12 +3,20 @@
 <head>
     {% include 'head.html' %}
     <title>Generar Esquema - Julia.ai</title>
+    
+    <!-- Incluir Tailwind CSS desde CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Incluir Lucide Icons desde CDN -->
+    <script src="https://unpkg.com/lucide@0.244.0/dist/lucide.min.js"></script>
+    
     <style>
+        /* Estilos para el botón deshabilitado */
         .button-disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
-        /* Asegurarse de que el icono de carga tenga la animación */
+        /* Animación para el icono de carga */
         .animate-spin {
             animation: spin 1s linear infinite;
         }
@@ -18,87 +26,70 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
     <div class="container max-w-2xl mx-auto">
         <div class="bg-white rounded-3xl shadow-2xl overflow-hidden p-8">
             <h1 class="text-3xl font-bold text-center mb-6">Generar Esquema Interactivo</h1>
             <form id="schemaForm" method="POST" enctype="multipart/form-data">
-                <div class="mb-4">
-                    <label class="block text-gray-700 font-bold mb-2" for="file">
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-semibold mb-2" for="file">
                         Selecciona un archivo PDF o TXT:
                     </label>
-                    <input class="w-full px-3 py-2 border rounded-lg" type="file" name="file" id="file" accept=".pdf,.txt" required>
+                    <input 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        type="file" 
+                        name="file" 
+                        id="file" 
+                        accept=".pdf,.txt" 
+                        required
+                    >
                 </div>
-                <button type="submit" id="submitButton" class="action-button w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center">
+                <button 
+                    type="submit" 
+                    id="submitButton" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center transition duration-200"
+                >
                     <i data-lucide="upload" class="w-5 h-5 mr-2"></i>
                     <span id="buttonText">Generar Esquema</span>
                 </button>
             </form>
         </div>
     </div>
+
     <script>
+        // Inicializar Lucide Icons
         lucide.createIcons();
 
+        // Obtener referencias a los elementos del DOM
+        const form = document.getElementById('schemaForm');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const icon = submitButton.querySelector('i');
+
         // Función para manejar el envío del formulario
-        function handleFormSubmit(e) {
-            e.preventDefault(); // Evita el envío inmediato del formulario
+        form.addEventListener('submit', function(e) {
+            // Deshabilitar el envío por defecto
+            e.preventDefault();
 
-            var submitButton = document.getElementById('submitButton');
-            var buttonText = document.getElementById('buttonText');
-            var icon = submitButton.querySelector('i');
-
-            // Deshabilitar el botón
+            // Deshabilitar el botón y aplicar estilos
             submitButton.disabled = true;
             submitButton.classList.add('button-disabled');
 
-            // Cambiar el texto y el icono
+            // Cambiar el texto del botón
             buttonText.textContent = 'Pensando...';
+
+            // Cambiar el icono a un loader animado
             icon.setAttribute('data-lucide', 'loader');
             icon.classList.add('animate-spin');
 
             // Actualizar los iconos para reflejar el cambio
             lucide.createIcons();
 
-            // Opcional: Si deseas enviar el formulario de manera asíncrona (AJAX), puedes hacerlo aquí.
-            // De lo contrario, procederá con el envío normal del formulario.
-            // Por ejemplo:
-            /*
-            var formData = new FormData(document.getElementById('schemaForm'));
-            fetch('/ruta-de-tu-endpoint', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Manejar la respuesta exitosa
-                console.log(data);
-                // Rehabilitar el botón si es necesario
-                submitButton.disabled = false;
-                submitButton.classList.remove('button-disabled');
-                buttonText.textContent = 'Generar Esquema';
-                icon.setAttribute('data-lucide', 'upload');
-                icon.classList.remove('animate-spin');
-                lucide.createIcons();
-            })
-            .catch(error => {
-                // Manejar errores
-                console.error('Error:', error);
-                // Rehabilitar el botón en caso de error
-                submitButton.disabled = false;
-                submitButton.classList.remove('button-disabled');
-                buttonText.textContent = 'Generar Esquema';
-                icon.setAttribute('data-lucide', 'upload');
-                icon.classList.remove('animate-spin');
-                lucide.createIcons();
-            });
-            */
-
-            // Si no usas AJAX, simplemente envía el formulario
-            this.submit();
-        }
-
-        // Añadir el listener al formulario
-        document.getElementById('schemaForm').addEventListener('submit', handleFormSubmit);
+            // Enviar el formulario después de un breve retraso para asegurar que los cambios visuales se apliquen
+            setTimeout(() => {
+                form.submit();
+            }, 100);
+        });
     </script>
 </body>
 </html>
