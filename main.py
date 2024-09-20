@@ -942,7 +942,7 @@ def generate_exam():
         return jsonify({"error": "No se recuperaron documentos."}), 404
     
     # Extraer contexto relevante de los documentos recuperados
-    context = extract_relevant_context(relevant_docs)
+    context = relevant_docs
     print(f"Contexto extraído: {context[:500]}")  # Muestra los primeros 500 caracteres del contexto extraído
     
     results = []
