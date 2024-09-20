@@ -2,13 +2,10 @@
 <html lang="es">
 <head>
     {% include 'head.html' %}
-    <title>Generar Esquema - Julia.ai</title>
+    <title>Generar Esquema Interactivo - Julia.ai</title>
     
     <!-- Incluir Tailwind CSS desde CDN -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
-    
-    <!-- Incluir Lucide Icons desde CDN -->
-    <script src="https://unpkg.com/lucide@0.244.0/dist/lucide.min.js"></script>
     
     <style>
         /* Estilos para el botón deshabilitado */
@@ -16,13 +13,13 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
-        /* Animación para el icono de carga */
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
+        /* Animación para el spinner */
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
@@ -49,22 +46,17 @@
                     id="submitButton" 
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center transition duration-200"
                 >
-                    <i data-lucide="upload" class="w-5 h-5 mr-2"></i>
-                    <span id="buttonText">Generar Esquema</span>
+                    <span id="buttonText">Generar Esquema Interactivo</span>
                 </button>
             </form>
         </div>
     </div>
 
     <script>
-        // Inicializar Lucide Icons
-        lucide.createIcons();
-
         // Obtener referencias a los elementos del DOM
         const form = document.getElementById('schemaForm');
         const submitButton = document.getElementById('submitButton');
         const buttonText = document.getElementById('buttonText');
-        const icon = submitButton.querySelector('i');
 
         // Función para manejar el envío del formulario
         form.addEventListener('submit', function(e) {
@@ -78,17 +70,20 @@
             // Cambiar el texto del botón
             buttonText.textContent = 'Pensando...';
 
-            // Cambiar el icono a un loader animado
-            icon.setAttribute('data-lucide', 'loader');
-            icon.classList.add('animate-spin');
+            // Crear y agregar el spinner
+            const spinner = document.createElement('svg');
+            spinner.setAttribute('class', 'w-5 h-5 ml-2 animate-spin text-white');
+            spinner.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            spinner.setAttribute('fill', 'none');
+            spinner.setAttribute('viewBox', '0 0 24 24');
+            spinner.innerHTML = `
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            `;
+            submitButton.appendChild(spinner);
 
-            // Actualizar los iconos para reflejar el cambio
-            lucide.createIcons();
-
-            // Enviar el formulario después de un breve retraso para asegurar que los cambios visuales se apliquen
-            setTimeout(() => {
-                form.submit();
-            }, 100);
+            // Enviar el formulario
+            form.submit();
         });
     </script>
 </body>
