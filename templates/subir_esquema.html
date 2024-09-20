@@ -8,6 +8,14 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        /* Asegurarse de que el icono de carga tenga la animación */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -31,31 +39,66 @@
     <script>
         lucide.createIcons();
 
-        document.getElementById('schemaForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        // Función para manejar el envío del formulario
+        function handleFormSubmit(e) {
+            e.preventDefault(); // Evita el envío inmediato del formulario
+
             var submitButton = document.getElementById('submitButton');
             var buttonText = document.getElementById('buttonText');
-            
+            var icon = submitButton.querySelector('i');
+
             // Deshabilitar el botón
             submitButton.disabled = true;
             submitButton.classList.add('button-disabled');
-            
+
             // Cambiar el texto y el icono
             buttonText.textContent = 'Pensando...';
-            submitButton.querySelector('i').setAttribute('data-lucide', 'loader');
-            submitButton.querySelector('i').classList.add('animate-spin');
-            
-            // Actualizar los iconos
+            icon.setAttribute('data-lucide', 'loader');
+            icon.classList.add('animate-spin');
+
+            // Actualizar los iconos para reflejar el cambio
             lucide.createIcons();
-            
-            // Remover el evento submit para prevenir múltiples envíos
-            this.removeEventListener('submit', arguments.callee);
-            
-            // Enviar el formulario después de un pequeño retraso
-            setTimeout(() => {
-                this.submit();
-            }, 100);
-        });
+
+            // Opcional: Si deseas enviar el formulario de manera asíncrona (AJAX), puedes hacerlo aquí.
+            // De lo contrario, procederá con el envío normal del formulario.
+            // Por ejemplo:
+            /*
+            var formData = new FormData(document.getElementById('schemaForm'));
+            fetch('/ruta-de-tu-endpoint', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Manejar la respuesta exitosa
+                console.log(data);
+                // Rehabilitar el botón si es necesario
+                submitButton.disabled = false;
+                submitButton.classList.remove('button-disabled');
+                buttonText.textContent = 'Generar Esquema';
+                icon.setAttribute('data-lucide', 'upload');
+                icon.classList.remove('animate-spin');
+                lucide.createIcons();
+            })
+            .catch(error => {
+                // Manejar errores
+                console.error('Error:', error);
+                // Rehabilitar el botón en caso de error
+                submitButton.disabled = false;
+                submitButton.classList.remove('button-disabled');
+                buttonText.textContent = 'Generar Esquema';
+                icon.setAttribute('data-lucide', 'upload');
+                icon.classList.remove('animate-spin');
+                lucide.createIcons();
+            });
+            */
+
+            // Si no usas AJAX, simplemente envía el formulario
+            this.submit();
+        }
+
+        // Añadir el listener al formulario
+        document.getElementById('schemaForm').addEventListener('submit', handleFormSubmit);
     </script>
 </body>
 </html>

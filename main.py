@@ -903,9 +903,7 @@ def format_solutions(solutions_text):
 
     return formatted_solutions
 
-
-from flask import jsonify, request, render_template
-from your_model import UserQuestion, db, current_user  # Ajusta los modelos según tu aplicación
+ # Ajusta los modelos según tu aplicación
 import random
 search_client1 = SearchClient(
     endpoint=SEARCH_SERVICE_ENDPOINT,
@@ -936,8 +934,8 @@ def generate_exam():
     while questions_generated < num_items and reintentos < max_reintentos:
         try:
             # Crear el prompt para GPT-4o-mini o el modelo que estés usando
-            system_text = f"Eres un asistente que genera preguntas para el segmento {segmento} de la asignatura {asignatura}."
-            human_text = f"Genera {num_items} preguntas con sus opciones basadas en el siguiente contenido:\n{context}, pero en los ejercicios , no en los enunciados"
+            system_text = f"Eres un asistente que genera preguntas para el segmento {segmento} de la asignatura {asignatura}, con el suficiente contexto para poder resolverlas."
+            human_text = f"Genera {num_items} preguntas con sus opciones basadas en el siguiente contenido:\n{context}, pero en los ejercicios , no en los enunciados, y debe tener el suficiente contexto para poder resolverlas."
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -1070,7 +1068,7 @@ def check():
 def chat():
     user_message = request.json['message']
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
-    system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen. Responde en brasileño"
+    system_text = "Eres un asistente de examen que proporciona respuestas generales a preguntas relacionadas con el examen. Responde en español"
     human_text = user_message
     prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", human_text)])
     

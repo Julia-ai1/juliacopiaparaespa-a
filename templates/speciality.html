@@ -69,6 +69,10 @@
             color: #667eea;
             border-bottom: 3px solid #667eea;
         }
+        .button-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -117,8 +121,9 @@
                                 <input type="number" class="form-control" id="num_items" name="num_items" min="1" required>
                                 <label for="num_items">Número de preguntas</label>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 py-2 mt-3">
-                                <i class="fas fa-magic me-2"></i>Generar Examen
+                            <button type="submit" id="submitButton" class="btn btn-primary w-100 py-2 mt-3">
+                                <i class="fas fa-magic me-2"></i>
+                                <span id="buttonText">Generar Examen</span>
                             </button>
                         </div>
                     </div>
@@ -151,8 +156,21 @@
             }
 
             form.addEventListener('submit', function(e) {
-                // No prevenimos el envío del formulario aquí
-                // El formulario se enviará normalmente al servidor
+                const submitButton = document.getElementById('submitButton');
+                const buttonText = document.getElementById('buttonText');
+                const icon = submitButton.querySelector('i');
+
+                // Deshabilitar el botón
+                submitButton.disabled = true;
+                submitButton.classList.add('button-disabled');
+
+                // Cambiar el texto y el icono
+                buttonText.textContent = 'Pensando...';
+                icon.classList.remove('fa-magic');
+                icon.classList.add('fa-spinner', 'fa-spin');
+
+                // Opcional: Si deseas usar AJAX para el envío, puedes implementarlo aquí.
+                // De lo contrario, el formulario se enviará normalmente.
             });
         });
     </script>
