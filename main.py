@@ -214,7 +214,7 @@ def ask_question():
         # Realizar una búsqueda en Azure Cognitive Search para obtener fragmentos relevantes basados en `pdf_id`, `user_id`, y `question`
         results = search_client.search(
             search_text=question,  # El texto de la pregunta
-            filter=f"pdf_id eq '{pdf_id}' and user_id eq '{user_id}'",  # Filtrar por `pdf_id` y `user_id` para obtener solo los fragmentos del usuario autenticado
+            filter=f"pdf_id eq '{pdf_id}' and user_id eq '{str(user_id)}'",  # Convertir user_id a cadena
             top=10  # Limitar a los primeros 10 fragmentos relevantes
         )
 
