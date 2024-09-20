@@ -924,7 +924,7 @@ search_client1 = SearchClient(
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
     segmento = request.form['segmento']
-    asignatura = request.form['subject']
+    asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
     query = segmento
