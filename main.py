@@ -305,7 +305,7 @@ def extract_and_store_in_azure_search(filepath, filename, user_id):
             "pdf_id": filename,  # ID principal del PDF, compartido por todas las páginas
             "fragment_id": f"{filename}_page_{page_number}",  # ID único para cada página
             "content": pdf_text[:2000],  # Limitar el contenido de cada página si es necesario
-            "user_id": user_id,
+            "user_id": str(user_id),
             "page_number": page_number
         }
 
