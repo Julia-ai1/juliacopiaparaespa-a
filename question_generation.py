@@ -81,7 +81,7 @@ def generate_questions1(chat, prompt_text, num_questions):
         num_questions: Número de preguntas a generar.
 
     Returns:
-        List de diccionarios con las preguntas generadas.
+        List de diccionarios con las preguntas generadas, entre las que debe estar la correcta.
     """
     system_text = prompt_text
 

@@ -28,6 +28,7 @@
             margin: 0 10px;
             background-color: #e9ecef;
             color: #495057;
+            transition: background-color 0.3s, color 0.3s;
         }
         .nav-pills .nav-link.active {
             background-color: #007bff;
@@ -36,6 +37,7 @@
         .btn-primary {
             background-color: #007bff;
             border: none;
+            transition: background-color 0.3s;
         }
         .btn-primary:hover {
             background-color: #0056b3;
@@ -43,6 +45,19 @@
         .form-control:focus, .form-select:focus {
             border-color: #007bff;
             box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        /* Estilos para el botón deshabilitado */
+        .button-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        /* Animación para el spinner */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -110,8 +125,8 @@
                                 <input type="number" class="form-control" id="num_items" name="num_items" min="1" required>
                                 <label for="num_items">Número de preguntas</label>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 py-2 mt-3">
-                                <i class="fas fa-magic me-2"></i>Generar Examen
+                            <button type="submit" id="submitButton" class="btn btn-primary w-100 py-2 mt-3">
+                                <span id="buttonText"><i class="fas fa-magic me-2"></i>Generar Esquema Interactivo</span>
                             </button>
                         </div>
                     </div>
@@ -120,7 +135,10 @@
         </div>
     </div>
     
+    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Font Awesome JS (si es necesario para algunos iconos) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('examForm');
@@ -155,6 +173,28 @@
             }
 
             updateProgress();
+
+            // Manejo del envío del formulario
+            const submitButton = document.getElementById('submitButton');
+            const buttonText = document.getElementById('buttonText');
+
+            form.addEventListener('submit', function(e) {
+                // Deshabilitar el envío por defecto
+                e.preventDefault();
+
+                // Deshabilitar el botón y aplicar estilos
+                submitButton.disabled = true;
+                submitButton.classList.add('button-disabled');
+
+                // Cambiar el contenido del botón
+                buttonText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Pensando...';
+
+                // Enviar el formulario después de actualizar el UI
+                // Utilizamos setTimeout para asegurarnos de que el cambio de UI se renderice
+                setTimeout(() => {
+                    form.submit();
+                }, 100);
+            });
         });
     </script>
 </body>

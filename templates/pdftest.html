@@ -6,6 +6,7 @@
     <title>Interacción con PDFs - Julia.ai</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -16,6 +17,11 @@
         .question-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        /* Estilos para los botones deshabilitados */
+        .button-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -34,8 +40,8 @@
                     <label for="pdfFile" class="block text-gray-700 mb-2">Selecciona un archivo PDF:</label>
                     <input type="file" name="pdfFile" id="pdfFile" accept="application/pdf" class="block w-full text-gray-700 bg-gray-100 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
-                    Subir PDF
+                <button type="submit" id="uploadButton" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105 flex items-center justify-center">
+                    <span id="uploadButtonText">Subir PDF</span>
                 </button>
             </form>
         </div>
@@ -49,8 +55,8 @@
                     <option value="">-- Selecciona un PDF --</option>
                 </select>
             </div>
-            <button id="use-existing-pdf" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
-                Usar PDF Existente
+            <button id="use-existing-pdf" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105 flex items-center justify-center">
+                <span id="useExistingPdfButtonText">Usar PDF Existente</span>
             </button>
         </div>
 
@@ -66,110 +72,168 @@
                     <input type="number" name="num_questions" id="num_questions" min="1" value="5" class="block w-full text-gray-700 bg-gray-100 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                 </div>
 
-                <button type="submit" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 transform hover:scale-105">
-                    Generar Preguntas
+                <button type="submit" id="generateButton" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 transform hover:scale-105 flex items-center justify-center">
+                    <span id="generateButtonText">Generar Preguntas</span>
                 </button>
             </form>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
     <script>
-        // Función para manejar la subida del PDF
-        document.getElementById('pdf-upload-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            
-            const formData = new FormData(this);
+        document.addEventListener('DOMContentLoaded', function() {
+            const formUpload = document.getElementById('pdf-upload-form');
+            const uploadButton = document.getElementById('uploadButton');
+            const uploadButtonText = document.getElementById('uploadButtonText');
 
-            fetch('/upload_pdf_test', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Error: ' + data.error);
-                } else {
-                    document.getElementById('pdf_id').value = data.pdf_id;
-                    alert('PDF subido correctamente');
-                }
-            })
-            .catch(error => {
-                console.error('Error al subir el PDF:', error);
-                alert('Error al subir el PDF');
-            });
-        });
+            const formGenerate = document.getElementById('generate-questions-form');
+            const generateButton = document.getElementById('generateButton');
+            const generateButtonText = document.getElementById('generateButtonText');
 
-        // Función para cargar PDFs ya existentes
-        function loadExistingPDFs() {
-            fetch('/get_pdfs')
-            .then(response => response.json())
-            .then(data => {
-                const select = document.getElementById('existing_pdf');
-                data.pdfs.forEach(pdf => {
-                    const option = document.createElement('option');
-                    option.value = pdf.name;
-                    option.textContent = pdf.name;
-                    select.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error al cargar los PDFs existentes:', error);
-            });
-        }
+            const useExistingPdfButton = document.getElementById('use-existing-pdf');
+            const useExistingPdfButtonText = document.getElementById('useExistingPdfButtonText');
 
-        // Cargar PDFs existentes al cargar la página
-        window.onload = loadExistingPDFs;
+            // Función para manejar la subida del PDF
+            formUpload.addEventListener('submit', function(event) {
+                event.preventDefault();
 
-        // Manejar selección de PDF existente
-        document.getElementById('use-existing-pdf').addEventListener('click', function() {
-            const selectedPdf = document.getElementById('existing_pdf').value;
-            if (!selectedPdf) {
-                alert("Por favor, selecciona un PDF existente.");
-                return;
-            }
-            document.getElementById('pdf_id').value = selectedPdf;
-            alert("PDF seleccionado: " + selectedPdf);
-        });
+                // Deshabilitar el botón y mostrar spinner
+                uploadButton.disabled = true;
+                uploadButton.classList.add('button-disabled');
+                uploadButtonText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Pensando...';
 
-        // Función para manejar el envío del formulario para generar preguntas
-        document.getElementById('generate-questions-form').addEventListener('submit', function(event) {
-            event.preventDefault();
+                const formData = new FormData(this);
 
-            const pdfId = document.getElementById('pdf_id').value;
-            const numQuestions = document.getElementById('num_questions').value;
-
-            if (!pdfId) {
-                alert("Por favor, sube o selecciona un PDF primero.");
-                return;
-            }
-            
-            fetch('/generate_test_questions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    pdf_id: pdfId,
-                    num_questions: numQuestions
+                fetch('/upload_pdf_test', {
+                    method: 'POST',
+                    body: formData
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.questions.length === 0) {
-                    alert('No se pudieron generar preguntas.');
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        // Rehabilitar el botón
+                        uploadButton.disabled = false;
+                        uploadButton.classList.remove('button-disabled');
+                        uploadButtonText.innerHTML = 'Subir PDF';
+                    } else {
+                        document.getElementById('pdf_id').value = data.pdf_id;
+                        alert('PDF subido correctamente');
+                        // Rehabilitar el botón
+                        uploadButton.disabled = false;
+                        uploadButton.classList.remove('button-disabled');
+                        uploadButtonText.innerHTML = 'Subir PDF';
+                        // Opcional: Actualizar la lista de PDFs existentes
+                        loadExistingPDFs();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al subir el PDF:', error);
+                    alert('Error al subir el PDF');
+                    // Rehabilitar el botón
+                    uploadButton.disabled = false;
+                    uploadButton.classList.remove('button-disabled');
+                    uploadButtonText.innerHTML = 'Subir PDF';
+                });
+            });
+
+            // Función para cargar PDFs ya existentes
+            function loadExistingPDFs() {
+                fetch('/get_pdfs')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('existing_pdf');
+                    // Limpiar las opciones existentes excepto la primera
+                    select.innerHTML = '<option value="">-- Selecciona un PDF --</option>';
+                    data.pdfs.forEach(pdf => {
+                        const option = document.createElement('option');
+                        option.value = pdf.id; // Asumiendo que cada PDF tiene un 'id' único
+                        option.textContent = pdf.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al cargar los PDFs existentes:', error);
+                });
+            }
+
+            // Cargar PDFs existentes al cargar la página
+            loadExistingPDFs();
+
+            // Manejar selección de PDF existente
+            useExistingPdfButton.addEventListener('click', function() {
+                const selectedPdf = document.getElementById('existing_pdf').value;
+                if (!selectedPdf) {
+                    alert("Por favor, selecciona un PDF existente.");
                     return;
                 }
 
-                window.location.href = `/test.html?pdf_id=${pdfId}&num_questions=${numQuestions}`;
-            })
-            .catch(error => {
-                console.error('Error al generar preguntas:', error);
-                alert('Error al generar preguntas');
+                // Deshabilitar el botón y mostrar spinner
+                useExistingPdfButton.disabled = true;
+                useExistingPdfButton.classList.add('button-disabled');
+                useExistingPdfButtonText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Pensando...';
+
+                // Simular procesamiento (puedes reemplazar esto con una llamada real si es necesario)
+                setTimeout(() => {
+                    document.getElementById('pdf_id').value = selectedPdf;
+                    alert("PDF seleccionado: " + selectedPdf);
+                    // Rehabilitar el botón
+                    useExistingPdfButton.disabled = false;
+                    useExistingPdfButton.classList.remove('button-disabled');
+                    useExistingPdfButtonText.innerHTML = 'Usar PDF Existente';
+                }, 1000); // Simular un retraso de 1 segundo
             });
-        });
-    </script>
+
+            // Función para manejar el envío del formulario para generar preguntas
+            formGenerate.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const pdfId = document.getElementById('pdf_id').value;
+                const numQuestions = document.getElementById('num_questions').value;
+
+                if (!pdfId) {
+                    alert("Por favor, sube o selecciona un PDF primero.");
+                    return;
+                }
+
+                // Deshabilitar el botón y mostrar spinner
+                generateButton.disabled = true;
+                generateButton.classList.add('button-disabled');
+                generateButtonText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Pensando...';
+
+                fetch('/generate_test_questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        pdf_id: pdfId,
+                        num_questions: numQuestions
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.questions.length === 0) {
+                        alert('No se pudieron generar preguntas.');
+                        // Rehabilitar el botón
+                        generateButton.disabled = false;
+                        generateButton.classList.remove('button-disabled');
+                        generateButtonText.innerHTML = 'Generar Preguntas';
+                        return;
+                    }
+
+                    window.location.href = `/test.html?pdf_id=${pdfId}&num_questions=${numQuestions}`;
+                })
+                .catch(error => {
+                    console.error('Error al generar preguntas:', error);
+                    alert('Error al generar preguntas');
+                    // Rehabilitar el botón
+                    generateButton.disabled = false;
+                    generateButton.classList.remove('button-disabled');
+                    generateButtonText.innerHTML = 'Generar Preguntas';
+                });
+            });
+        </script>
 </body>
 </html>
-
-
-
