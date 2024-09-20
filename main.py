@@ -904,27 +904,29 @@ def format_solutions(solutions_text):
     return formatted_solutions
 
 
+from flask import jsonify, request, render_template
+from your_model import UserQuestion, db, current_user  # Ajusta los modelos según tu aplicación
+import random
+search_client1 = SearchClient(
+    endpoint=SEARCH_SERVICE_ENDPOINT,
+    index_name="exam_questions_sel",
+    credential=AzureKeyCredential(SEARCH_API_KEY))
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
     segmento = request.form['segmento']
     asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
-    # Configuración de Elasticsearch con tus credenciales
-    es = Elasticsearch(
-        cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
-        basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
-    )
-
-    # Recuperar documentos relevantes usando el segmento ingresado
+    # Recuperar documentos relevantes usando el segmento ingresado con Azure Cognitive Search
     print(f"Recuperando documentos para el segmento: {segmento}")
-    relevant_docs = retrieve_documents(segmento, es, "exam_questions_sel", 20)
+    relevant_docs = retrieve_documents(segmento, search_client1, 20)  # Pasamos search_client como segundo parámetro
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
         return jsonify({"error": "No se recuperaron documentos."})
 
+    # Extraer contexto relevante de los documentos recuperados
     context = extract_relevant_context(relevant_docs)
-    print(f"Contexto extraído: {context[:500]}")  # Muestra el contenido del contexto
+    print(f"Contexto extraído: {context[:500]}")  # Muestra el contenido del contexto extraído
 
     results = []
     reintentos = 0
@@ -933,9 +935,9 @@ def generate_exam():
 
     while questions_generated < num_items and reintentos < max_reintentos:
         try:
-            # Crear el prompt para GPT-4o-mini
+            # Crear el prompt para GPT-4o-mini o el modelo que estés usando
             system_text = f"Eres un asistente que genera preguntas para el segmento {segmento} de la asignatura {asignatura}."
-            human_text = f"Genera {num_items} preguntas con sus opciones basadas en el siguiente contenido:\n{context}"
+            human_text = f"Genera {num_items} preguntas con sus opciones basadas en el siguiente contenido:\n{context}, pero en los ejercicios , no en los enunciados"
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -947,11 +949,11 @@ def generate_exam():
                 temperature=0.7
             )
 
-            # Procesar las preguntas
+            # Procesar las preguntas generadas
             questions = process_questions(response.choices[0].message.content)
             print(f"Preguntas generadas: {questions}")
 
-            # Validar y almacenar las preguntas
+            # Validar y almacenar las preguntas generadas
             valid_questions = [q for q in questions if validate_question(q)]
             results.extend(valid_questions)
             questions_generated = len(results)
@@ -965,7 +967,7 @@ def generate_exam():
     if questions_generated < num_items:
         print(f"Advertencia: No se generaron suficientes preguntas ({questions_generated}/{num_items}).")
 
-    # Guardar preguntas y mostrar
+    # Guardar las preguntas en la base de datos
     for question in results:
         print(f"Pregunta guardada: {question}")  # Imprimir las preguntas antes de guardarlas
         user_question = UserQuestion(
@@ -976,9 +978,11 @@ def generate_exam():
         )
         db.session.add(user_question)
 
+    # Confirmar la inserción de las preguntas
     db.session.commit()
     current_user.increment_questions()
 
+    # Renderizar el template con las preguntas generadas
     return render_template('quiz.html', questions=results)
 
 

@@ -2,22 +2,31 @@ import os
 import logging
 import re
 import openai
-from openai import OpenAI
-from elasticsearch import Elasticsearch
+from azure.search.documents import SearchClient
+from azure.core.credentials import AzureKeyCredential
 import random
 from dotenv import load_dotenv
-from openai import OpenAI
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=openai.api_key)
 
-# Configurar el índice en Elasticsearch
+# Configurar el cliente de OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai
+
+# Configurar el cliente de Azure Cognitive Search
+SEARCH_SERVICE_ENDPOINT = os.getenv("SEARCH_SERVICE_ENDPOINT")
+SEARCH_API_KEY = os.getenv("SEARCH_API_KEY")
 INDEX_NAME = "exam_questions_sel"
 
+# Crear cliente de Azure Cognitive Search
+search_client = SearchClient(
+    endpoint=SEARCH_SERVICE_ENDPOINT,
+    index_name=INDEX_NAME,
+    credential=AzureKeyCredential(SEARCH_API_KEY)
+)
+
+# Función para procesar preguntas
 def process_questions(response_text):
     questions = []
-
-    # Dividir el texto en bloques que representen preguntas
     question_blocks = re.split(r"(\*\*Pregunta|\bPregunta\b|\bPregunta \d+\b|Pregunta\s+\d+:)", response_text, flags=re.IGNORECASE)
 
     for i in range(1, len(question_blocks), 2):
@@ -43,7 +52,6 @@ def process_questions(response_text):
     print(f"Preguntas procesadas correctamente: {len(questions)}")
     return questions
 
-
 # Función para generar preguntas con GPT-4o-mini
 def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatura):
     system_text = f"""Eres un asistente que genera preguntas de opción múltiple para el segmento {segmento_asignatura} de la asignatura {asignatura}. 
@@ -51,7 +59,7 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
 
     human_text = f"Genera preguntas sobre el segmento {segmento_asignatura} de la asignatura {asignatura} a partir del contenido del PDF:\n{pdf_content}"
 
-    response = client.chat.completions.create(
+    response = client.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_text},
@@ -61,37 +69,26 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
         temperature=0.7
     )
 
-    response_text = response.choices[0].message.content.strip()
+    response_text = response.choices[0].message["content"].strip()
     questions = process_questions(response_text)
     return questions
 
-
-# Función para recuperar documentos de Elasticsearch
-def retrieve_documents(query, es, index_name, num_docs=20):
-    search_query = {
-        "query": {
-            "match": {
-                "content": query
-            }
-        },
-        "size": num_docs
-    }
-    
+# Función para recuperar documentos de Azure Cognitive Search
+def retrieve_documents(query, search_client, num_docs=20):
     try:
-        response = es.search(index=index_name, body=search_query)
+        response = search_client.search(search_text=query, top=num_docs)
         documents = [
             {
-                "page_content": hit["_source"].get("content", ""),
-                "metadata": hit["_source"].get("metadata", {})
+                "page_content": result["content"],
+                "metadata": result.get("metadata", {})
             }
-            for hit in response["hits"]["hits"]
+            for result in response
         ]
         random.shuffle(documents)
         return documents[:5]
     except Exception as e:
         logging.error(f"Error al recuperar documentos: {e}")
         return []
-
 
 # Función para extraer contexto relevante de los documentos recuperados
 def extract_relevant_context(documents, max_length=1000):
@@ -105,37 +102,13 @@ def extract_relevant_context(documents, max_length=1000):
             relevant_text.append(sentence.strip())
     return '. '.join(relevant_text)[:max_length]
 
-
 # Función para verificar si la respuesta del usuario es correcta
 def check_answer(question, user_answer):
-    """
-    Evalúa la respuesta del usuario a una pregunta de opción múltiple, determina la respuesta correcta
-    utilizando GPT-4o-mini y proporciona una explicación detallada.
-
-    Args:
-        question (dict): Diccionario que contiene la pregunta y las opciones. Ejemplo:
-                         {
-                             "question": "¿Cuál es la derivada de $f(x) = x^2$?",
-                             "choices": [
-                                 "A. $2x$",
-                                 "B. $x$",
-                                 "C. $x^2$",
-                                 "D. $2$",
-                                 "E. Ninguna de las anteriores"
-                             ]
-                         }
-        user_answer (str): Respuesta proporcionada por el usuario (por ejemplo, "A").
-
-    Returns:
-        tuple: Una tupla que contiene el estado ("correct", "incorrect", "error"), la explicación, y el texto de la respuesta correcta.
-    """
     try:
-        # Preparar el contenido de la pregunta y las opciones
-        question_text = question["question"].replace("{", "{{").replace("}", "}}") 
+        question_text = question["question"].replace("{", "{{").replace("}", "}}")
         question_text = question_text.replace("$", "\\(").replace("$", "\\)")
 
-        # Formatear las opciones y escapar las llaves
-        options = "\n".join([f"{chr(65 + i)}. {choice.replace('{', '{{').replace('}', '}}')}" 
+        options = "\n".join([f"{chr(65 + i)}. {choice.replace('{', '{{').replace('}', '}}')}"
                              for i, choice in enumerate(question["choices"])])
 
         system_correct = (
@@ -145,7 +118,7 @@ def check_answer(question, user_answer):
 
         human_correct = f"Question: {question_text}\n\nOptions:\n{options}"
 
-        response_correct = client.chat.completions.create(
+        response_correct = client.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_correct},
@@ -153,7 +126,7 @@ def check_answer(question, user_answer):
             ]
         )
 
-        correct_answer = response_correct.choices[0].message.content.strip()
+        correct_answer = response_correct.choices[0].message["content"].strip()
 
         system_explanation = (
             "You are an assistant that provides a detailed explanation of why an answer is correct or incorrect."
@@ -161,7 +134,7 @@ def check_answer(question, user_answer):
 
         human_explanation = f"Question: {question_text}\nCorrect Answer: {correct_answer}"
 
-        response_explanation = client.chat.completions.create(
+        response_explanation = client.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_explanation},
@@ -169,7 +142,7 @@ def check_answer(question, user_answer):
             ]
         )
 
-        explanation = response_explanation.choices[0].message.content.strip()
+        explanation = response_explanation.choices[0].message["content"].strip()
 
         if user_answer.lower() in correct_answer.lower():
             return "correct", explanation, correct_answer
