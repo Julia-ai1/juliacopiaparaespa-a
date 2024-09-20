@@ -905,6 +905,7 @@ def format_solutions(solutions_text):
 
  # Ajusta los modelos según tu aplicación
 import random
+import urllib.parse
 search_client1 = SearchClient(
     endpoint=SEARCH_SERVICE_ENDPOINT,
     index_name="exam_questions_sel",
@@ -915,9 +916,16 @@ def generate_exam():
     asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
-    # Recuperar documentos relevantes usando el segmento ingresado con Azure Cognitive Search
-    print(f"Recuperando documentos para el segmento: {segmento}")
-    relevant_docs = retrieve_documents(segmento, search_client1, 20)  # Pasamos search_client como segundo parámetro
+    # Construir la consulta de búsqueda
+    # "preguntas sobre {segmento} del examen de {asignatura}"
+    # Escapar caracteres especiales para evitar inyección de consultas
+    segmento_escapado = urllib.parse.quote(segmento)
+    asignatura_escapada = urllib.parse.quote(asignatura)
+    query = f"preguntas sobre {segmento_escapado} del examen de {asignatura_escapada}"
+
+    # Recuperar documentos relevantes
+    print(f"Generando examen con la consulta: {query}")
+    relevant_docs = retrieve_documents(query, search_client, num_docs=5)
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
         return jsonify({"error": "No se recuperaron documentos."})

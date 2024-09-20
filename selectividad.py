@@ -74,21 +74,35 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
     return questions
 
 # Función para recuperar documentos de Azure Cognitive Search
+import random
+
 def retrieve_documents(query, search_client, num_docs=20):
+    """
+    Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada.
+
+    Args:
+        query (str): La consulta de búsqueda.
+        search_client (SearchClient): Instancia del cliente de búsqueda de Azure.
+        num_docs (int, optional): Número máximo de documentos a recuperar. Por defecto es 20.
+
+    Returns:
+        list: Lista de documentos recuperados con contenido y metadatos.
+    """
     try:
         response = search_client.search(search_text=query, top=num_docs)
         documents = [
             {
-                "page_content": result["content"],
+                "page_content": result.get("content", ""),
                 "metadata": result.get("metadata", {})
             }
             for result in response
         ]
         random.shuffle(documents)
-        return documents[:5]
+        return documents[:5]  # Retorna 5 documentos aleatorios de los recuperados
     except Exception as e:
-        logging.error(f"Error al recuperar documentos: {e}")
+        print(f"Error al recuperar documentos: {e}")
         return []
+
 
 # Función para extraer contexto relevante de los documentos recuperados
 def extract_relevant_context(documents, max_length=1000):
