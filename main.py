@@ -112,6 +112,77 @@ def normalize_pdf_id(filename):
     # Reemplaza cualquier carácter no permitido por un guion bajo o guion
     return re.sub(r'[^A-Za-z0-9_\-]', '_', filename)
 
+# Modifica la lógica de subida del PDF
+@app.route('/upload_pdf', methods=['POST'])
+def upload_pdf():
+    try:
+        # Verificar si se ha enviado el archivo PDF
+        if 'pdfFile' not in request.files:
+            print("No se ha seleccionado ningún archivo.")
+            return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
+
+        pdf_file = request.files['pdfFile']
+        user_id = current_user.id
+
+        print(f"Archivo recibido: {pdf_file.filename}")
+        print(f"Usuario: {user_id}")
+
+        # Guardar el PDF temporalmente
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            temp_pdf.write(pdf_file.read())
+            temp_pdf_path = temp_pdf.name
+
+        print(f"Archivo temporal guardado en: {temp_pdf_path}")
+
+        # Normalizar el nombre del archivo para que sea una clave válida en Azure Search
+        pdf_id = normalize_pdf_id(secure_filename(pdf_file.filename))
+        print(f"Nombre del archivo normalizado para Azure Search (pdf_id): {pdf_id}")
+
+        # Subir el PDF por páginas a Azure Search
+        extract_and_store_in_azure_search(temp_pdf_path, pdf_id, user_id)
+
+        # Eliminar el archivo temporal
+        os.remove(temp_pdf_path)
+        print("Archivo temporal eliminado.")
+
+        return jsonify({"message": "PDF subido y procesado correctamente", "pdf_id": pdf_id}), 200
+    
+    except Exception as e:
+        print(f"Error durante la carga del PDF: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/get_pdfs', methods=['GET'])
+def get_pdfs():
+    try:
+        # Obtener el user_id desde los parámetros de la solicitud
+        user_id = current_user.id
+
+        if not user_id:
+            return jsonify({'error': 'El user_id es necesario para filtrar los PDFs'}), 400
+
+        # Realizar una consulta para obtener documentos en Azure AI Search filtrados por user_id
+        search_results = search_client.search(search_text="*", filter=f"user_id eq '{user_id}'", top=100)
+
+        # Crear un diccionario para almacenar los documentos únicos por pdf_id (nombre principal)
+        pdfs = {}
+
+        for result in search_results:
+            # Agrupar por 'pdf_id' para mostrar solo el nombre principal del documento
+            pdf_id = result.get('pdf_id', 'Desconocido')
+            if pdf_id not in pdfs:
+                pdfs[pdf_id] = {
+                    'name': pdf_id,  # Usar el 'pdf_id' como el nombre del documento principal
+                    'id': pdf_id  # El ID principal del PDF
+                }
+
+        # Convertir a lista para enviar al frontend
+        return jsonify({'pdfs': list(pdfs.values())})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # Función para verificar si el archivo es un PDF
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -130,24 +201,26 @@ def extract_pdf_content(pdf_path):
 
 
 @app.route('/ask_question', methods=['POST'])
+@login_required
 def ask_question():
     question = request.form.get('question')
     pdf_id = request.form.get('pdf_id')  # El `pdf_id` ahora se usa para agrupar fragmentos.
+    user_id = current_user.id  # Obtener el `user_id` del usuario autenticado.
 
     if not pdf_id or not question:
         return jsonify({"error": "No se ha proporcionado un ID de PDF válido o la pregunta está vacía."}), 400
 
     try:
-        # Realizar una búsqueda en Azure Cognitive Search para obtener fragmentos relevantes basados en `pdf_id` y `question`
+        # Realizar una búsqueda en Azure Cognitive Search para obtener fragmentos relevantes basados en `pdf_id`, `user_id`, y `question`
         results = search_client.search(
             search_text=question,  # El texto de la pregunta
-            filter=f"pdf_id eq '{pdf_id}'",  # Filtrar por `pdf_id` para obtener los fragmentos del documento correcto
+            filter=f"pdf_id eq '{pdf_id}' and user_id eq '{user_id}'",  # Filtrar por `pdf_id` y `user_id` para obtener solo los fragmentos del usuario autenticado
             top=10  # Limitar a los primeros 10 fragmentos relevantes
         )
 
         # Extraer los fragmentos relevantes
         fragments = [doc['content'] for doc in results]
-        
+
         if not fragments:
             return jsonify({"answer": "No se encontraron fragmentos relevantes para esta pregunta."}), 200
 
@@ -213,102 +286,52 @@ def test_pdf_page():
     return render_template('pdftest.html')
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# Ruta para subir PDF con `user_id` autenticado
-@app.route('/upload_pdf', methods=['POST'])
-@login_required
-def upload_pdf():
-    try:
-        # Verificar si se ha enviado el archivo PDF
-        if 'pdfFile' not in request.files:
-            return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
-
-        pdf_file = request.files['pdfFile']
-        user_id = current_user.id  # Asociar el archivo al `user_id` del usuario autenticado
-
-        # Guardar el PDF temporalmente
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-            temp_pdf.write(pdf_file.read())
-            temp_pdf_path = temp_pdf.name
-
-        # Normalizar el nombre del archivo
-        pdf_id = normalize_pdf_id(secure_filename(pdf_file.filename))
-
-        # Subir el PDF a Azure Search, vinculándolo al `user_id`
-        extract_and_store_in_azure_search(temp_pdf_path, pdf_id, user_id)
-
-        # Eliminar el archivo temporal
-        os.remove(temp_pdf_path)
-
-        return jsonify({"message": "PDF subido y procesado correctamente", "pdf_id": pdf_id}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Ruta para obtener los PDFs asociados solo al usuario autenticado
-@app.route('/get_pdfs', methods=['GET'])
-@login_required
-def get_pdfs():
-    try:
-        user_id = current_user.id  # Solo mostrar documentos del usuario autenticado
-
-        # Realizar una consulta en Azure AI Search para obtener los documentos filtrados por `user_id`
-        search_results = search_client.search(search_text="*", filter=f"user_id eq '{user_id}'", top=100)
-
-        pdfs = {}
-        for result in search_results:
-            pdf_id = result.get('pdf_id', 'Desconocido')
-            if pdf_id not in pdfs:
-                pdfs[pdf_id] = {
-                    'name': pdf_id,
-                    'id': pdf_id
-                }
-
-        return jsonify({'pdfs': list(pdfs.values())})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Helper Functions
-def normalize_pdf_id(filename):
-    import re
-    return re.sub(r'[^A-Za-z0-9_\-]', '_', filename)
+# Función modificada para extraer texto del PDF e indexarlo en Chroma
+from PyPDF2 import PdfReader
 
 def extract_and_store_in_azure_search(filepath, filename, user_id):
-    from PyPDF2 import PdfReader
     logging.info(f"Iniciando la indexación del archivo por páginas: {filename}")
-    
+
+    # Leer el contenido completo del PDF
     reader = PdfReader(filepath)
+
+    # Iterar sobre cada página del PDF
     for page_number, page in enumerate(reader.pages):
+        # Extraer el contenido de la página
         pdf_text = page.extract_text()
+
+        # Crear un documento por cada página con un fragment_id único
         document = {
-            "pdf_id": filename,
-            "fragment_id": f"{filename}_page_{page_number}",
-            "content": pdf_text[:2000],
+            "pdf_id": filename,  # ID principal del PDF, compartido por todas las páginas
+            "fragment_id": f"{filename}_page_{page_number}",  # ID único para cada página
+            "content": pdf_text[:2000],  # Limitar el contenido de cada página si es necesario
             "user_id": user_id,
             "page_number": page_number
         }
+
+        # Imprimir el documento para verificar su estructura
+        logging.info(f"Documento a subir a Azure Search: {document}")
+
+        # Subir el fragmento de la página a Azure Search
         try:
-            search_client.upload_documents(documents=[document])
+            result = search_client.upload_documents(documents=[document])
             logging.info(f"Página {page_number} del documento {filename} subida correctamente.")
         except Exception as e:
-            logging.error(f"Error al subir la página {page_number}: {e}")
+            logging.error(f"Error al subir la página {page_number} del documento {filename}: {e}")
             return None
-        
+
+
 # Ruta para subir y procesar un PDF
 @app.route('/upload_pdf_test', methods=['POST'])
-@login_required
 def upload_pdf_test():
     try:
         # Verificar si se ha enviado el archivo PDF
         if 'pdfFile' not in request.files:
+            print("No se ha seleccionado ningún archivo.")
             return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
 
         pdf_file = request.files['pdfFile']
-        user_id = current_user.id  # Asociar el archivo al `user_id` del usuario autenticado
+        user_id = request.form.get('user_id', 'default_user')
 
         print(f"Archivo recibido: {pdf_file.filename}")
         print(f"Usuario: {user_id}")
@@ -332,12 +355,12 @@ def upload_pdf_test():
         print("Archivo temporal eliminado.")
 
         return jsonify({"message": "PDF subido y procesado correctamente", "pdf_id": pdf_id}), 200
-
+    
     except Exception as e:
         print(f"Error durante la carga del PDF: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
 import random
+
 
 # Ruta para generar preguntas basadas en el PDF
 import openai
