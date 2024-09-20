@@ -927,37 +927,43 @@ def generate_exam():
     asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
-    # Construir la consulta de búsqueda
-    # "preguntas sobre {segmento} del examen de {asignatura}"
-    # Escapar caracteres especiales para evitar inyección de consultas
-    segmento_escapado = urllib.parse.quote(segmento)
-    asignatura_escapada = urllib.parse.quote(asignatura)
-    query = f"preguntas sobre {segmento_escapado} del examen de {asignatura_escapada}"
-
-    # Recuperar documentos relevantes
-    print(f"Generando examen con la consulta: {query}")
-    relevant_docs = retrieve_documents(query, search_client1, num_docs=100)
+    query = segmento
+    print(f"Generando examen con la consulta: '{query}' y asignatura: '{asignatura}'")
+    relevant_docs = retrieve_documents(
+        query=query,
+        search_client=search_client,
+        asignatura=asignatura,
+        num_docs=100
+    )
+    
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
-        return jsonify({"error": "No se recuperaron documentos."})
-
+        return jsonify({"error": "No se recuperaron documentos."}), 404
+    
     # Extraer contexto relevante de los documentos recuperados
     context = extract_relevant_context(relevant_docs)
-    print(f"Contexto extraído: {context[:500]}")  # Muestra el contenido del contexto extraído
-
+    print(f"Contexto extraído: {context[:500]}")  # Muestra los primeros 500 caracteres del contexto extraído
+    
     results = []
     reintentos = 0
     max_reintentos = 5
     questions_generated = 0
-
+    
     while questions_generated < num_items and reintentos < max_reintentos:
         try:
-            # Crear el prompt para GPT-4o-mini o el modelo que estés usando
-            system_text = f"Eres un asistente que genera preguntas para el segmento {segmento} de la asignatura {asignatura}, con el suficiente contexto para poder resolverlas."
-            human_text = f"Genera {num_items} preguntas con sus opciones con estructura similar a la del siguiente contenido:\n{context}, pero en los ejercicios , no en los enunciados, y debe tener el suficiente contexto para poder resolverlas. Debe tratar sobre el {segmento}. Si no encuentra documentos relevantes, usa conocimientos generales."
-
+            # Crear el prompt para el modelo de lenguaje
+            system_text = (
+                f"Eres un asistente que genera preguntas para el segmento '{segmento}' "
+                f"de la asignatura '{asignatura}', con el suficiente contexto para poder resolverlas."
+            )
+            human_text = (
+                f"Genera {num_items} preguntas con sus opciones con estructura similar a la del siguiente contenido:\n"
+                f"{context}, pero en los ejercicios, no en los enunciados, y debe tener el suficiente contexto para poder resolverlas. "
+                f"Debe tratar sobre el segmento '{segmento}'. Si no encuentra documentos relevantes, usa conocimientos generales."
+            )
+    
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o-mini",  # Asegúrate de que este modelo esté disponible y correctamente configurado
                 messages=[
                     {"role": "system", "content": system_text},
                     {"role": "user", "content": human_text}
@@ -965,25 +971,25 @@ def generate_exam():
                 max_tokens=2000,
                 temperature=0.7
             )
-
+    
             # Procesar las preguntas generadas
             questions = process_questions(response.choices[0].message.content)
             print(f"Preguntas generadas: {questions}")
-
+    
             # Validar y almacenar las preguntas generadas
             valid_questions = [q for q in questions if validate_question(q)]
             results.extend(valid_questions)
             questions_generated = len(results)
-
+    
             if questions_generated < num_items:
                 reintentos += 1
         except Exception as e:
             print(f"Error generando preguntas: {e}")
             reintentos += 1
-
+    
     if questions_generated < num_items:
         print(f"Advertencia: No se generaron suficientes preguntas ({questions_generated}/{num_items}).")
-
+    
     # Guardar las preguntas en la base de datos
     for question in results:
         print(f"Pregunta guardada: {question}")  # Imprimir las preguntas antes de guardarlas
@@ -994,14 +1000,13 @@ def generate_exam():
             topic=segmento
         )
         db.session.add(user_question)
-
+    
     # Confirmar la inserción de las preguntas
     db.session.commit()
     current_user.increment_questions()
-
+    
     # Renderizar el template con las preguntas generadas
     return render_template('quiz.html', questions=results)
-
 
 # Función para validar preguntas
 def validate_question(question):
