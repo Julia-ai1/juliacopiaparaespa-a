@@ -331,7 +331,7 @@ def upload_pdf_test():
             return jsonify({"error": "No se ha seleccionado ningún archivo."}), 400
 
         pdf_file = request.files['pdfFile']
-        user_id = request.form.get('user_id', 'default_user')
+        user_id = current_user.id
 
         print(f"Archivo recibido: {pdf_file.filename}")
         print(f"Usuario: {user_id}")
