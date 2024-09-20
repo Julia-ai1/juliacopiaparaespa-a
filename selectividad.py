@@ -122,17 +122,35 @@ def retrieve_documents(query, search_client, num_docs=100):
         print(f"Error al recuperar documentos: {e}")
         return []
 
-# Función para extraer contexto relevante de los documentos recuperados
 def extract_relevant_context(documents, max_length=1000):
+    """
+    Extrae un contexto relevante de los documentos recuperados, limitando el tamaño total a max_length.
+    
+    Args:
+        documents (list): Lista de documentos recuperados, cada uno con un campo 'page_content'.
+        max_length (int, optional): Longitud máxima del texto a extraer. Por defecto es 1000 caracteres.
+    
+    Returns:
+        str: Texto relevante extraído de los documentos, limitado a max_length caracteres.
+    """
     relevant_text = []
+    
     for doc in documents:
-        content = doc['page_content']
-        sentences = content.split('.')
-        for sentence in sentences:
-            if len('. '.join(relevant_text)) >= max_length:
-                return '. '.join(relevant_text)[:max_length]
-            relevant_text.append(sentence.strip())
+        # Verifica que el documento tiene el campo 'page_content'
+        if 'page_content' in doc:
+            content = doc['page_content']
+            
+            # Asegúrate de que el contenido sea una cadena de texto
+            if isinstance(content, str):
+                sentences = content.split('.')
+                for sentence in sentences:
+                    if len('. '.join(relevant_text)) >= max_length:
+                        return '. '.join(relevant_text)[:max_length]
+                    relevant_text.append(sentence.strip())
+    
+    # Retorna el texto relevante limitado a max_length caracteres
     return '. '.join(relevant_text)[:max_length]
+
 
 # Función para verificar si la respuesta del usuario es correcta
 def check_answer(question, user_answer):
