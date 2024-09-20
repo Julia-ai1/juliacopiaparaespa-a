@@ -76,7 +76,7 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
 # Función para recuperar documentos de Azure Cognitive Search
 import random
 
-def retrieve_documents(query, search_client, num_docs=20):
+def retrieve_documents(query, search_client, num_docs=100):
     """
     Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada.
 

@@ -936,7 +936,7 @@ def generate_exam():
 
     # Recuperar documentos relevantes
     print(f"Generando examen con la consulta: {query}")
-    relevant_docs = retrieve_documents(query, search_client1, num_docs=5)
+    relevant_docs = retrieve_documents(query, search_client1, num_docs=100)
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
         return jsonify({"error": "No se recuperaron documentos."})
@@ -954,7 +954,7 @@ def generate_exam():
         try:
             # Crear el prompt para GPT-4o-mini o el modelo que estés usando
             system_text = f"Eres un asistente que genera preguntas para el segmento {segmento} de la asignatura {asignatura}, con el suficiente contexto para poder resolverlas."
-            human_text = f"Genera {num_items} preguntas con sus opciones basadas en el siguiente contenido:\n{context}, pero en los ejercicios , no en los enunciados, y debe tener el suficiente contexto para poder resolverlas."
+            human_text = f"Genera {num_items} preguntas con sus opciones con estructura similar a la del siguiente contenido:\n{context}, pero en los ejercicios , no en los enunciados, y debe tener el suficiente contexto para poder resolverlas. Debe tratar sobre el {segmento}. Si no encuentra documentos relevantes, usa conocimientos generales."
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
