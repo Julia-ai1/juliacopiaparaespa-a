@@ -931,7 +931,7 @@ def generate_exam():
     print(f"Generando examen con la consulta: '{query}' y asignatura: '{asignatura}'")
     relevant_docs = retrieve_documents(
         query=query,
-        search_client=search_client,
+        search_client=search_client1,
         asignatura=asignatura,
         num_docs=100
     )
