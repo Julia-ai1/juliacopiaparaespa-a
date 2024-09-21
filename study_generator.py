@@ -30,14 +30,21 @@ def custom_regex_splitter(text, pattern):
     # Lista para almacenar los documentos
     documents = []
     
+    # Si no hay coincidencias, retornar todo el texto como un solo chunk
+    if not splits:
+        documents.append(Document(page_content=text))
+        return documents
+    
     # Iterar sobre las coincidencias y extraer los chunks
     for i in range(len(splits)):
         start = splits[i].start()
         end = splits[i+1].start() if i+1 < len(splits) else len(text)
-        chunk = text[start:end]
-        documents.append(Document(page_content=chunk))
+        chunk = text[start:end].strip()
+        if chunk:  # Asegurarse de no añadir chunks vacíos
+            documents.append(Document(page_content=chunk))
     
     return documents
+
 
 
 def extract_text_from_pdf(pdf_path):
@@ -51,8 +58,8 @@ def extract_text_from_pdf(pdf_path):
     # Unir todo el texto del PDF
     full_text = "\n".join([doc.page_content for doc in documents])
 
-    # Definir el patrón regex para los títulos de los temas
-    regex_pattern = r'^Tema\s+\d+\.\s+.*'  # Ajusta este patrón según tu PDF
+    # Definir el patrón regex genérico para los títulos de los temas
+    regex_pattern = r'^(Unidad|Tema|Capítulo|Sección|Lección)\s+\d+(\.\d+)*[:.]\s+.*'
 
     # Usar el splitter personalizado
     chunks = custom_regex_splitter(full_text, regex_pattern)
@@ -63,6 +70,7 @@ def extract_text_from_pdf(pdf_path):
         print(f"Chunk {i}: {first_line}")
 
     return chunks
+
 
 
 
@@ -252,20 +260,35 @@ def generate_study_guide_from_content(content, student_profile=None):
     # Imprimir el prompt para depuración
     print(f"Generando guía con el siguiente prompt:\n{prompt}")
 
-    response = chat.invoke(prompt)
-    guide_text = response.content if hasattr(response, 'content') else 'No se pudo generar la guía.'
+    try:
+        response = chat.invoke(prompt)
+        if hasattr(response, 'content'):
+            guide_text = response.content.strip()
+            if not guide_text:
+                raise ValueError("La respuesta del modelo está vacía.")
+        else:
+            raise ValueError("La respuesta del modelo no contiene 'content'.")
 
-    # Imprimir la respuesta del modelo
-    print(f"Respuesta del modelo:\n{guide_text}")
+        # Imprimir la respuesta del modelo
+        print(f"Respuesta del modelo:\n{guide_text}")
 
-    return {
-        'guide': guide_text,
-        'progress': [True],  # Actualiza según corresponda
-        'guide_content': [guide_text],  # Actualiza según corresponda
-        'current_chunk_index': 0,  # Actualiza según corresponda
-        'total_chunks': 1  # Actualiza según corresponda
-    }
-
+        return {
+            'guide': guide_text,
+            'progress': [True],  # Actualiza según corresponda
+            'guide_content': [guide_text],  # Actualiza según corresponda
+            'current_chunk_index': 0,  # Actualiza según corresponda
+            'total_chunks': 1  # Actualiza según corresponda
+        }
+    except Exception as e:
+        print(f"Error al generar la guía de estudio: {e}")
+        logger.error(f"Error al generar la guía de estudio: {e}")
+        return {
+            'guide': 'Error al generar la guía de estudio.',
+            'progress': [False],
+            'guide_content': [None],
+            'current_chunk_index': 0,
+            'total_chunks': 1
+        }
 
 # study_generator.py
 
