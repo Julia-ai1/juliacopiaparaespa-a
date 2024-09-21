@@ -78,21 +78,59 @@
             margin-bottom: 20px;
             font-size: 1rem;
             line-height: 1.6;
+            max-width: 80%;
         }
 
         .user {
             background-color: #e0e7ff;
             align-self: flex-end;
+            margin-left: auto;
         }
 
         .assistant {
             background-color: #f3f4f6;
             align-self: flex-start;
+            margin-right: auto;
         }
 
         .error {
             background-color: #fee2e2;
             color: #b91c1c;
+        }
+
+        .message strong {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .message pre {
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            padding: 10px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+        }
+
+        .message code {
+            background-color: #e2e8f0;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+        }
+
+        .message img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        #messages {
+            display: flex;
+            flex-direction: column;
         }
     </style>
 </head>
@@ -235,16 +273,18 @@
         }
 
         function appendMessage(sender, text, type) {
-        const messagesDiv = document.getElementById('messages');
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', type);
-        
-        // Reemplaza los saltos de línea en el texto para que sean visibles en HTML
-        const formattedText = text.replace(/\n/g, '<br>');
-        
-        messageDiv.innerHTML = `<strong>${sender}:</strong> ${formattedText}`;
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', type);
+            
+            // Procesar el texto para manejar código y fórmulas
+            const processedText = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+                                      .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                      .replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `<strong>${sender}:</strong>${processedText}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
         // Función para mostrar mensajes con imágenes
