@@ -943,13 +943,13 @@ def retrieve_documents2(query, search_client, num_docs=100):
         response = search_client1.search(
             search_text=query,                 
             top=num_docs,
-            query_type=QueryType.SIMPLE,      # Usa consultas simples para probar
+            query_type=QueryType.FULL,      # Usa consultas simples para probar
             search_mode=SearchMode.ANY,       # Cambia a ANY para obtener más coincidencias
             include_total_count=True
         )
         
         print("Response completo:")
-        print(response.raw_results)  # Imprime el resultado crudo para ver los detalles
+        print(response)  # Imprime el resultado crudo para ver los detalles
         
         documents = []
         for result in response:
