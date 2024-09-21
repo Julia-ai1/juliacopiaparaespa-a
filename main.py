@@ -1201,7 +1201,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Ruta para servir la página de la guía de estudio
 @app.route('/study_guide_page')
@@ -1214,13 +1214,13 @@ def study_guide_page():
 @login_required
 def get_pdf_topics():
     if 'file' not in request.files:
-        print("No se encontró un archivo PDF en la solicitud.")
+        logger.info("No se encontró un archivo PDF en la solicitud.")
         return jsonify({"error": "No se encontró un archivo PDF"}), 400
 
     file = request.files['file']
     filename = secure_filename(file.filename)
     if filename == '':
-        print("No se seleccionó ningún archivo.")
+        logger.info("No se seleccionó ningún archivo.")
         return jsonify({"error": "No se seleccionó un archivo"}), 400
 
     try:
@@ -1231,41 +1231,40 @@ def get_pdf_topics():
             topics = extract_topics_from_pdf(pdf_path)
             
             # Imprimir los temas extraídos
-            print(f"Temas extraídos del PDF {filename}: {topics}")
+            logger.info(f"Temas extraídos del PDF {filename}: {topics}")
 
             return jsonify({"topics": topics})
 
     except Exception as e:
         traceback.print_exc()
-        print(f"Error al extraer temas del PDF: {e}")
+        logger.error(f"Error al extraer temas del PDF: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Ruta para iniciar el estudio con los temas seleccionados
 # main.py
 
 @app.route('/start_study', methods=['POST'])
-@pro_required
 @login_required
 def start_study():
     if 'file' not in request.files:
-        print("No se encontró un archivo PDF en la solicitud.")
+        logger.info("No se encontró un archivo PDF en la solicitud.")
         return jsonify({"error": "No se encontró un archivo PDF"}), 400
 
     file = request.files['file']
     filename = secure_filename(file.filename)
     if filename == '':
-        print("No se seleccionó ningún archivo.")
+        logger.info("No se seleccionó ningún archivo.")
         return jsonify({"error": "No se seleccionó un archivo"}), 400
 
     selected_topics_json = request.form.get('selected_topics', '[]')
     selected_topics = json.loads(selected_topics_json)
     
     # Imprimir los temas seleccionados
-    print(f"Temas seleccionados: {selected_topics}")
-    print(f"Contenido de selected_topics: {selected_topics}")
+    logger.info(f"Temas seleccionados: {selected_topics}")
+    logger.debug(f"Contenido de selected_topics: {selected_topics}")
 
     if not selected_topics:
-        print("No se seleccionaron temas.")
+        logger.info("No se seleccionaron temas.")
         return jsonify({"error": "No se seleccionaron temas"}), 400
 
     student_profile_json = request.form.get('student_profile', '{}')
@@ -1281,7 +1280,7 @@ def start_study():
             student_profile['interests'] = ['Matemáticas']
     
     # Imprimir el perfil del estudiante
-    print(f"Perfil del estudiante: {student_profile}")
+    logger.info(f"Perfil del estudiante: {student_profile}")
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1290,16 +1289,16 @@ def start_study():
 
             # Extraer los chunks del PDF
             pdf_chunks = extract_text_from_pdf(pdf_path)
-            print(f"Chunks extraídos del PDF: {len(pdf_chunks)}")
-            print(f"Contenido de pdf_chunks: {[chunk.page_content[:100] for chunk in pdf_chunks]}")  # Mostrar los primeros 100 caracteres de cada chunk
+            logger.info(f"Chunks extraídos del PDF: {len(pdf_chunks)}")
+            logger.debug(f"Contenido de pdf_chunks: {[chunk.page_content[:100] for chunk in pdf_chunks]}")  # Mostrar los primeros 100 caracteres de cada chunk
 
             # Filtrar los chunks que corresponden a los temas seleccionados
             selected_chunks = filter_chunks_by_topics(pdf_chunks, selected_topics)
-            print(f"Chunks seleccionados para los temas: {len(selected_chunks)}")
-            print(f"Contenido de selected_chunks: {[chunk.page_content[:100] for chunk in selected_chunks]}")  # Mostrar los primeros 100 caracteres
+            logger.info(f"Chunks seleccionados para los temas: {len(selected_chunks)}")
+            logger.debug(f"Contenido de selected_chunks: {[chunk.page_content[:100] for chunk in selected_chunks]}")  # Mostrar los primeros 100 caracteres
 
             if not selected_chunks:
-                print("No se encontraron secciones correspondientes a los temas seleccionados.")
+                logger.info("No se encontraron secciones correspondientes a los temas seleccionados.")
                 return jsonify({"error": "No se encontraron secciones correspondientes a los temas seleccionados."}), 400
 
             # Inicializar el progreso y el contenido generado
@@ -1313,7 +1312,7 @@ def start_study():
             guides = []
             for i, chunk in enumerate(selected_chunks):
                 if i >= len(selected_topics):
-                    print(f"Más chunks seleccionados que temas. Chunk index: {i}")
+                    logger.warning(f"Más chunks seleccionados que temas. Chunk index: {i}")
                     break
                 topic_title = selected_topics[i]
                 topic_content = extract_specific_topic_content(chunk, topic_title)
@@ -1321,7 +1320,7 @@ def start_study():
                     generated_guide = generate_study_guide_from_content(topic_content, student_profile)
                     guides.append(generated_guide)
                 else:
-                    print(f"No se pudo extraer el contenido para el tema: {topic_title}")
+                    logger.info(f"No se pudo extraer el contenido para el tema: {topic_title}")
 
             # Combinar las guías generadas
             combined_guide = {
@@ -1339,7 +1338,7 @@ def start_study():
 
     except Exception as e:
         traceback.print_exc()
-        print(f"Error al iniciar el estudio: {e}")
+        logger.error(f"Error al iniciar el estudio: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Ruta para obtener la siguiente sección de la guía
@@ -1350,14 +1349,14 @@ def next_section():
         selected_chunks, progress, guide_content = load_study_session(current_user.id)
 
         if selected_chunks is None:
-            print("No hay una sesión de estudio activa.")
+            logger.info("No hay una sesión de estudio activa.")
             return jsonify({"error": "No hay una sesión de estudio activa."}), 400
 
         # Determinar el siguiente chunk no completado
         next_chunk_index = next((i for i, completed in enumerate(progress) if not completed), None)
 
         if next_chunk_index is None:
-            print("Ya has completado todas las secciones.")
+            logger.info("Ya has completado todas las secciones.")
             return jsonify({"message": "Ya has completado todas las secciones."})
 
         chunk = selected_chunks[next_chunk_index]
@@ -1367,7 +1366,7 @@ def next_section():
 
         topic_content = extract_specific_topic_content(chunk, topic_title)
         if not topic_content:
-            print(f"No se pudo extraer el contenido para el tema: {topic_title}")
+            logger.info(f"No se pudo extraer el contenido para el tema: {topic_title}")
             return jsonify({"error": f"No se pudo extraer el contenido para el tema: {topic_title}"}), 400
 
         # Cargar el perfil del estudiante si es necesario
@@ -1375,7 +1374,7 @@ def next_section():
 
         # Generar la guía de estudio para el siguiente chunk
         generated_guide = generate_study_guide_from_content(topic_content, student_profile)
-        print(f"Siguiente sección generada: {generated_guide}")
+        logger.info(f"Siguiente sección generada: {generated_guide}")
 
         # Actualizar el progreso y el contenido generado
         progress[next_chunk_index] = True
@@ -1388,7 +1387,7 @@ def next_section():
 
     except Exception as e:
         traceback.print_exc()
-        print(f"Error al obtener la siguiente sección: {e}")
+        logger.error(f"Error al obtener la siguiente sección: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Ruta para marcar la sección actual como completada
@@ -1399,31 +1398,31 @@ def mark_section_complete():
         selected_chunks, progress, guide_content = load_study_session(current_user.id)
 
         if selected_chunks is None:
-            print("No hay una sesión de estudio activa.")
+            logger.info("No hay una sesión de estudio activa.")
             return jsonify({"error": "No hay una sesión de estudio activa."}), 400
 
         # Encontrar el índice del chunk actual
         current_chunk_index = next((i for i, completed in enumerate(progress) if not completed), None)
-        print(f"Índice del chunk actual: {current_chunk_index}")
+        logger.info(f"Índice del chunk actual: {current_chunk_index}")
 
         if current_chunk_index is not None:
             # Marcar el chunk actual como completado
             progress[current_chunk_index] = True
-            print(f"Marcar chunk {current_chunk_index} como completado.")
+            logger.info(f"Marcar chunk {current_chunk_index} como completado.")
 
             # Guardar el progreso actualizado
             save_study_session(current_user.id, selected_chunks, progress, guide_content)
 
             return jsonify({"status": "success"})
         else:
-            print("Ya has completado todas las secciones.")
+            logger.info("Ya has completado todas las secciones.")
             return jsonify({"message": "Ya has completado todas las secciones."})
 
     except Exception as e:
         traceback.print_exc()
-        print(f"Error al marcar la sección como completada: {e}")
+        logger.error(f"Error al marcar la sección como completada: {e}")
         return jsonify({"error": str(e)}), 500
-
+        
 # Ruta para descargar la guía completa en PDF
 from flask import send_file
 from io import BytesIO

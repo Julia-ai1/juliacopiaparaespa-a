@@ -1,3 +1,5 @@
+# study_generator.py
+
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.chat_models import ChatDeepInfra
@@ -8,23 +10,12 @@ from models import db, UserProgress
 from dotenv import load_dotenv
 import re
 from langchain.schema import Document  # Asegúrate de importar Document
-import unicodedata
 
 # Cargar variables de entorno
 load_dotenv()
 os.environ["DEEPINFRA_API_TOKEN"] = os.getenv("DEEPINFRA_API_TOKEN")
 
-# Función para normalizar texto
-def normalize_text(text):
-    """
-    Normaliza el texto eliminando acentos, mayúsculas y caracteres especiales.
-    """
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', text)
-        if unicodedata.category(c) != 'Mn'
-    ).lower().strip()
 
-# Función para dividir el texto basado en un patrón regex
 def custom_regex_splitter(text, pattern):
     """
     Divide el texto basado en el patrón regex proporcionado.
@@ -48,7 +39,7 @@ def custom_regex_splitter(text, pattern):
     
     return documents
 
-# Función para extraer texto del PDF y dividirlo en chunks
+
 def extract_text_from_pdf(pdf_path):
     """
     Función para extraer texto desde un PDF utilizando LangChain.
@@ -60,8 +51,8 @@ def extract_text_from_pdf(pdf_path):
     # Unir todo el texto del PDF
     full_text = "\n".join([doc.page_content for doc in documents])
 
-    # Definir un patrón regex más general para los títulos de los temas
-    regex_pattern = r'^(Tema|Unidad|Capítulo)\s+\d+[\.:]?\s+.*'
+    # Definir el patrón regex para los títulos de los temas
+    regex_pattern = r'^Tema\s+\d+\.\s+.*'  # Ajusta este patrón según tu PDF
 
     # Usar el splitter personalizado
     chunks = custom_regex_splitter(full_text, regex_pattern)
@@ -73,13 +64,11 @@ def extract_text_from_pdf(pdf_path):
 
     return chunks
 
-# Función para extraer los temas desde un PDF
-def extract_topics_from_pdf(pdf_path, max_tokens_per_chunk=4000):
+
+
+def extract_topics_from_pdf(pdf_path):
     """
-    Función para extraer los temas del PDF utilizando ChatDeepInfra con un límite en el contenido de los chunks.
-    
-    :param pdf_path: Ruta al archivo PDF.
-    :param max_tokens_per_chunk: Número máximo de tokens permitidos por chunk para el modelo. Default: 4000.
+    Función para extraer los temas del PDF utilizando ChatDeepInfra.
     """
     # Cargar el contenido del PDF
     loader = PyPDFLoader(pdf_path)
@@ -88,21 +77,17 @@ def extract_topics_from_pdf(pdf_path, max_tokens_per_chunk=4000):
     # Unir todo el texto del PDF
     full_text = "\n".join([doc.page_content for doc in documents])
 
-    # Dividir el texto en trozos manejables para el modelo, respetando el límite de tokens
+    # Dividir el texto en trozos manejables para el modelo
     text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
     text_chunks = text_splitter.split_text(full_text)
 
     # Inicializar el modelo ChatDeepInfra
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=max_tokens_per_chunk)
+    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
 
     # Lista para almacenar los temas extraídos
     topics = []
 
     for chunk in text_chunks:
-        # Truncar el chunk si excede el número máximo de tokens
-        if len(chunk) > max_tokens_per_chunk:
-            chunk = chunk[:max_tokens_per_chunk]
-        
         # Crear el prompt para extraer los temas en formato JSON
         prompt = f"""
         Analiza el siguiente texto y extrae una lista de los temas o títulos principales que se abordan. Proporciona la lista en formato JSON (una lista de cadenas de texto), sin ninguna explicación adicional.
@@ -127,28 +112,74 @@ def extract_topics_from_pdf(pdf_path, max_tokens_per_chunk=4000):
             topics_chunk = response_text.strip().split('\n')
             topics.extend([topic.strip('- ').strip() for topic in topics_chunk if topic.strip()])
 
-    # Eliminar duplicados manteniendo el orden y limpiar comillas y espacios innecesarios
-    unique_topics = list(dict.fromkeys([topic.strip('"').strip() for topic in topics]))
+    # Eliminar duplicados manteniendo el orden
+    unique_topics = list(dict.fromkeys(topics))
 
     return unique_topics
 
-# Función para filtrar chunks por temas seleccionados
+
+def extract_specific_topic_content(selected_chunk, topic_title):
+    """
+    Extrae únicamente el contenido del tema especificado dentro de un chunk.
+    
+    :param selected_chunk: Objeto Document que contiene el texto del chunk.
+    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 2. Operaciones básicas").
+    :return: Texto filtrado que corresponde únicamente al tema seleccionado.
+    """
+    content = selected_chunk.page_content
+    lines = content.split('\n')
+    
+    start_index = None
+    end_index = None
+    
+    # Encontrar el inicio del tema seleccionado
+    for i, line in enumerate(lines):
+        if topic_title.lower() in line.lower():
+            start_index = i
+            break
+    
+    if start_index is None:
+        print(f"No se encontró el título del tema: {topic_title}")
+        return ""
+    
+    # Encontrar el inicio del siguiente tema para determinar el final
+    for i in range(start_index + 1, len(lines)):
+        # Asumimos que los siguientes temas también comienzan con "Tema"
+        if lines[i].strip().lower().startswith('tema '):
+            end_index = i
+            break
+    
+    # Extraer el contenido del tema seleccionado
+    if end_index:
+        topic_content = '\n'.join(lines[start_index:end_index])
+    else:
+        # Si no se encuentra otro tema, tomar todo el texto hasta el final del chunk
+        topic_content = '\n'.join(lines[start_index:])
+    
+    if not topic_content.strip():
+        print(f"No se pudo extraer el contenido del tema: {topic_title}")
+    else:
+        print(f"Contenido extraído para el tema {topic_title}:")
+        print(topic_content)
+    
+    return topic_content
+
+
 def filter_chunks_by_topics(chunks, selected_topics):
     """
     Función para filtrar los chunks que corresponden a los temas seleccionados.
     """
     filtered_chunks = []
     for chunk in chunks:
-        chunk_text_normalized = normalize_text(chunk.page_content)
         for topic in selected_topics:
-            topic_normalized = normalize_text(topic)
-            if topic_normalized in chunk_text_normalized:
+            if topic.lower() in chunk.page_content.lower():
                 print(f"Coincidencia encontrada: '{topic}' en chunk.")
                 filtered_chunks.append(chunk)
                 break
     return filtered_chunks
 
-# Función para generar una guía de estudio desde el contenido filtrado
+
+
 def generate_study_guide_from_content(content, student_profile=None):
     """
     Genera una guía de estudio a partir del contenido proporcionado.
@@ -237,58 +268,6 @@ def generate_study_guide_from_content(content, student_profile=None):
 
 
 # study_generator.py
-import re
-
-def extract_specific_topic_content(selected_chunk, topic_title):
-    """
-    Extrae únicamente el contenido del tema especificado dentro de un chunk.
-    
-    :param selected_chunk: Objeto Document que contiene el texto del chunk.
-    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 1. Números racionales").
-    :return: Texto filtrado que corresponde únicamente al tema seleccionado.
-    """
-    content = selected_chunk.page_content
-    lines = content.split('\n')
-    
-    # Normalizar el título del tema (eliminar espacios en blanco y convertir a minúsculas)
-    normalized_topic_title = normalize_text(topic_title)
-    
-    start_index = None
-    end_index = None
-    
-    # Crear un patrón regex para encontrar el inicio del tema
-    pattern = re.compile(rf'^{re.escape(normalized_topic_title)}', re.IGNORECASE)
-    
-    # Encontrar el inicio del tema seleccionado
-    for i, line in enumerate(lines):
-        if pattern.search(normalize_text(line)):
-            start_index = i
-            break
-    
-    if start_index is None:
-        print(f"No se encontró el título del tema: {topic_title}")
-        return ""
-
-    # Encontrar el inicio del siguiente tema o el final del chunk
-    for i in range(start_index + 1, len(lines)):
-        # Buscar el inicio del siguiente tema, considerando múltiples formatos posibles
-        if re.match(r'^(tema|unidad|capítulo|sección)\s+\d+', normalize_text(lines[i]), re.IGNORECASE):
-            end_index = i
-            break
-    
-    # Extraer el contenido del tema seleccionado
-    if end_index:
-        topic_content = '\n'.join(lines[start_index:end_index])
-    else:
-        # Si no se encuentra otro tema, tomar todo el texto hasta el final del chunk
-        topic_content = '\n'.join(lines[start_index:])
-    
-    if not topic_content.strip():
-        print(f"No se pudo extraer el contenido del tema: {topic_title}")
-    else:
-        print(f"Contenido extraído para el tema {topic_title}: {topic_content[:100]}...")  # Mostrar los primeros 100 caracteres
-    
-    return topic_content
 
 def save_study_session(user_id, selected_chunks, progress, guide_content):
     """
@@ -357,5 +336,3 @@ def load_study_session(user_id):
             return selected_chunks, progress_data, guide_content
         print(f"No se encontró una sesión de estudio para el usuario {user_id}.")
         return None, None, None
-
-
