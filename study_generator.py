@@ -237,6 +237,53 @@ def generate_study_guide_from_content(content, student_profile=None):
 
 
 # study_generator.py
+def extract_specific_topic_content(selected_chunk, topic_title):
+    """
+    Extrae únicamente el contenido del tema especificado dentro de un chunk.
+    
+    :param selected_chunk: Objeto Document que contiene el texto del chunk.
+    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 2. Operaciones básicas").
+    :return: Texto filtrado que corresponde únicamente al tema seleccionado.
+    """
+    content = selected_chunk.page_content
+    lines = content.split('\n')
+    
+    # Normalizar el título del tema
+    normalized_topic_title = normalize_text(topic_title)
+    
+    start_index = None
+    end_index = None
+    
+    # Encontrar el inicio del tema seleccionado
+    for i, line in enumerate(lines):
+        if normalize_text(line).startswith(normalized_topic_title):
+            start_index = i
+            break
+    
+    if start_index is None:
+        logger.info(f"No se encontró el título del tema: {topic_title}")
+        return ""
+    
+    # Encontrar el inicio del siguiente tema o el final del chunk
+    for i in range(start_index + 1, len(lines)):
+        # Asumimos que los siguientes temas también comienzan con "Tema", "Unidad", "Capítulo" o "Sección"
+        if normalize_text(lines[i]).startswith(('tema ', 'unidad ', 'capítulo ', 'sección ')):
+            end_index = i
+            break
+    
+    # Extraer el contenido del tema seleccionado
+    if end_index:
+        topic_content = '\n'.join(lines[start_index:end_index])
+    else:
+        # Si no se encuentra otro tema, tomar todo el texto hasta el final del chunk
+        topic_content = '\n'.join(lines[start_index:])
+    
+    if not topic_content.strip():
+        logger.info(f"No se pudo extraer el contenido del tema: {topic_title}")
+    else:
+        logger.info(f"Contenido extraído para el tema {topic_title}: {topic_content[:100]}...")  # Mostrar los primeros 100 caracteres
+    
+    return topic_content
 
 def save_study_session(user_id, selected_chunks, progress, guide_content):
     """
