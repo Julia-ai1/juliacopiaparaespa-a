@@ -917,6 +917,9 @@ def format_solutions(solutions_text):
  # Ajusta los modelos según tu aplicación
 import random
 import urllib.parse
+from azure.search.documents import SearchClient
+from azure.search.documents.models import QueryType, SearchMode
+
 search_client1 = SearchClient(
     endpoint=SEARCH_SERVICE_ENDPOINT,
     index_name="exam_questions_sel",
