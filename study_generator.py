@@ -261,7 +261,7 @@ def extract_specific_topic_content(selected_chunk, topic_title):
             break
     
     if start_index is None:
-        logger.info(f"No se encontró el título del tema: {topic_title}")
+        print(f"No se encontró el título del tema: {topic_title}")
         return ""
     
     # Encontrar el inicio del siguiente tema o el final del chunk
@@ -279,9 +279,9 @@ def extract_specific_topic_content(selected_chunk, topic_title):
         topic_content = '\n'.join(lines[start_index:])
     
     if not topic_content.strip():
-        logger.info(f"No se pudo extraer el contenido del tema: {topic_title}")
+        print(f"No se pudo extraer el contenido del tema: {topic_title}")
     else:
-        logger.info(f"Contenido extraído para el tema {topic_title}: {topic_content[:100]}...")  # Mostrar los primeros 100 caracteres
+        print(f"Contenido extraído para el tema {topic_title}: {topic_content[:100]}...")  # Mostrar los primeros 100 caracteres
     
     return topic_content
 
