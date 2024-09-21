@@ -237,37 +237,42 @@ def generate_study_guide_from_content(content, student_profile=None):
 
 
 # study_generator.py
+import re
+
 def extract_specific_topic_content(selected_chunk, topic_title):
     """
     Extrae únicamente el contenido del tema especificado dentro de un chunk.
     
     :param selected_chunk: Objeto Document que contiene el texto del chunk.
-    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 2. Operaciones básicas").
+    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 1. Números racionales").
     :return: Texto filtrado que corresponde únicamente al tema seleccionado.
     """
     content = selected_chunk.page_content
     lines = content.split('\n')
     
-    # Normalizar el título del tema
+    # Normalizar el título del tema (eliminar espacios en blanco y convertir a minúsculas)
     normalized_topic_title = normalize_text(topic_title)
     
     start_index = None
     end_index = None
     
+    # Crear un patrón regex para encontrar el inicio del tema
+    pattern = re.compile(rf'^{re.escape(normalized_topic_title)}', re.IGNORECASE)
+    
     # Encontrar el inicio del tema seleccionado
     for i, line in enumerate(lines):
-        if normalize_text(line).startswith(normalized_topic_title):
+        if pattern.search(normalize_text(line)):
             start_index = i
             break
     
     if start_index is None:
-        print(f"No se encontró el título del tema: {topic_title}")
+        logger.info(f"No se encontró el título del tema: {topic_title}")
         return ""
-    
+
     # Encontrar el inicio del siguiente tema o el final del chunk
     for i in range(start_index + 1, len(lines)):
-        # Asumimos que los siguientes temas también comienzan con "Tema", "Unidad", "Capítulo" o "Sección"
-        if normalize_text(lines[i]).startswith(('tema ', 'unidad ', 'capítulo ', 'sección ')):
+        # Buscar el inicio del siguiente tema, considerando múltiples formatos posibles
+        if re.match(r'^(tema|unidad|capítulo|sección)\s+\d+', normalize_text(lines[i]), re.IGNORECASE):
             end_index = i
             break
     
@@ -279,9 +284,9 @@ def extract_specific_topic_content(selected_chunk, topic_title):
         topic_content = '\n'.join(lines[start_index:])
     
     if not topic_content.strip():
-        print(f"No se pudo extraer el contenido del tema: {topic_title}")
+        logger.info(f"No se pudo extraer el contenido del tema: {topic_title}")
     else:
-        print(f"Contenido extraído para el tema {topic_title}: {topic_content[:100]}...")  # Mostrar los primeros 100 caracteres
+        logger.info(f"Contenido extraído para el tema {topic_title}: {topic_content[:100]}...")  # Mostrar los primeros 100 caracteres
     
     return topic_content
 
