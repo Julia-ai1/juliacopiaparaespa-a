@@ -953,25 +953,27 @@ def retrieve_documents2(query, search_client, num_docs=100):
         
         documents = []
         for result in response:
-            # Obtener todo el contenido del documento, excluyendo campos internos como @search.score
-            document = {k: v for k, v in result.items() if not k.startswith('@')}
-            
-            documents.append({
-                "page_content": document,        # Puedes renombrar o estructurar según tus necesidades
-                "metadata": result.get("metadata", {})  # Asegúrate de que 'metadata' exista
-            })
-            print("Documento añadido:", document)
+            # Asegurarse de que el documento tiene el campo 'content'
+            if 'content' in result:
+                content = result['content']  # Extraer el campo de texto principal
+                
+                documents.append({
+                    "page_content": content,  # Solo el contenido textual
+                    "metadata": result.get("metadata", {})  # Asegúrate de que 'metadata' exista
+                })
+                print("Documento añadido con contenido:", content)
 
         if not documents:
             print("No se encontraron documentos que coincidan con la búsqueda.")
             return []
         
-        # Retornar los documentos más relevantes sin aleatorizar
+        # Retornar los documentos más relevantes
         return documents[:5]  # Limita temporalmente para depurar
         
     except Exception as e:
         print(f"Error al recuperar documentos: {e}")
         return []
+
 
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
@@ -994,7 +996,7 @@ def generate_exam():
         return jsonify({"error": "No se recuperaron documentos."}), 404
     
     # Extraer contexto relevante de los documentos recuperados
-    context = relevant_docs
+    context = " ".join([doc['page_content'] for doc in relevant_docs])  # Concatenar el contenido textual
     print(f"Contexto extraído: {context[:500]}")  # Muestra los primeros 500 caracteres del contexto extraído
     
     results = []
@@ -1006,7 +1008,7 @@ def generate_exam():
         try:
             # Crear el prompt para el modelo de lenguaje
             system_text = (
-                f"Eres un asistente que genera preguntas para el segmento '{segmento}'de la asignatura'{asignatura}, "
+                f"Eres un asistente que genera preguntas para el segmento '{segmento}' de la asignatura '{asignatura}', "
                 f"con el suficiente contexto para poder resolverlas."
             )
             human_text = (
@@ -1048,7 +1050,7 @@ def generate_exam():
         user_question = UserQuestion(
             user_id=current_user.id,
             question=question['question'],
-            subject=asignatura,  # Ya no se guarda asignatura, ya que no se usa
+            subject=asignatura,
             topic=segmento
         )
         db.session.add(user_question)
