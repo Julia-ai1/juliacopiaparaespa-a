@@ -199,7 +199,7 @@ def filter_chunks_by_topics(chunks, selected_topics):
             normalized_chunk_title = re.sub(r'[^\w\s]', '', first_line.lower())
             normalized_topic = re.sub(r'[^\w\s]', '', topic.lower())
             if normalized_topic in normalized_chunk_title:
-                lprint(f"Coincidencia encontrada: '{topic}' en chunk.")
+                print(f"Coincidencia encontrada: '{topic}' en chunk.")
                 filtered_chunks.append(chunk)
                 break
     return filtered_chunks
