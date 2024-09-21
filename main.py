@@ -917,62 +917,6 @@ def format_solutions(solutions_text):
  # Ajusta los modelos según tu aplicación
 import random
 import urllib.parse
-from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType, SearchMode
-
-search_client1 = SearchClient(
-    endpoint=SEARCH_SERVICE_ENDPOINT,
-    index_name="exam_questions_sel",
-    credential=AzureKeyCredential(SEARCH_API_KEY))
-
-def retrieve_documents2(query, search_client, num_docs=100):
-    """
-    Recupera documentos relevantes que contengan ejercicios relacionados con la consulta proporcionada.
-    
-    Args:
-        query (str): La consulta de búsqueda (por ejemplo, 'derivadas').
-        search_client (SearchClient): Instancia del cliente de búsqueda de Azure.
-        num_docs (int, optional): Número máximo de documentos a recuperar. Por defecto es 100.
-    
-    Returns:
-        list: Lista de documentos recuperados con contenido y metadatos.
-    """
-    try:
-        # Configurar los parámetros de búsqueda para buscar dentro del campo 'content'
-        response = search_client.search(
-            search_text=query,
-            top=num_docs,
-            query_type=QueryType.SIMPLE,   # Mantener consultas simples
-            search_mode=SearchMode.ALL,    # Todas las palabras clave deben estar presentes en los documentos
-            search_fields=["content"],     # Buscar solo en el campo 'content' que contiene los ejercicios
-            include_total_count=True       # Incluir el recuento total de documentos
-        )
-        
-        print("Documentos recuperados:")
-        documents = []
-        
-        # Iterar sobre el objeto paginado response
-        for result in response:
-            # Asegúrate de que el documento tiene el campo 'content'
-            if 'content' in result:
-                content = result['content']  # Extraer el campo de texto principal
-                
-                documents.append({
-                    "page_content": content,  # Solo el contenido textual
-                    "metadata": result.get("metadata", {})  # Asegúrate de que 'metadata' exista
-                })
-                print("Documento añadido con contenido:", content)
-
-        if not documents:
-            print("No se encontraron documentos que coincidan con la búsqueda.")
-            return []
-        
-        # Retornar los documentos más relevantes
-        return documents[:5]  # Limita temporalmente para depurar
-        
-    except Exception as e:
-        print(f"Error al recuperar documentos: {e}")
-        return []
 
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
@@ -980,38 +924,30 @@ def generate_exam():
     asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
-    query = segmento
-    print(f"Generando examen con la consulta: '{query}'")
-    
-    # Llamada a retrieve_documents sin el filtro de asignatura
-    relevant_docs = retrieve_documents2(
-        query=query,
-        search_client=search_client1,
-        num_docs=20  # Ya no se pasa la asignatura como parámetro
+    # Configuración de Elasticsearch con tus credenciales
+    es = Elasticsearch(
+        cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
+        basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
     )
-    
+
+    # Recuperar documentos relevantes usando el segmento ingresado
+    print(f"Recuperando documentos para el segmento: {segmento}")
+    relevant_docs = retrieve_documents(segmento, es, "exam_questions_sel", 20)
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
-        return jsonify({"error": "No se recuperaron documentos."}), 404
-    
-    # Extraer contexto relevante de los documentos recuperados
-    context = " ".join([doc['page_content'] for doc in relevant_docs])
+        return jsonify({"error": "No se recuperaron documentos."})
 
-    # Verifica si el contexto es suficientemente largo
-    if len(context) < 100:  # Puedes ajustar este valor según sea necesario
-        print("El contexto es demasiado corto para generar preguntas.")
-        return jsonify({"error": "Contexto insuficiente para generar preguntas."}), 404
-
-    print(f"Contexto extraído: {context[:500]}")  # Muestra los primeros 500 caracteres del contexto extraído
+    context = extract_relevant_context(relevant_docs)
+    print(f"Contexto extraído: {context[:500]}")  # Muestra el contenido del contexto
 
     results = []
     reintentos = 0
     max_reintentos = 5
     questions_generated = 0
-    
+
     while questions_generated < num_items and reintentos < max_reintentos:
         try:
-            # Crear el prompt para el modelo de lenguaje
+            # Crear el prompt para GPT-4o-mini
             system_text = (
                 f"Eres un asistente que genera preguntas de matemáticas para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
                 f"Usa el siguiente contexto para generar preguntas tipo test con opciones y respuestas claras. Si no tienes suficiente contexto, utiliza conocimientos generales."
@@ -1022,9 +958,8 @@ def generate_exam():
                 f"{context}\n\n"
                 f"Genera {num_items} preguntas tipo test, cada una con 4 opciones de respuesta y señala cuál es la correcta. Las preguntas deben estar relacionadas con el tema '{segmento}'."
             )
-    
             response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Asegúrate de que este modelo esté disponible y correctamente configurado
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_text},
                     {"role": "user", "content": human_text}
@@ -1033,37 +968,26 @@ def generate_exam():
                 temperature=0.7
             )
 
-            # Verifica la respuesta del modelo
-            if not response.choices or not response.choices[0].message.content:
-                print("El modelo no generó una respuesta válida.")
-                return jsonify({"error": "No se generaron preguntas válidas."}), 404
-
-            print(f"Respuesta del modelo: {response.choices[0].message.content}")  # Depura la respuesta del modelo
-
-            # Procesar las preguntas generadas
+            # Procesar las preguntas
             questions = process_questions(response.choices[0].message.content)
             print(f"Preguntas generadas: {questions}")
-    
-            # Validar y almacenar las preguntas generadas
+
+            # Validar y almacenar las preguntas
             valid_questions = [q for q in questions if validate_question(q)]
             results.extend(valid_questions)
             questions_generated = len(results)
-    
+
             if questions_generated < num_items:
                 reintentos += 1
         except Exception as e:
             print(f"Error generando preguntas: {e}")
             reintentos += 1
-    
+
     if questions_generated < num_items:
         print(f"Advertencia: No se generaron suficientes preguntas ({questions_generated}/{num_items}).")
-    
-    # Guardar las preguntas en la base de datos
-    for question in results:
-        if not question['question'].strip():
-            print("Pregunta vacía, no se guardará.")
-            continue
 
+    # Guardar preguntas y mostrar
+    for question in results:
         print(f"Pregunta guardada: {question}")  # Imprimir las preguntas antes de guardarlas
         user_question = UserQuestion(
             user_id=current_user.id,
@@ -1072,13 +996,12 @@ def generate_exam():
             topic=segmento
         )
         db.session.add(user_question)
-    
-    # Confirmar la inserción de las preguntas
+
     db.session.commit()
     current_user.increment_questions()
-    
-    # Renderizar el template con las preguntas generadas
+
     return render_template('quiz.html', questions=results)
+
 
 # Función para validar preguntas
 def validate_question(question):

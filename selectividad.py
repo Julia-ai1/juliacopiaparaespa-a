@@ -2,31 +2,22 @@ import os
 import logging
 import re
 import openai
-from azure.search.documents import SearchClient
-from azure.core.credentials import AzureKeyCredential
+from openai import OpenAI
+from elasticsearch import Elasticsearch
 import random
 from dotenv import load_dotenv
+from openai import OpenAI
 load_dotenv()
-
-# Configurar el cliente de OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
-client = openai
+client = OpenAI(api_key=openai.api_key)
 
-# Configurar el cliente de Azure Cognitive Search
-SEARCH_SERVICE_ENDPOINT = os.getenv("SEARCH_SERVICE_ENDPOINT")
-SEARCH_API_KEY = os.getenv("SEARCH_API_KEY")
+# Configurar el índice en Elasticsearch
 INDEX_NAME = "exam_questions_sel"
 
-# Crear cliente de Azure Cognitive Search
-search_client = SearchClient(
-    endpoint=SEARCH_SERVICE_ENDPOINT,
-    index_name=INDEX_NAME,
-    credential=AzureKeyCredential(SEARCH_API_KEY)
-)
-
-# Función para procesar preguntas
 def process_questions(response_text):
     questions = []
+
+    # Dividir el texto en bloques que representen preguntas
     question_blocks = re.split(r"(\*\*Pregunta|\bPregunta\b|\bPregunta \d+\b|Pregunta\s+\d+:)", response_text, flags=re.IGNORECASE)
 
     for i in range(1, len(question_blocks), 2):
@@ -52,6 +43,7 @@ def process_questions(response_text):
     print(f"Preguntas procesadas correctamente: {len(questions)}")
     return questions
 
+
 # Función para generar preguntas con GPT-4o-mini
 def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatura):
     system_text = f"""Eres un asistente que genera preguntas de opción múltiple para el segmento {segmento_asignatura} de la asignatura {asignatura}. 
@@ -59,7 +51,7 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
 
     human_text = f"Genera preguntas sobre el segmento {segmento_asignatura} de la asignatura {asignatura} a partir del contenido del PDF:\n{pdf_content}"
 
-    response = client.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_text},
@@ -69,86 +61,48 @@ def generate_questions(pdf_content, num_questions, segmento_asignatura, asignatu
         temperature=0.7
     )
 
-    response_text = response.choices[0].message["content"].strip()
+    response_text = response.choices[0].message.content.strip()
     questions = process_questions(response_text)
     return questions
 
-# Función para recuperar documentos de Azure Cognitive Search
-import random
-from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType, SearchMode
 
-def retrieve_documents(query, search_client, num_docs=100):
-    """
-    Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada
-    sin aplicar ningún filtro.
+# Función para recuperar documentos de Elasticsearch
+def retrieve_documents(query, es, index_name, num_docs=20):
+    search_query = {
+        "query": {
+            "match": {
+                "content": query
+            }
+        },
+        "size": num_docs
+    }
     
-    Args:
-        query (str): La consulta de búsqueda (segmento).
-        search_client (SearchClient): Instancia del cliente de búsqueda de Azure.
-        num_docs (int, optional): Número máximo de documentos a recuperar. Por defecto es 100.
-    
-    Returns:
-        list: Lista de documentos recuperados con contenido y metadatos.
-    """
     try:
-        # Configurar los parámetros de búsqueda
-        response = search_client.search(
-            search_text=query,                 # La consulta principal es el segmento
-            top=num_docs,
-            query_type=QueryType.FULL,         # Usar consultas avanzadas
-            search_mode=SearchMode.ALL,        # Todas las palabras deben estar presentes
-            include_total_count=True
-        )
-        
-        documents = []
-        for result in response:
-            # Obtener todo el contenido del documento, excluyendo campos internos como @search.score
-            document = {k: v for k, v in result.items() if not k.startswith('@')}
-            
-            documents.append({
-                "page_content": document,        # Puedes renombrar o estructurar según tus necesidades
-                "metadata": result.get("metadata", {})
-            })
-        
-        if not documents:
-            print("No se encontraron documentos que coincidan con la búsqueda.")
-            return []
-        
-        # Retornar los documentos más relevantes sin aleatorizar
-        return documents[:15]  # Retorna los 15 documentos más relevantes
-        
+        response = es.search(index=index_name, body=search_query)
+        documents = [
+            {
+                "page_content": hit["_source"].get("content", ""),
+                "metadata": hit["_source"].get("metadata", {})
+            }
+            for hit in response["hits"]["hits"]
+        ]
+        random.shuffle(documents)
+        return documents[:5]
     except Exception as e:
-        print(f"Error al recuperar documentos: {e}")
+        logging.error(f"Error al recuperar documentos: {e}")
         return []
 
+
+# Función para extraer contexto relevante de los documentos recuperados
 def extract_relevant_context(documents, max_length=1000):
-    """
-    Extrae un contexto relevante de los documentos recuperados, limitando el tamaño total a max_length.
-    
-    Args:
-        documents (list): Lista de documentos recuperados, cada uno con un campo 'page_content'.
-        max_length (int, optional): Longitud máxima del texto a extraer. Por defecto es 1000 caracteres.
-    
-    Returns:
-        str: Texto relevante extraído de los documentos, limitado a max_length caracteres.
-    """
     relevant_text = []
-    
     for doc in documents:
-        # Verifica que el documento tiene el campo 'page_content'
-        if 'page_content' in doc:
-            content = doc['page_content']
-            
-            # Asegúrate de que el contenido sea una cadena de texto
-            if isinstance(content, str):
-                sentences = content.split('.')
-                for sentence in sentences:
-                    if len('. '.join(relevant_text)) >= max_length:
-                        return '. '.join(relevant_text)[:max_length]
-                    relevant_text.append(sentence.strip())
-    
-    # Retorna el texto relevante limitado a max_length caracteres
+        content = doc['page_content']
+        sentences = content.split('.')
+        for sentence in sentences:
+            if len('. '.join(relevant_text)) >= max_length:
+                return '. '.join(relevant_text)[:max_length]
+            relevant_text.append(sentence.strip())
     return '. '.join(relevant_text)[:max_length]
 
 
