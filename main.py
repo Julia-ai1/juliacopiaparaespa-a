@@ -925,7 +925,7 @@ search_client1 = SearchClient(
     index_name="exam_questions_sel",
     credential=AzureKeyCredential(SEARCH_API_KEY))
 
-def retrieve_documents2(query, search_client, num_docs=100):
+def retrieve_documents2(query, search_client, num_docs=20):
     """
     Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada
     sin aplicar ningún filtro.
@@ -943,13 +943,12 @@ def retrieve_documents2(query, search_client, num_docs=100):
         response = search_client1.search(
             search_text=query,                 
             top=num_docs,
-            query_type=QueryType.FULL,      # Usa consultas simples para probar
-            search_mode=SearchMode.ANY,       # Cambia a ANY para obtener más coincidencias
+            query_type=QueryTypeSIMPLE,      # Usa consultas simples para probar
+            search_mode=SearchMode.ALL,       # Cambia a ANY para obtener más coincidencias
             include_total_count=True
         )
         
-        print("Response completo:")
-        print(response)  # Imprime el resultado crudo para ver los detalles
+ # Imprime el resultado crudo para ver los detalles
         
         documents = []
         for result in response:
@@ -988,7 +987,7 @@ def generate_exam():
     relevant_docs = retrieve_documents2(
         query=query,
         search_client=search_client1,
-        num_docs=100  # Ya no se pasa la asignatura como parámetro
+        num_docs=2  # Ya no se pasa la asignatura como parámetro
     )
     
     if not relevant_docs:
