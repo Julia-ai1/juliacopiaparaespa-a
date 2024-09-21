@@ -1246,6 +1246,9 @@ def get_pdf_topics():
 @app.route('/start_study', methods=['POST'])
 @login_required
 def start_study():
+    """
+    Ruta para iniciar una sesión de estudio basada en un PDF y temas seleccionados.
+    """
     if 'file' not in request.files:
         logger.info("No se encontró un archivo PDF en la solicitud.")
         return jsonify({"error": "No se encontró un archivo PDF"}), 400
@@ -1257,19 +1260,33 @@ def start_study():
         return jsonify({"error": "No se seleccionó un archivo"}), 400
 
     selected_topics_json = request.form.get('selected_topics', '[]')
-    selected_topics = json.loads(selected_topics_json)
-    
-    # Imprimir los temas seleccionados
-    logger.info(f"Temas seleccionados: {selected_topics}")
-    logger.debug(f"Contenido de selected_topics: {selected_topics}")
+    try:
+        selected_topics = json.loads(selected_topics_json)
+    except json.JSONDecodeError:
+        logger.error("Formato JSON inválido para 'selected_topics'.")
+        return jsonify({"error": "Formato JSON inválido para 'selected_topics'."}), 400
+
+    # Limpiar los temas seleccionados: eliminar espacios y comas al final
+    selected_topics = [topic.strip().rstrip(',') for topic in selected_topics if topic.strip()]
+
+    # Filtrar los temas para asegurarse de que solo los válidos están seleccionados
+    pattern = re.compile(r'^(Unidad|Tema|Capítulo|Sección|Lección)\s+\d+(\.\d+)*[:.]\s+.*', re.IGNORECASE)
+    selected_topics = [topic for topic in selected_topics if pattern.match(topic)]
 
     if not selected_topics:
-        logger.info("No se seleccionaron temas.")
-        return jsonify({"error": "No se seleccionaron temas"}), 400
+        logger.info("No se seleccionaron temas válidos.")
+        return jsonify({"error": "No se seleccionaron temas válidos."}), 400
+
+    # Imprimir los temas seleccionados después de la limpieza
+    logger.info(f"Temas seleccionados después de la limpieza: {selected_topics}")
 
     student_profile_json = request.form.get('student_profile', '{}')
-    student_profile = json.loads(student_profile_json)
-    
+    try:
+        student_profile = json.loads(student_profile_json)
+    except json.JSONDecodeError:
+        logger.error("Formato JSON inválido para 'student_profile'.")
+        return jsonify({"error": "Formato JSON inválido para 'student_profile'."}), 400
+
     # Validar intereses
     if not student_profile.get('interests'):
         student_profile['interests'] = ['Matemáticas']  # Valor predeterminado
@@ -1278,7 +1295,7 @@ def start_study():
         student_profile['interests'] = [interest for interest in student_profile['interests'] if interest.strip()]
         if not student_profile['interests']:
             student_profile['interests'] = ['Matemáticas']
-    
+
     # Imprimir el perfil del estudiante
     logger.info(f"Perfil del estudiante: {student_profile}")
 
@@ -1307,6 +1324,7 @@ def start_study():
 
             # Guardar la sesión de estudio
             save_study_session(current_user.id, selected_chunks, progress, guide_content)
+            logger.info("Sesión de estudio guardada correctamente.")
 
             # Generar la guía de estudio para cada chunk seleccionado
             guides = []
@@ -1318,9 +1336,16 @@ def start_study():
                 topic_content = extract_specific_topic_content(chunk, topic_title)
                 if topic_content:
                     generated_guide = generate_study_guide_from_content(topic_content, student_profile)
-                    guides.append(generated_guide)
+                    if generated_guide['guide'] != 'Error al generar la guía de estudio después de varios intentos.':
+                        guides.append(generated_guide)
+                    else:
+                        logger.error(f"Error al generar la guía para el tema: {topic_title}")
                 else:
                     logger.info(f"No se pudo extraer el contenido para el tema: {topic_title}")
+
+            if not guides:
+                logger.info("No se generaron guías de estudio para los temas seleccionados.")
+                return jsonify({"error": "No se generaron guías de estudio para los temas seleccionados."}), 500
 
             # Combinar las guías generadas
             combined_guide = {
@@ -1332,7 +1357,10 @@ def start_study():
             }
 
             # Guardar el progreso actualizado
-            save_study_session(current_user.id, selected_chunks, [True]*len(selected_chunks), [guide['guide'] for guide in guides])
+            updated_progress = [True] * len(selected_chunks)
+            updated_guide_content = [guide['guide'] for guide in guides]
+            save_study_session(current_user.id, selected_chunks, updated_progress, updated_guide_content)
+            logger.info("Progreso y contenido de la guía actualizados correctamente.")
 
             return jsonify(combined_guide)
 
@@ -1422,7 +1450,7 @@ def mark_section_complete():
         traceback.print_exc()
         logger.error(f"Error al marcar la sección como completada: {e}")
         return jsonify({"error": str(e)}), 500
-        
+
 # Ruta para descargar la guía completa en PDF
 from flask import send_file
 from io import BytesIO

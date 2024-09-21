@@ -77,6 +77,7 @@ def extract_text_from_pdf(pdf_path):
 def extract_topics_from_pdf(pdf_path):
     """
     Función para extraer los temas del PDF utilizando ChatDeepInfra.
+    Limpia y filtra los temas extraídos.
     """
     # Cargar el contenido del PDF
     loader = PyPDFLoader(pdf_path)
@@ -98,12 +99,13 @@ def extract_topics_from_pdf(pdf_path):
     for chunk in text_chunks:
         # Crear el prompt para extraer los temas en formato JSON
         prompt = f"""
-        Analiza el siguiente texto y extrae una lista de los temas o títulos principales que se abordan. Proporciona la lista en formato JSON (una lista de cadenas de texto), sin ninguna explicación adicional, y sin comillas, solo el texto.
+        Analiza el siguiente texto y extrae una lista de los temas o títulos principales que se abordan. 
+        Proporciona la lista en formato JSON (una lista de cadenas de texto), sin ninguna explicación adicional.
 
         Texto:
         {chunk}
 
-        Lista de temas (en formato JSON) y sin comillas:
+        Lista de temas (en formato JSON):
         """
 
         # Obtener la respuesta del modelo
@@ -114,16 +116,20 @@ def extract_topics_from_pdf(pdf_path):
         try:
             topics_chunk = json.loads(response_text)
             if isinstance(topics_chunk, list):
-                topics.extend([topic.strip() for topic in topics_chunk if topic.strip()])
+                topics.extend([topic.strip().rstrip(',') for topic in topics_chunk if topic.strip()])
         except json.JSONDecodeError:
             # Si no se pudo decodificar como JSON, procesar como texto
             topics_chunk = response_text.strip().split('\n')
-            topics.extend([topic.strip('- ').strip() for topic in topics_chunk if topic.strip()])
+            topics.extend([topic.strip('- ').strip().rstrip(',') for topic in topics_chunk if topic.strip()])
 
     # Eliminar duplicados manteniendo el orden
     unique_topics = list(dict.fromkeys(topics))
 
-    return unique_topics
+    # Filtrar solo los temas que coinciden con el patrón esperado
+    pattern = re.compile(r'^(Unidad|Tema|Capítulo|Sección|Lección)\s+\d+(\.\d+)*[:.]\s+.*', re.IGNORECASE)
+    filtered_topics = [topic for topic in unique_topics if pattern.match(topic)]
+
+    return filtered_topics
 
 
 def extract_specific_topic_content(selected_chunk, topic_title):
@@ -179,13 +185,14 @@ def filter_chunks_by_topics(chunks, selected_topics):
     """
     filtered_chunks = []
     for chunk in chunks:
+        # Obtener el título del chunk (primera línea)
+        first_line = chunk.page_content.splitlines()[0].strip().rstrip(',')
         for topic in selected_topics:
-            if topic.lower() in chunk.page_content.lower():
+            if topic.lower() == first_line.lower():
                 print(f"Coincidencia encontrada: '{topic}' en chunk.")
                 filtered_chunks.append(chunk)
                 break
     return filtered_chunks
-
 
 
 def generate_study_guide_from_content(content, student_profile=None):
