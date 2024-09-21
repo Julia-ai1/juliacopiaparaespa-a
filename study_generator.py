@@ -66,8 +66,8 @@ def extract_text_from_pdf(pdf_path):
 
     # Depuración: Imprimir los títulos de cada chunk
     for i, chunk in enumerate(chunks):
-        first_line = chunk.page_content.splitlines()[0] if chunk.page_content else 'Sin contenido'
-        print(f"Chunk {i}: {first_line}")
+        first_line = chunk.page_content.splitlines()[0].strip().rstrip(',')
+        print(f"Chunk {i}: '{first_line}'")
 
     return chunks
 
@@ -137,7 +137,7 @@ def extract_specific_topic_content(selected_chunk, topic_title):
     Extrae únicamente el contenido del tema especificado dentro de un chunk.
     
     :param selected_chunk: Objeto Document que contiene el texto del chunk.
-    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 2. Operaciones básicas").
+    :param topic_title: Título completo del tema seleccionado (e.g., "Tema 2: Números enteros").
     :return: Texto filtrado que corresponde únicamente al tema seleccionado.
     """
     content = selected_chunk.page_content
@@ -158,49 +158,60 @@ def extract_specific_topic_content(selected_chunk, topic_title):
     
     # Encontrar el inicio del siguiente tema para determinar el final
     for i in range(start_index + 1, len(lines)):
-        # Asumimos que los siguientes temas también comienzan con "Tema"
-        if lines[i].strip().lower().startswith('tema '):
+        # Asumimos que los siguientes temas comienzan con "Unidad", "Tema", etc.
+        if re.match(r'^(Unidad|Tema|Capítulo|Sección|Lección)\s+\d+(\.\d+)*[:.]\s+.*', lines[i].strip(), re.IGNORECASE):
             end_index = i
             break
     
     # Extraer el contenido del tema seleccionado
     if end_index:
-        topic_content = '\n'.join(lines[start_index:end_index])
+        topic_content = '\n'.join(lines[start_index:end_index]).strip()
     else:
         # Si no se encuentra otro tema, tomar todo el texto hasta el final del chunk
-        topic_content = '\n'.join(lines[start_index:])
+        topic_content = '\n'.join(lines[start_index:]).strip()
     
-    if not topic_content.strip():
+    if not topic_content:
         print(f"No se pudo extraer el contenido del tema: {topic_title}")
     else:
         print(f"Contenido extraído para el tema {topic_title}:")
-        print(topic_content)
+        # Limitar la impresión para evitar logs demasiado largos
+        preview = topic_content[:200] + '...' if len(topic_content) > 200 else topic_content
+        print(preview)
     
     return topic_content
 
 
 def filter_chunks_by_topics(chunks, selected_topics):
     """
-    Función para filtrar los chunks que corresponden a los temas seleccionados.
+    Filtra los chunks que corresponden a los temas seleccionados.
+    
+    :param chunks: Lista de objetos Document extraídos del PDF.
+    :param selected_topics: Lista de temas seleccionados.
+    :return: Lista de chunks que corresponden a los temas seleccionados.
     """
     filtered_chunks = []
     for chunk in chunks:
         # Obtener el título del chunk (primera línea)
         first_line = chunk.page_content.splitlines()[0].strip().rstrip(',')
+        print(f"Procesando chunk: '{first_line}'")
         for topic in selected_topics:
-            if topic.lower() == first_line.lower():
-                print(f"Coincidencia encontrada: '{topic}' en chunk.")
+            # Normalizar ambos strings: eliminar caracteres no alfanuméricos y convertir a minúsculas
+            normalized_chunk_title = re.sub(r'[^\w\s]', '', first_line.lower())
+            normalized_topic = re.sub(r'[^\w\s]', '', topic.lower())
+            if normalized_topic in normalized_chunk_title:
+                lprint(f"Coincidencia encontrada: '{topic}' en chunk.")
                 filtered_chunks.append(chunk)
                 break
     return filtered_chunks
 
-
-def generate_study_guide_from_content(content, student_profile=None):
+def generate_study_guide_from_content(content, student_profile=None, retries=3, delay=2):
     """
-    Genera una guía de estudio a partir del contenido proporcionado.
+    Genera una guía de estudio a partir del contenido proporcionado con lógica de reintentos.
     
     :param content: Texto que corresponde únicamente al tema seleccionado.
     :param student_profile: Perfil del estudiante.
+    :param retries: Número de intentos de reintento.
+    :param delay: Tiempo de espera entre reintentos en segundos.
     :return: Diccionario con la guía generada.
     """
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
@@ -267,35 +278,42 @@ def generate_study_guide_from_content(content, student_profile=None):
     # Imprimir el prompt para depuración
     print(f"Generando guía con el siguiente prompt:\n{prompt}")
 
-    try:
-        response = chat.invoke(prompt)
-        if hasattr(response, 'content'):
-            guide_text = response.content.strip()
-            if not guide_text:
-                raise ValueError("La respuesta del modelo está vacía.")
-        else:
-            raise ValueError("La respuesta del modelo no contiene 'content'.")
+    for attempt in range(retries):
+        try:
+            print(f"Intento {attempt + 1} de {retries} para generar la guía de estudio.")
+            response = chat.invoke(prompt)
+            if hasattr(response, 'content'):
+                guide_text = response.content.strip()
+                if not guide_text:
+                    raise ValueError("La respuesta del modelo está vacía.")
+            else:
+                raise ValueError("La respuesta del modelo no contiene 'content'.")
 
-        # Imprimir la respuesta del modelo
-        print(f"Respuesta del modelo:\n{guide_text}")
+            # Imprimir la respuesta del modelo
+            print(f"Respuesta del modelo:\n{guide_text}")
 
-        return {
-            'guide': guide_text,
-            'progress': [True],  # Actualiza según corresponda
-            'guide_content': [guide_text],  # Actualiza según corresponda
-            'current_chunk_index': 0,  # Actualiza según corresponda
-            'total_chunks': 1  # Actualiza según corresponda
-        }
-    except Exception as e:
-        print(f"Error al generar la guía de estudio: {e}")
-        logger.error(f"Error al generar la guía de estudio: {e}")
-        return {
-            'guide': 'Error al generar la guía de estudio.',
-            'progress': [False],
-            'guide_content': [None],
-            'current_chunk_index': 0,
-            'total_chunks': 1
-        }
+            return {
+                'guide': guide_text,
+                'progress': [True],  # Actualiza según corresponda
+                'guide_content': [guide_text],  # Actualiza según corresponda
+                'current_chunk_index': 0,  # Actualiza según corresponda
+                'total_chunks': 1  # Actualiza según corresponda
+            }
+        except Exception as e:
+            print(f"Error en el intento {attempt + 1}: {e}")
+            if attempt < retries - 1:
+                print(f"Reintentando en {delay} segundos...")
+                time.sleep(delay)
+            else:
+                print("Se han agotado todos los intentos para generar la guía de estudio.")
+                return {
+                    'guide': 'Error al generar la guía de estudio después de varios intentos.',
+                    'progress': [False],
+                    'guide_content': [None],
+                    'current_chunk_index': 0,
+                    'total_chunks': 1
+                }
+
 
 # study_generator.py
 

@@ -1307,12 +1307,12 @@ def start_study():
             # Extraer los chunks del PDF
             pdf_chunks = extract_text_from_pdf(pdf_path)
             logger.info(f"Chunks extraídos del PDF: {len(pdf_chunks)}")
-            logger.debug(f"Contenido de pdf_chunks: {[chunk.page_content[:100] for chunk in pdf_chunks]}")  # Mostrar los primeros 100 caracteres de cada chunk
+            logger.debug(f"Contenido de pdf_chunks: {[chunk.page_content[:100] + '...' for chunk in pdf_chunks]}")  # Mostrar los primeros 100 caracteres de cada chunk
 
             # Filtrar los chunks que corresponden a los temas seleccionados
             selected_chunks = filter_chunks_by_topics(pdf_chunks, selected_topics)
             logger.info(f"Chunks seleccionados para los temas: {len(selected_chunks)}")
-            logger.debug(f"Contenido de selected_chunks: {[chunk.page_content[:100] for chunk in selected_chunks]}")  # Mostrar los primeros 100 caracteres
+            logger.debug(f"Contenido de selected_chunks: {[chunk.page_content[:100] + '...' for chunk in selected_chunks]}")  # Mostrar los primeros 100 caracteres
 
             if not selected_chunks:
                 logger.info("No se encontraron secciones correspondientes a los temas seleccionados.")
@@ -1368,7 +1368,7 @@ def start_study():
         traceback.print_exc()
         logger.error(f"Error al iniciar el estudio: {e}")
         return jsonify({"error": str(e)}), 500
-
+        
 # Ruta para obtener la siguiente sección de la guía
 @app.route('/next_section', methods=['GET'])
 @login_required
