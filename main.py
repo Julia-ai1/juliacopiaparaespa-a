@@ -937,15 +937,17 @@ def retrieve_documents2(query, search_client, num_docs=100):
     """
     try:
         # Configurar los parámetros de búsqueda
-        response = search_client.search(
-            search_text=query,                 # La consulta principal es el segmento
+        response = search_client1.search(
+            search_text=query,                 
             top=num_docs,
-            query_type=QueryType.FULL,         # Usar consultas avanzadas
-            search_mode=SearchMode.ALL,        # Todas las palabras deben estar presentes
+            query_type=QueryType.SIMPLE,      # Usa consultas simples para probar
+            search_mode=SearchMode.ANY,       # Cambia a ANY para obtener más coincidencias
             include_total_count=True
         )
-        print("response")
-        print(response)
+        
+        print("Response completo:")
+        print(response.raw_results)  # Imprime el resultado crudo para ver los detalles
+        
         documents = []
         for result in response:
             # Obtener todo el contenido del documento, excluyendo campos internos como @search.score
@@ -953,16 +955,16 @@ def retrieve_documents2(query, search_client, num_docs=100):
             
             documents.append({
                 "page_content": document,        # Puedes renombrar o estructurar según tus necesidades
-                "metadata": result.get("metadata", {})
+                "metadata": result.get("metadata", {})  # Asegúrate de que 'metadata' exista
             })
-            print("documents")
-            print(documents)
+            print("Documento añadido:", document)
+
         if not documents:
             print("No se encontraron documentos que coincidan con la búsqueda.")
             return []
         
         # Retornar los documentos más relevantes sin aleatorizar
-        return documents[:15]  # Retorna los 15 documentos más relevantes
+        return documents[:5]  # Limita temporalmente para depurar
         
     except Exception as e:
         print(f"Error al recuperar documentos: {e}")
