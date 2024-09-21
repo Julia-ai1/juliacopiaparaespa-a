@@ -921,6 +921,53 @@ search_client1 = SearchClient(
     endpoint=SEARCH_SERVICE_ENDPOINT,
     index_name="exam_questions_sel",
     credential=AzureKeyCredential(SEARCH_API_KEY))
+
+def retrieve_documents2(query, search_client, num_docs=100):
+    """
+    Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada
+    sin aplicar ningún filtro.
+    
+    Args:
+        query (str): La consulta de búsqueda (segmento).
+        search_client (SearchClient): Instancia del cliente de búsqueda de Azure.
+        num_docs (int, optional): Número máximo de documentos a recuperar. Por defecto es 100.
+    
+    Returns:
+        list: Lista de documentos recuperados con contenido y metadatos.
+    """
+    try:
+        # Configurar los parámetros de búsqueda
+        response = search_client.search(
+            search_text=query,                 # La consulta principal es el segmento
+            top=num_docs,
+            query_type=QueryType.FULL,         # Usar consultas avanzadas
+            search_mode=SearchMode.ALL,        # Todas las palabras deben estar presentes
+            include_total_count=True
+        )
+        print("response")
+        print(response)
+        documents = []
+        for result in response:
+            # Obtener todo el contenido del documento, excluyendo campos internos como @search.score
+            document = {k: v for k, v in result.items() if not k.startswith('@')}
+            
+            documents.append({
+                "page_content": document,        # Puedes renombrar o estructurar según tus necesidades
+                "metadata": result.get("metadata", {})
+            })
+            print("documents")
+            print(documents)
+        if not documents:
+            print("No se encontraron documentos que coincidan con la búsqueda.")
+            return []
+        
+        # Retornar los documentos más relevantes sin aleatorizar
+        return documents[:15]  # Retorna los 15 documentos más relevantes
+        
+    except Exception as e:
+        print(f"Error al recuperar documentos: {e}")
+        return []
+
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
     segmento = request.form['segmento']
@@ -931,7 +978,7 @@ def generate_exam():
     print(f"Generando examen con la consulta: '{query}'")
     
     # Llamada a retrieve_documents sin el filtro de asignatura
-    relevant_docs = retrieve_documents(
+    relevant_docs = retrieve_documents2(
         query=query,
         search_client=search_client1,
         num_docs=100  # Ya no se pasa la asignatura como parámetro
