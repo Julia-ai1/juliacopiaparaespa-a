@@ -98,12 +98,12 @@ def extract_topics_from_pdf(pdf_path):
     for chunk in text_chunks:
         # Crear el prompt para extraer los temas en formato JSON
         prompt = f"""
-        Analiza el siguiente texto y extrae una lista de los temas o títulos principales que se abordan. Proporciona la lista en formato JSON (una lista de cadenas de texto), sin ninguna explicación adicional.
+        Analiza el siguiente texto y extrae una lista de los temas o títulos principales que se abordan. Proporciona la lista en formato JSON (una lista de cadenas de texto), sin ninguna explicación adicional, y sin comillas, solo el texto.
 
         Texto:
         {chunk}
 
-        Lista de temas (en formato JSON):
+        Lista de temas (en formato JSON) y sin comillas:
         """
 
         # Obtener la respuesta del modelo
