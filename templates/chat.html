@@ -6,6 +6,8 @@
     <title>Chat Estudiantil - Julia.ai</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -131,6 +133,11 @@
         #messages {
             display: flex;
             flex-direction: column;
+        }
+
+        .message .math {
+            overflow-x: auto;
+            margin: 10px 0;
         }
     </style>
 </head>
@@ -277,14 +284,21 @@
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', type);
             
-            // Procesar el texto para manejar código y fórmulas
+            // Procesar el texto para manejar código, fórmulas y ecuaciones
             const processedText = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
                                       .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                      .replace(/\\\[([\s\S]*?)\\\]/g, '<div class="math">\\[$1\\]</div>')
+                                      .replace(/\\\(([\s\S]*?)\\\)/g, '<span class="math">\\($1\\)</span>')
                                       .replace(/\n/g, '<br>');
             
             messageDiv.innerHTML = `<strong>${sender}:</strong>${processedText}`;
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Renderizar las fórmulas matemáticas
+            MathJax.typesetPromise([messageDiv]).then(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            });
         }
 
         // Función para mostrar mensajes con imágenes
