@@ -925,13 +925,12 @@ search_client1 = SearchClient(
     index_name="exam_questions_sel",
     credential=AzureKeyCredential(SEARCH_API_KEY))
 
-def retrieve_documents2(query, search_client, num_docs=20):
+def retrieve_documents2(query, search_client, num_docs=100):
     """
-    Recupera documentos relevantes usando Azure Cognitive Search basándose en la consulta proporcionada
-    sin aplicar ningún filtro.
+    Recupera documentos relevantes que contengan ejercicios relacionados con la consulta proporcionada.
     
     Args:
-        query (str): La consulta de búsqueda (segmento).
+        query (str): La consulta de búsqueda (por ejemplo, 'derivadas').
         search_client (SearchClient): Instancia del cliente de búsqueda de Azure.
         num_docs (int, optional): Número máximo de documentos a recuperar. Por defecto es 100.
     
@@ -939,20 +938,22 @@ def retrieve_documents2(query, search_client, num_docs=20):
         list: Lista de documentos recuperados con contenido y metadatos.
     """
     try:
-        # Configurar los parámetros de búsqueda
-        response = search_client1.search(
-            search_text=query,                 
+        # Configurar los parámetros de búsqueda para buscar dentro del campo 'content'
+        response = search_client.search(
+            search_text=query,
             top=num_docs,
-            query_type=QueryTypeSIMPLE,      # Usa consultas simples para probar
-            search_mode=SearchMode.ALL,       # Cambia a ANY para obtener más coincidencias
-            include_total_count=True
+            query_type=QueryType.SIMPLE,   # Mantener consultas simples
+            search_mode=SearchMode.ALL,    # Todas las palabras clave deben estar presentes en los documentos
+            search_fields=["content"],     # Buscar solo en el campo 'content' que contiene los ejercicios
+            include_total_count=True       # Incluir el recuento total de documentos
         )
         
- # Imprime el resultado crudo para ver los detalles
-        
+        print("Documentos recuperados:")
         documents = []
+        
+        # Iterar sobre el objeto paginado response
         for result in response:
-            # Asegurarse de que el documento tiene el campo 'content'
+            # Asegúrate de que el documento tiene el campo 'content'
             if 'content' in result:
                 content = result['content']  # Extraer el campo de texto principal
                 
@@ -973,7 +974,6 @@ def retrieve_documents2(query, search_client, num_docs=20):
         print(f"Error al recuperar documentos: {e}")
         return []
 
-
 @app.route('/generate_exam', methods=['POST'])
 def generate_exam():
     segmento = request.form['segmento']
@@ -987,7 +987,7 @@ def generate_exam():
     relevant_docs = retrieve_documents2(
         query=query,
         search_client=search_client1,
-        num_docs=2  # Ya no se pasa la asignatura como parámetro
+        num_docs=20  # Ya no se pasa la asignatura como parámetro
     )
     
     if not relevant_docs:
@@ -995,9 +995,15 @@ def generate_exam():
         return jsonify({"error": "No se recuperaron documentos."}), 404
     
     # Extraer contexto relevante de los documentos recuperados
-    context = " ".join([doc['page_content'] for doc in relevant_docs])  # Concatenar el contenido textual
+    context = " ".join([doc['page_content'] for doc in relevant_docs])
+
+    # Verifica si el contexto es suficientemente largo
+    if len(context) < 100:  # Puedes ajustar este valor según sea necesario
+        print("El contexto es demasiado corto para generar preguntas.")
+        return jsonify({"error": "Contexto insuficiente para generar preguntas."}), 404
+
     print(f"Contexto extraído: {context[:500]}")  # Muestra los primeros 500 caracteres del contexto extraído
-    
+
     results = []
     reintentos = 0
     max_reintentos = 5
@@ -1007,12 +1013,14 @@ def generate_exam():
         try:
             # Crear el prompt para el modelo de lenguaje
             system_text = (
-                f"Eres un asistente que genera preguntas para el segmento '{segmento}' de la asignatura '{asignatura}', "
-                f"con el suficiente contexto para poder resolverlas."
+                f"Eres un asistente que genera preguntas de matemáticas para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
+                f"Usa el siguiente contexto para generar preguntas tipo test con opciones y respuestas claras. Si no tienes suficiente contexto, utiliza conocimientos generales."
             )
+
             human_text = (
-                f"Genera {num_items} preguntas con sus opciones con estructura similar a la del siguiente contenido:\n"
-                f"{context}. Debe tratar sobre el segmento '{segmento}'. Si no encuentra documentos relevantes, usa conocimientos generales."
+                f"A continuación tienes el contexto:\n"
+                f"{context}\n\n"
+                f"Genera {num_items} preguntas tipo test, cada una con 4 opciones de respuesta y señala cuál es la correcta. Las preguntas deben estar relacionadas con el tema '{segmento}'."
             )
     
             response = client.chat.completions.create(
@@ -1024,7 +1032,14 @@ def generate_exam():
                 max_tokens=2000,
                 temperature=0.7
             )
-    
+
+            # Verifica la respuesta del modelo
+            if not response.choices or not response.choices[0].message.content:
+                print("El modelo no generó una respuesta válida.")
+                return jsonify({"error": "No se generaron preguntas válidas."}), 404
+
+            print(f"Respuesta del modelo: {response.choices[0].message.content}")  # Depura la respuesta del modelo
+
             # Procesar las preguntas generadas
             questions = process_questions(response.choices[0].message.content)
             print(f"Preguntas generadas: {questions}")
@@ -1045,6 +1060,10 @@ def generate_exam():
     
     # Guardar las preguntas en la base de datos
     for question in results:
+        if not question['question'].strip():
+            print("Pregunta vacía, no se guardará.")
+            continue
+
         print(f"Pregunta guardada: {question}")  # Imprimir las preguntas antes de guardarlas
         user_question = UserQuestion(
             user_id=current_user.id,
