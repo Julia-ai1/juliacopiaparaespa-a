@@ -2,14 +2,14 @@
 <html lang="es">
 <head>
     <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-S2BWPK7332"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-S2BWPK7332');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S2BWPK7332"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', 'G-S2BWPK7332');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AiHelpStudy - Tu Éxito en la Selectividad</title>
@@ -329,6 +329,9 @@
         #pricing .card-header.opositors {
             background-color: #d35400;
         }
+        #pricing .card-header.colleges {
+            background-color: #16a085;
+        }
         #pricing .card-title {
             font-size: 2.5rem;
             color: var(--primary-color);
@@ -338,6 +341,9 @@
         }
         #pricing .card-title.opositors {
             color: #d35400;
+        }
+        #pricing .card-title.colleges {
+            color: #16a085;
         }
         /* Media Queries para Responsividad */
         @media (max-width: 768px) {
@@ -511,17 +517,17 @@
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
                             <i class="fas fa-file-alt feature-icon"></i>
-                            <h3>Exámenes Personalizados</h3>
-                            <p>Genera y resuelve exámenes adaptados a tu nivel</p>
+                            <h3>Generador de Esquemas</h3>
+                            <p>Crea esquemas interactivos para organizar tus estudios de manera efectiva</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="500">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-chart-pie feature-icon"></i>
-                            <h3>Seguimiento de Progreso</h3>
-                            <p>Monitorea tu avance y ajusta tu plan de estudio</p>
+                            <i class="fas fa-comments feature-icon"></i>
+                            <h3>Chat Multimodal</h3>
+                            <p>Interactúa con nuestra IA mediante texto y voz para una experiencia de aprendizaje dinámica</p>
                         </div>
                     </div>
                 </div>
@@ -544,7 +550,7 @@
     <section id="pricing" class="py-5 bg-light">
         <div class="container">
             <h2 class="text-center mb-5">Planes de Estudio</h2>
-            <div class="row row-cols-1 row-cols-md-2 mb-3 text-center">
+            <div class="row row-cols-1 row-cols-md-3 mb-3 text-center">
                 <!-- Plan para Universitarios -->
                 <div class="col" data-aos="fade-up">
                     <div class="card price-card">
@@ -558,8 +564,8 @@
                                 <li><i class="fas fa-check-circle text-success me-2"></i>Acceso a IA 24/7</li>
                                 <li><i class="fas fa-check-circle text-success me-2"></i>Exámenes personalizados</li>
                                 <li><i class="fas fa-check-circle text-success me-2"></i>Análisis de rendimiento avanzado</li>
-                                <li><i class="fas fa-check-circle text-success me-2"></i>Esquemas interactivos</li>
-                                <li><i class="fas fa-check-circle text-success me-2"></i>Chat con PDFs</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Generador de Esquemas</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Chat Multimodal</li>
                             </ul>
                             <a href="#" class="w-100 btn btn-lg btn-primary">Elegir Plan</a>
                         </div>
@@ -572,14 +578,34 @@
                             <h4 class="my-0 fw-normal">Opositores</h4>
                         </div>
                         <div class="card-body">
-                            <h1 class="card-title pricing-card-title opositors">9,99€<small class="text-muted fw-light">/mes</small></h1>
-                            <p class="text-primary">Recomendado para aspirantes a oposiciones</p>
+                            <h1 class="card-title pricing-card-title opositors">7,99€<small class="text-muted fw-light">/mes</small></h1>
+                            <p class="text-primary">Preparado para tus oposiciones</p>
                             <ul class="list-unstyled mt-3 mb-4">
                                 <li><i class="fas fa-check-circle text-primary me-2"></i>Acceso a IA 24/7</li>
                                 <li><i class="fas fa-check-circle text-primary me-2"></i>Exámenes personalizados para opositores</li>
                                 <li><i class="fas fa-check-circle text-primary me-2"></i>Informes detallados de rendimiento</li>
-                                <li><i class="fas fa-check-circle text-primary me-2"></i>Material exclusivo para oposiciones</li>
-                                <li><i class="fas fa-check-circle text-primary me-2"></i>Simulacros de examen</li>
+                                <li><i class="fas fa-check-circle text-primary me-2"></i>Generador de Esquemas</li>
+                                <li><i class="fas fa-check-circle text-primary me-2"></i>Chat Multimodal</li>
+                            </ul>
+                            <a href="#" class="w-100 btn btn-lg btn-primary">Elegir Plan</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Plan para Colegios -->
+                <div class="col" data-aos="fade-up" data-aos-delay="200">
+                    <div class="card price-card">
+                        <div class="card-header colleges">
+                            <h4 class="my-0 fw-normal">Colegios</h4>
+                        </div>
+                        <div class="card-body">
+                            <h1 class="card-title pricing-card-title colleges">7,99€<small class="text-muted fw-light">/mes</small></h1>
+                            <p class="text-info">Ideal para instituciones educativas</p>
+                            <ul class="list-unstyled mt-3 mb-4">
+                                <li><i class="fas fa-check-circle text-info me-2"></i>Acceso a IA 24/7 para estudiantes</li>
+                                <li><i class="fas fa-check-circle text-info me-2"></i>Generación de exámenes y tareas</li>
+                                <li><i class="fas fa-check-circle text-info me-2"></i>Informes detallados de rendimiento</li>
+                                <li><i class="fas fa-check-circle text-info me-2"></i>Generador de Esquemas para docentes</li>
+                                <li><i class="fas fa-check-circle text-info me-2"></i>Chat Multimodal para soporte educativo</li>
                             </ul>
                             <a href="#" class="w-100 btn btn-lg btn-primary">Elegir Plan</a>
                         </div>
@@ -612,6 +638,15 @@
                         <li><i class="fas fa-check-circle"></i>Analizamos dónde fallas y te lo explicamos hasta que lo entiendas. Garantizado.</li>
                     </ul>
                     <a href="#" class="btn btn-light">¡Pruébalo gratis!</a>
+                </div>
+                <div class="guarantee-card" data-aos="fade-up" data-aos-delay="200">
+                    <h3 class="card-title"><i class="fas fa-graduation-cap"></i>Apoyo Integral</h3>
+                    <ul>
+                        <li><i class="fas fa-check-circle"></i>Soporte continuo para todas tus necesidades educativas.</li>
+                        <li><i class="fas fa-check-circle"></i>Herramientas avanzadas para optimizar tu aprendizaje.</li>
+                        <li><i class="fas fa-check-circle"></i>Recursos exclusivos para maximizar tu potencial.</li>
+                    </ul>
+                    <a href="#" class="btn btn-light">¡Descubre Más!</a>
                 </div>
             </div>
         </div>
