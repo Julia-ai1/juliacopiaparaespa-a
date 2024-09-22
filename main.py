@@ -114,6 +114,7 @@ def normalize_pdf_id(filename):
 
 # Modifica la lógica de subida del PDF
 @app.route('/upload_pdf', methods=['POST'])
+@pro_required
 def upload_pdf():
     try:
         # Verificar si se ha enviado el archivo PDF
@@ -153,6 +154,7 @@ def upload_pdf():
 
 
 @app.route('/get_pdfs', methods=['GET'])
+@pro_required
 def get_pdfs():
     try:
         # Obtener el user_id desde los parámetros de la solicitud
@@ -201,6 +203,7 @@ def extract_pdf_content(pdf_path):
 
 
 @app.route('/ask_question', methods=['POST'])
+@pro_required
 @login_required
 def ask_question():
     question = request.form.get('question')
@@ -278,10 +281,12 @@ def generate_response(context, question):
 
 # Add route for the PDF interaction page for test purposes
 @app.route('/pdf_page')
+@pro_required
 def pdf_page():
     return render_template('pdf_chat.html')
 
 @app.route('/test_pdf_page')
+@pro_required
 def test_pdf_page():
     return render_template('pdftest.html')
 
@@ -323,6 +328,7 @@ def extract_and_store_in_azure_search(filepath, filename, user_id):
 
 # Ruta para subir y procesar un PDF
 @app.route('/upload_pdf_test', methods=['POST'])
+@pro_required
 def upload_pdf_test():
     try:
         # Verificar si se ha enviado el archivo PDF
@@ -367,6 +373,7 @@ import openai
 questions_db = {}
 openai.api_key = os.getenv("OPENAI_API_KEY")
 @app.route('/generate_test_questions', methods=['POST'])
+@pro_required
 def generate_test_questions():
     num_questions = int(request.form.get('num_questions', 5))
     pdf_id = request.form.get('pdf_id')
@@ -388,6 +395,7 @@ def generate_test_questions():
     return jsonify({'questions': questions})
 
 @app.route('/get_generated_questions', methods=['POST'])
+@pro_required
 def get_generated_questions():
     pdf_id = request.form.get('pdf_id')
     questions = questions_db.get(pdf_id)
@@ -539,6 +547,7 @@ def retrieve_pdf_content_from_azure_search(pdf_id, query_text, max_characters=80
 import json
 
 @app.route('/check_test_answer', methods=['POST'])
+@pro_required
 def check_test_answer():
     try:
         # Obtener los parámetros del POST
@@ -674,6 +683,7 @@ def generate_pdf(questions, filepath):
 
 # Ruta para renderizar la página test.html
 @app.route('/test.html')
+@pro_required
 def test_page1():
     pdf_id = request.args.get('pdf_id')
     # Renderizamos la página test.html y pasamos el pdf_id a la plantilla
@@ -919,6 +929,7 @@ import random
 import urllib.parse
 
 @app.route('/generate_exam', methods=['POST'])
+@pro_required
 def generate_exam():
     segmento = request.form['segmento']
     asignatura = request.form['asignatura']
@@ -1020,6 +1031,7 @@ def validate_question(question):
 
 
 @app.route('/check', methods=['POST'])
+@pro_required
 def check():
     data = request.get_json()
 
@@ -1084,6 +1096,7 @@ def check():
 
 
 @app.route('/chat', methods=['POST'])
+@pro_required
 def chat():
     user_message = request.json['message']
     chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=4000)
@@ -1368,7 +1381,7 @@ def start_study():
         traceback.print_exc()
         logger.error(f"Error al iniciar el estudio: {e}")
         return jsonify({"error": str(e)}), 500
-        
+
 # Ruta para obtener la siguiente sección de la guía
 @app.route('/next_section', methods=['GET'])
 @login_required
@@ -1800,6 +1813,7 @@ def ruta():
         return render_template('ruta.html')
 
 @app.route('/detalle_subtema', methods=['POST'])
+@pro_required
 def detalle_subtema():
     subtema = request.json.get('subtema')
     if subtema:
