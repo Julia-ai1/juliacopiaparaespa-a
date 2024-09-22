@@ -106,6 +106,8 @@ def extract_topics_from_pdf(pdf_path):
         {chunk}
 
         Lista de temas (en formato JSON):
+        Tema 1.
+        Tema 2.
         """
 
         # Obtener la respuesta del modelo
