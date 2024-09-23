@@ -121,23 +121,29 @@
         }
 
         function formatearDetalle(detalle) {
+            // Dividir el contenido en párrafos
             let parrafos = detalle.split('\n\n');
             let html = '';
 
             parrafos.forEach(parrafo => {
                 if (parrafo.startsWith('# ')) {
+                    // Título principal
                     html += '<h3>' + parrafo.substring(2) + '</h3>';
                 } else if (parrafo.startsWith('* ')) {
+                    // Lista no ordenada
                     let items = parrafo.split('* ').filter(item => item.trim() !== '');
                     html += '<ul>' + items.map(item => '<li>' + item.trim() + '</li>').join('') + '</ul>';
                 } else if (parrafo.match(/^\d+\. /)) {
+                    // Lista ordenada
                     let items = parrafo.split(/\d+\. /).filter(item => item.trim() !== '');
                     html += '<ol>' + items.map(item => '<li>' + item.trim() + '</li>').join('') + '</ol>';
                 } else {
+                    // Párrafo normal
                     html += '<p>' + parrafo + '</p>';
                 }
             });
 
+            // Formatear negritas, cursivas, enlaces y código en línea
             html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                        .replace(/\_([^_]+)\_/g, '<em>$1</em>')
                        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
@@ -145,47 +151,11 @@
 
             return html;
         }
-
-        document.addEventListener("DOMContentLoaded", function() {
-            const form = document.querySelector('form');
-            const submitButton = form.querySelector('input[type="submit"]');
-
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-
-                // Deshabilitar el botón y mostrar "Pensando..."
-                submitButton.disabled = true;
-                submitButton.value = "Pensando...";
-
-                // Enviar el formulario
-                fetch(form.action, {
-                    method: form.method,
-                    body: new FormData(form)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.ruta) {
-                        // Mostrar la ruta si se ha generado correctamente
-                        window.location.reload();
-                    } else {
-                        alert('Error al generar la ruta.');
-                        submitButton.disabled = false;  // Habilitar el botón en caso de error
-                        submitButton.value = "Generar Ruta";
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al generar la ruta.');
-                    submitButton.disabled = false;  // Habilitar el botón en caso de error
-                    submitButton.value = "Generar Ruta";
-                });
-            });
-        });
     </script>
 </head>
 <body>
     <h1>Generar Ruta de Aprendizaje</h1>
-    <form method="post" action="/generar_ruta">
+    <form method="post">
         <label for="tema">¿Qué quieres estudiar?</label>
         <input type="text" id="tema" name="tema" required>
         
