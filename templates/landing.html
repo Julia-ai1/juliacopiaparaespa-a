@@ -394,7 +394,7 @@
     <!-- Sección Hero -->
     <section id="hero" class="d-flex align-items-center">
         <div class="container text-center position-relative">
-            <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">Domina la Selectividad con AiHelpStudy</h1>
+            <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">Domina tus estudios (Especializado en Selectividad)</h1>
             <p class="lead mb-5" data-aos="fade-up" data-aos-delay="100">Preparación personalizada con IA disponible las 24 horas para maximizar tu puntuación</p>
             <a href="{{ url_for('login_google') }}" class="btn btn-light btn-lg me-3" data-aos="fade-up" data-aos-delay="200">¡Empieza Ahora con Google!</a>
             <a href="#video-demo" class="btn btn-outline-light btn-lg" data-aos="fade-up" data-aos-delay="300">Ver Demostración</a>
@@ -535,7 +535,6 @@
         </div>
     </section>
 
-
     <!-- Sección de Embajadores -->
     <section id="ambassadors" class="py-5">
         <div class="container">
@@ -652,7 +651,7 @@
         </div>
     </section>
 
-        <!-- Footer -->
+    <!-- Footer -->
     <footer class="py-5 bg-light">
         <div class="container text-center">
             <p class="mb-4">&copy; 2024 AiHelpStudy - Todos los derechos reservados</p>
@@ -671,12 +670,11 @@
             </div>
             <!-- Enlaces a Política de Privacidad y Condiciones de Uso -->
             <div class="mt-4">
-                <a href="privacidad.html" class="me-3 text-decoration-none text-dark">Política de Privacidad</a>
-                <a href="condiciones.html" class="text-decoration-none text-dark">Condiciones de Uso</a>
+                <a href="{{ url_for('privacidad') }}" class="me-3 text-decoration-none text-dark">Política de Privacidad</a>
+                <a href="{{ url_for('condiciones') }}" class="text-decoration-none text-dark">Condiciones de Uso</a>
             </div>
         </div>
     </footer>
-
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
