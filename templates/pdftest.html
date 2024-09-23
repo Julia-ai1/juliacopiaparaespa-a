@@ -66,7 +66,7 @@
                     <input type="number" name="num_questions" id="num_questions" min="1" value="5" class="block w-full text-gray-700 bg-gray-100 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                 </div>
 
-                <button type="submit" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 transform hover:scale-105">
+                <button type="submit" id="generate-button" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 transform hover:scale-105">
                     Generar Preguntas
                 </button>
             </form>
@@ -146,11 +146,16 @@
 
             const pdfId = document.getElementById('pdf_id').value;
             const numQuestions = document.getElementById('num_questions').value;
+            const generateButton = document.getElementById('generate-button');
 
             if (!pdfId) {
                 alert("Por favor, sube o selecciona un PDF primero.");
                 return;
             }
+
+            // Deshabilitar el botón y cambiar el texto a "Pensando..."
+            generateButton.disabled = true;
+            generateButton.textContent = "Pensando...";
             
             fetch('/generate_test_questions', {
                 method: 'POST',
@@ -166,19 +171,21 @@
             .then(data => {
                 if (data.questions.length === 0) {
                     alert('No se pudieron generar preguntas.');
+                    generateButton.disabled = false;  // Restaurar botón si hay error
+                    generateButton.textContent = "Generar Preguntas";  // Restaurar texto
                     return;
                 }
 
+                // Redirigir a la página del test y bloquear generación adicional
                 window.location.href = `/test.html?pdf_id=${pdfId}&num_questions=${numQuestions}`;
             })
             .catch(error => {
                 console.error('Error al generar preguntas:', error);
                 alert('Error al generar preguntas');
+                generateButton.disabled = false;  // Restaurar botón si hay error
+                generateButton.textContent = "Generar Preguntas";  // Restaurar texto
             });
         });
     </script>
 </body>
 </html>
-
-
-
