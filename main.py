@@ -750,6 +750,13 @@ def subscribe():
     
     return redirect(payment_link)
 
+@app.route('/privacidad')
+def privacidad():
+    return render_template('privacidad.html')
+
+@app.route('/condiciones')
+def condiciones():
+    return render_template('condiciones.html')
 
 def has_used_trial(stripe_customer_id):
     """
