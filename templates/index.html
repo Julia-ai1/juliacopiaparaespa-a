@@ -102,7 +102,7 @@
                         </div>
                     </div>
 
-                    {% if subscription_type == 'paid' or subscription_type == 'trial' %}
+                    {% if subscription_type == 'paid' or subscription_type == 'trial' or subscription_type == 'cancel_pending' %}
                         <div class="grid gap-4 mb-8">
                             
                             <form method="POST" action="{{ url_for('select_exam') }}">

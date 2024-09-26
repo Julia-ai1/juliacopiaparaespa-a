@@ -10,7 +10,7 @@ def pro_required(f):
         if not current_user.is_authenticated:
             flash("Debes iniciar sesión para acceder a esta página.", "warning")
             return redirect(url_for('login'))
-        if current_user.subscription_type not in ['paid', 'trial']:
+        if current_user.subscription_type not in ['paid', 'trial', 'canceled_pending']:
             flash("Esta función está disponible solo para usuarios Pro.", "danger")
             return redirect(url_for('home'))
         return f(*args, **kwargs)
