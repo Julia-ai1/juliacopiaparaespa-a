@@ -12,18 +12,22 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AiHelpStudy - Tu Éxito en los estudios. Especializado en Selectividad</title>
+    <!-- Meta etiquetas SEO -->
+    <meta name="description" content="AiHelpStudy es una plataforma líder en IA generativa especializada en educación. Domina tus estudios y prepárate para Selectividad con recursos personalizados y soporte 24/7.">
+    <meta name="keywords" content="IA, Inteligencia Artificial, Educación, Selectividad, Estudios, Exámenes, Generativa, AiHelpStudy, Aprendizaje, Estudiantes">
+    <title>AiHelpStudy - Domina tus estudios con IA generativa especializada en educación</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
+        /* Estilos personalizados */
         :root {
             --primary-color: #3498db;
             --secondary-color: #2ecc71;
             --accent-color: #e74c3c;
             --dark-color: #34495e;
             --light-color: #ecf0f1;
-            --guarantee-bg-color: #2980b9; /* Nuevo color azul para la garantía */
+            --guarantee-bg-color: #2980b9;
             --guarantee-card-bg: rgba(255, 255, 255, 0.2);
         }
         body {
@@ -163,9 +167,8 @@
             transform: translateY(-10px);
             box-shadow: 0 15px 30px rgba(0,0,0,0.2);
         }
-        /* Nueva sección de garantía mejorada */
         .guarantee-section {
-            background-color: var(--guarantee-bg-color); /* Fondo azul */
+            background-color: var(--guarantee-bg-color);
             color: white;
             padding: 4rem 0;
             text-align: center;
@@ -188,7 +191,7 @@
             flex-wrap: wrap;
         }
         .guarantee-card {
-            background-color: rgba(255, 255, 255, 0.2); /* Transparencia para destacar sobre el fondo azul */
+            background-color: rgba(255, 255, 255, 0.2);
             border-radius: 15px;
             padding: 2rem;
             width: 100%;
@@ -246,7 +249,6 @@
             transform: translateY(-3px);
             color: var(--guarantee-bg-color);
         }
-        /* Sección de Acknowledgements */
         .acknowledgements {
             background-color: #f8f9fa;
             padding: 2rem 0;
@@ -255,11 +257,9 @@
         .acknowledgements p {
             margin-bottom: 1rem;
         }
-        /* Ajustes adicionales para centrado y espacios */
         .container {
             max-width: 1200px;
         }
-        /* Comparación con ChatGPT */
         .comparison-table {
             background-color: #ffffff;
             border-radius: 15px;
@@ -311,14 +311,12 @@
             transform: translateY(-3px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
-        /* Footer Acknowledgements */
         footer .acknowledgements img {
             transition: transform 0.3s ease;
         }
         footer .acknowledgements img:hover {
             transform: scale(1.1);
         }
-        /* Precio sección personalizado */
         #pricing .card-header {
             background-color: var(--primary-color);
             color: white;
@@ -345,7 +343,6 @@
         #pricing .card-title.colleges {
             color: #16a085;
         }
-        /* Media Queries para Responsividad */
         @media (max-width: 768px) {
             .comparison-header, .comparison-row {
                 flex-direction: column;
@@ -384,6 +381,9 @@
                         <a class="nav-link" href="#pricing">Precios</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="#about-us">Sobre Nosotros</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link btn btn-primary text-white" href="{{ url_for('login_google') }}">Iniciar Sesión con Google</a>
                     </li>
                 </ul>
@@ -394,8 +394,8 @@
     <!-- Sección Hero -->
     <section id="hero" class="d-flex align-items-center">
         <div class="container text-center position-relative">
-            <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">Domina tus estudios (Especializado en Selectividad)</h1>
-            <p class="lead mb-5" data-aos="fade-up" data-aos-delay="100">Preparación personalizada con IA disponible las 24 horas para maximizar tu puntuación</p>
+            <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">Domina tus estudios con IA Generativa</h1>
+            <p class="lead mb-5" data-aos="fade-up" data-aos-delay="100">Preparación personalizada con IA disponible las 24 horas para maximizar tu puntuación en Selectividad</p>
             <a href="{{ url_for('login_google') }}" class="btn btn-light btn-lg me-3" data-aos="fade-up" data-aos-delay="200">¡Empieza Ahora con Google!</a>
             <a href="#video-demo" class="btn btn-outline-light btn-lg" data-aos="fade-up" data-aos-delay="300">Ver Demostración</a>
         </div>
@@ -423,41 +423,49 @@
                             <div class="comparison-AiHelpStudy">AiHelpStudy</div>
                             <div class="comparison-chatgpt">ChatGPT</div>
                         </div>
+                        <!-- Fila 1 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Especialización en Selectividad</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
                         </div>
+                        <!-- Fila 2 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">IA disponible 24 horas</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-check-circle"></i></div>
                         </div>
+                        <!-- Fila 3 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Generación de exámenes personalizados</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
                         </div>
+                        <!-- Fila 4 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Análisis de rendimiento detallado</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
                         </div>
+                        <!-- Fila 5 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Adaptación al plan de estudios español</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
                         </div>
+                        <!-- Fila 6 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Seguimiento del progreso</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
                         </div>
+                        <!-- Fila 7 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Recursos específicos para Selectividad</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
                             <div class="comparison-chatgpt"><i class="fas fa-times-circle"></i></div>
                         </div>
+                        <!-- Fila 8 -->
                         <div class="comparison-row">
                             <div class="comparison-feature">Preparación para PCE</div>
                             <div class="comparison-AiHelpStudy"><i class="fas fa-check-circle"></i></div>
@@ -477,6 +485,7 @@
         <div class="container">
             <h2 class="text-center mb-5">Características Exclusivas</h2>
             <div class="row">
+                <!-- Característica 1 -->
                 <div class="col-md-4 mb-4" data-aos="fade-up">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
@@ -486,6 +495,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Característica 2 -->
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
@@ -495,6 +505,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Característica 3 -->
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
@@ -504,6 +515,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Característica 4 -->
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="300">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
@@ -513,6 +525,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Característica 5 -->
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="400">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
@@ -522,6 +535,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Característica 6 -->
                 <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="500">
                     <div class="card feature-card h-100">
                         <div class="card-body text-center">
@@ -535,16 +549,30 @@
         </div>
     </section>
 
+    <!-- Sección Sobre Nosotros -->
+    <section id="about-us" class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5">Sobre Nosotros</h2>
+            <p class="text-center mb-4">
+                En <strong>AiHelpStudy</strong>, somos especialistas en IA generativa comprometidos con la educación. Tras ver los problemas que tiene el sistema educativo actual, nos propusimos crear una herramienta que revolucionara la forma en que los estudiantes aprenden y se preparan para sus exámenes.
+            </p>
+            <p class="text-center">
+                Nuestra misión es proporcionar recursos innovadores y accesibles que permitan a los estudiantes alcanzar su máximo potencial. Creemos en el poder de la tecnología para transformar la educación y estamos dedicados a hacer que el aprendizaje sea más eficiente, personalizado y efectivo.
+            </p>
+        </div>
+    </section>
+
     <!-- Sección de Embajadores -->
     <section id="ambassadors" class="py-5">
         <div class="container">
             <h2 class="text-center mb-4">Conviértete en Embajador de AiHelpStudy</h2>
             <p class="text-center mb-5">¿Te apasiona la educación y quieres ayudarnos a crecer? Únete a nuestro programa de embajadores y forma parte de AiHelpStudy.</p>
             <div class="text-center">
-                <a href="mailto:cadamar1236@gmail.com" class="btn btn-primary btn-lg">Contáctanos</a>
+                <a href="mailto:aihelpstudy@gmail.com" class="btn btn-primary btn-lg">Contáctanos</a>
             </div>
         </div>
     </section>
+
     <!-- Sección de Precios -->
     <section id="pricing" class="py-5 bg-light">
         <div class="container">
@@ -620,30 +648,33 @@
             <h2 class="text-center mb-4">Garantía de Éxito del 97%</h2>
             <p class="text-center mb-5">Con AiHelpStudy todo te será mucho más fácil.</p>
             <div class="guarantee-cards">
+                <!-- Tarjeta 1 -->
                 <div class="guarantee-card" data-aos="fade-up">
-                    <h3 class="card-title"><i class="fas fa-book-open"></i>Deberes y Estudio</h3>
+                    <h3 class="card-title"><i class="fas fa-book-open"></i> Deberes y Estudio</h3>
                     <ul>
-                        <li><i class="fas fa-check-circle"></i>Aprende a resolver los deberes de cualquier asignatura.</li>
-                        <li><i class="fas fa-check-circle"></i>Realiza ejercicios personalizados para que no se te olvide lo aprendido.</li>
-                        <li><i class="fas fa-check-circle"></i>Agenda las fechas de entrega de los deberes de una manera única, nosotros nos encargaremos de recordártelo.</li>
+                        <li><i class="fas fa-check-circle"></i> Aprende a resolver los deberes de cualquier asignatura.</li>
+                        <li><i class="fas fa-check-circle"></i> Realiza ejercicios personalizados para que no se te olvide lo aprendido.</li>
+                        <li><i class="fas fa-check-circle"></i> Agenda las fechas de entrega de los deberes de una manera única, nosotros nos encargaremos de recordártelo.</li>
                     </ul>
                     <a href="#" class="btn btn-light">¡Pruébalo gratis!</a>
                 </div>
+                <!-- Tarjeta 2 -->
                 <div class="guarantee-card" data-aos="fade-up" data-aos-delay="100">
-                    <h3 class="card-title"><i class="fas fa-file-alt"></i>Prepara tus Exámenes</h3>
+                    <h3 class="card-title"><i class="fas fa-file-alt"></i> Prepara tus Exámenes</h3>
                     <ul>
-                        <li><i class="fas fa-check-circle"></i>Resuelve y prepara exámenes de selectividad como nunca antes se había podido.</li>
-                        <li><i class="fas fa-check-circle"></i>Corrige cualquier examen que tengas con solo hacer una foto y te ayudamos a que tengas un diez.</li>
-                        <li><i class="fas fa-check-circle"></i>Analizamos dónde fallas y te lo explicamos hasta que lo entiendas. Garantizado.</li>
+                        <li><i class="fas fa-check-circle"></i> Resuelve y prepara exámenes de selectividad como nunca antes se había podido.</li>
+                        <li><i class="fas fa-check-circle"></i> Corrige cualquier examen que tengas con solo hacer una foto y te ayudamos a que tengas un diez.</li>
+                        <li><i class="fas fa-check-circle"></i> Analizamos dónde fallas y te lo explicamos hasta que lo entiendas. Garantizado.</li>
                     </ul>
                     <a href="#" class="btn btn-light">¡Pruébalo gratis!</a>
                 </div>
+                <!-- Tarjeta 3 -->
                 <div class="guarantee-card" data-aos="fade-up" data-aos-delay="200">
-                    <h3 class="card-title"><i class="fas fa-graduation-cap"></i>Apoyo Integral</h3>
+                    <h3 class="card-title"><i class="fas fa-graduation-cap"></i> Apoyo Integral</h3>
                     <ul>
-                        <li><i class="fas fa-check-circle"></i>Soporte continuo para todas tus necesidades educativas.</li>
-                        <li><i class="fas fa-check-circle"></i>Herramientas avanzadas para optimizar tu aprendizaje.</li>
-                        <li><i class="fas fa-check-circle"></i>Recursos exclusivos para maximizar tu potencial.</li>
+                        <li><i class="fas fa-check-circle"></i> Soporte continuo para todas tus necesidades educativas.</li>
+                        <li><i class="fas fa-check-circle"></i> Herramientas avanzadas para optimizar tu aprendizaje.</li>
+                        <li><i class="fas fa-check-circle"></i> Recursos exclusivos para maximizar tu potencial.</li>
                     </ul>
                     <a href="#" class="btn btn-light">¡Descubre Más!</a>
                 </div>
