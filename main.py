@@ -739,7 +739,7 @@ def subscribe():
         flash('Ya tienes una suscripción activa.', 'info')
         return redirect(url_for('index'))
     
-    # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada o cancelada
+    # Verificar si el usuario yaf ha usado un trial o si su suscripción está pausada o cancelada
     if has_used_trial(current_user.stripe_customer_id):
         if current_user.stripe_subscription_id is None:
             # Caso especial: el usuario canceló la suscripción y el subscription_id ya no existe
