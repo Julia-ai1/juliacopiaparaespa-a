@@ -739,13 +739,18 @@ def subscribe():
         flash('Ya tienes una suscripción activa.', 'info')
         return redirect(url_for('index'))
     
-    # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada
+    # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada o cancelada
     if has_used_trial(current_user.stripe_customer_id):
-        # Redirigir a un enlace de pago sin trial
-        payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
-        flash("Ya has utilizado tu período de prueba o tu suscripción está pausada. Puedes suscribirte con un plan pago.", 'info')
+        if current_user.subscription_id is None:
+            # Caso especial: el usuario canceló la suscripción y el subscription_id ya no existe
+            flash("Tu suscripción ha sido cancelada. Puedes suscribirte de nuevo con un plan pago.", 'info')
+            payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
+        else:
+            # Redirigir a un enlace de pago sin trial si ha usado el trial
+            flash("Ya has utilizado tu período de prueba o tu suscripción está pausada. Puedes suscribirte con un plan pago.", 'info')
+            payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
     else:
-        # Redirigir a un enlace de pago con trial
+        # Redirigir a un enlace de pago con trial si no ha usado el trial ni cancelado
         payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Enlace de pago con trial
     
     return redirect(payment_link)
