@@ -738,6 +738,10 @@ def subscribe():
     if current_user.subscription_type == 'paid':
         flash('Ya tienes una suscripción activa.', 'info')
         return redirect(url_for('index'))
+    if current_user.subscription_type == 'canceled':
+        flash("Tu suscripción fue cancelada. Puedes suscribirte de nuevo con un plan pago.", 'info')
+        payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
+        return redirect(payment_link)
 
     # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada o cancelada
     if has_used_trial(current_user.stripe_customer_id):
@@ -843,7 +847,7 @@ def handle_checkout_session(session):
 def handle_subscription_cancellation(subscription):
     user = User.query.filter_by(stripe_subscription_id=subscription.id).first()
     if user:
-        user.subscription_type = 'free'
+        user.subscription_type = 'canceled'
         user.stripe_subscription_id = None
         db.session.commit()
 
