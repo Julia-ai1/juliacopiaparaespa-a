@@ -766,7 +766,7 @@ def condiciones():
 def has_used_trial(stripe_customer_id):
     """
     Función para verificar si un usuario ha utilizado un trial basado en el historial de suscripciones en Stripe.
-    Devuelve True si el usuario ya ha usado un trial o si la suscripción está pausada.
+    Devuelve True si el usuario ya ha usado un trial o si la suscripción está pausada o cancelada.
     """
     if not stripe_customer_id:
         return False  # El usuario no tiene un stripe_customer_id, es un nuevo usuario
@@ -781,11 +781,8 @@ def has_used_trial(stripe_customer_id):
 
         # Verificar si alguna suscripción anterior tenía un trial o está pausada
         for sub in subscriptions['data']:
-            # Consideramos todos los estados posibles relacionados con trials o cancelaciones
-            if sub.status in ['trialing', 'active', 'past_due'] and sub.trial_end:
-                return True  # Ya ha usado un trial o la suscripción está pausada
-            if sub.status in ['canceled', 'paused'] and sub.trial_end:
-                return True  # Ya ha tenido una suscripción que ha sido cancelada o pausada
+            if sub.status in ['trialing', 'active', 'past_due', 'paused', 'canceled'] and sub.trial_end:
+                return True  # Ya ha usado un trial o la suscripción está pausada/cancelada
 
         return False  # No ha usado un trial previamente ni tiene la suscripción pausada
 
@@ -793,7 +790,6 @@ def has_used_trial(stripe_customer_id):
         # Manejar errores al conectar con Stripe
         print(f"Error al verificar suscripciones en Stripe: {e}")
         return False
-
 
 
 @app.route('/', methods=['POST'])
