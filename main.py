@@ -741,7 +741,7 @@ def subscribe():
     
     # Verificar si el usuario yaf ha usado un trial o si su suscripción está pausada o cancelada
     if has_used_trial(current_user.stripe_customer_id):
-        if current_user.stripe_subscription_id is None:
+        if not current_user.stripe_subscription_id:
             # Caso especial: el usuario canceló la suscripción y el subscription_id ya no existe
             flash("Tu suscripción ha sido cancelada. Puedes suscribirte de nuevo con un plan pago.", 'info')
             payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
