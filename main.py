@@ -738,11 +738,10 @@ def subscribe():
     if current_user.subscription_type == 'paid':
         flash('Ya tienes una suscripción activa.', 'info')
         return redirect(url_for('index'))
-    
-    # Verificar si el usuario yaf ha usado un trial o si su suscripción está pausada o cancelada
+
+    # Verificar si el usuario ya ha usado un trial o si su suscripción está pausada o cancelada
     if has_used_trial(current_user.stripe_customer_id):
-        if not current_user.stripe_subscription_id:
-            # Caso especial: el usuario canceló la suscripción y el subscription_id ya no existe
+        if not current_user.stripe_subscription_id:  # Maneja casos en los que la suscripción ha sido cancelada
             flash("Tu suscripción ha sido cancelada. Puedes suscribirte de nuevo con un plan pago.", 'info')
             payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
         else:
@@ -752,8 +751,9 @@ def subscribe():
     else:
         # Redirigir a un enlace de pago con trial si no ha usado el trial ni cancelado
         payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Enlace de pago con trial
-    
+
     return redirect(payment_link)
+
 
 @app.route('/privacidad')
 def privacidad():
@@ -771,19 +771,28 @@ def has_used_trial(stripe_customer_id):
     if not stripe_customer_id:
         return False  # El usuario no tiene un stripe_customer_id, es un nuevo usuario
 
-    # Obtener suscripciones previas del cliente en Stripe
-    subscriptions = stripe.Subscription.list(customer=stripe_customer_id)
+    try:
+        # Obtener suscripciones previas del cliente en Stripe
+        subscriptions = stripe.Subscription.list(customer=stripe_customer_id)
 
-    # Si no hay suscripciones, el usuario no ha usadso un trial
-    if not subscriptions['data']:
-        return False  # Usuario nuevo, puede usar el trial
+        # Si no hay suscripciones, el usuario no ha usado un trial
+        if not subscriptions['data']:
+            return False  # Usuario nuevo, puede usar el trial
 
-    # Verificar si alguna suscripción anterior tenía un trial o está pausada
-    for sub in subscriptions['data']:
-        if sub.trial_end and sub.status in ['trialing', 'trial', 'active', 'past_due', 'paused', 'canceled', 'free']:
-            return True  # Ya ha usado un trial o la suscripción está pausada
+        # Verificar si alguna suscripción anterior tenía un trial o está pausada
+        for sub in subscriptions['data']:
+            # Consideramos todos los estados posibles relacionados con trials o cancelaciones
+            if sub.status in ['trialing', 'active', 'past_due'] and sub.trial_end:
+                return True  # Ya ha usado un trial o la suscripción está pausada
+            if sub.status in ['canceled', 'paused'] and sub.trial_end:
+                return True  # Ya ha tenido una suscripción que ha sido cancelada o pausada
 
-    return False  # No ha usado un trial previamente ni tiene la suscripción pausada
+        return False  # No ha usado un trial previamente ni tiene la suscripción pausada
+
+    except Exception as e:
+        # Manejar errores al conectar con Stripe
+        print(f"Error al verificar suscripciones en Stripe: {e}")
+        return False
 
 
 
