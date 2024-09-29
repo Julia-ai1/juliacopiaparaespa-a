@@ -780,7 +780,7 @@ def has_used_trial(stripe_customer_id):
 
     # Verificar si alguna suscripción anterior tenía un trial o está pausada
     for sub in subscriptions['data']:
-        if sub.trial_end and sub.status in ['trialing', 'trial', 'active', 'past_due', 'paused', 'canceled']:
+        if sub.trial_end and sub.status in ['trialing', 'trial', 'active', 'past_due', 'paused', 'canceled', 'free']:
             return True  # Ya ha usado un trial o la suscripción está pausada
 
     return False  # No ha usado un trial previamente ni tiene la suscripción pausada
