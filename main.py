@@ -835,11 +835,23 @@ def handle_checkout_session(session):
     customer_email = session.get('customer_details', {}).get('email')
     stripe_customer_id = session.get('customer')  # Obtener el Stripe customer ID
     user = User.query.filter_by(email=customer_email).first()
-    
+
     if user:
-        user.subscription_type = 'paid'
-        user.subscription_start = datetime.now(timezone.utc)
-        user.stripe_subscription_id = session.get('subscription')
+        # Verifica si la suscripción incluye un período de prueba (trial)
+        subscription_id = session.get('subscription')
+        subscription = stripe.Subscription.retrieve(subscription_id)
+
+        if subscription.status == 'trialing':
+            user.subscription_type = 'trial'
+        elif subscription.status == 'active':
+            # Verifica si el monto es mayor a 0 para marcar como 'paid'
+            if session.get('amount_total') > 0:
+                user.subscription_type = 'paid'
+            else:
+                user.subscription_type = 'trial'
+
+        # Guardar el subscription_id y el customer_id
+        user.stripe_subscription_id = subscription_id
         user.stripe_customer_id = stripe_customer_id  # Guardar el customer_id en la base de datos
         db.session.commit()
 
