@@ -902,9 +902,11 @@ def handle_subscription_update(subscription):
         elif subscription['status'] == 'past_due':
             user.subscription_type = 'past_due'
         elif subscription['status'] == 'canceled':
-            user.subscription_type = 'canceled'
+            user.subscription_type = 'canceled'  # Cambiar el estado a 'canceled' cuando la cancelación sea efectiva
         elif subscription['status'] == 'paused':
             user.subscription_type = 'paused'
+        elif subscription.get('cancel_at_period_end'):
+            user.subscription_type = 'canceled_pending'  # Marcar como 'canceled_pending' si la cancelación está programada
 
         db.session.commit()
 
@@ -917,20 +919,29 @@ def cancel_subscription():
     user = current_user
     if user.stripe_subscription_id:
         try:
+            # Intentamos cancelar la suscripción en Stripe al final del ciclo de facturación
             response = stripe.Subscription.modify(
                 user.stripe_subscription_id,
                 cancel_at_period_end=True
             )
-            print(f"Stripe modify response: {response}")
-            user.subscription_type = 'canceled_pending'
-            db.session.commit()
-            print(f"Subscription marked as canceled_pending for user: {user.email}")
+            
+            # Verificar si la respuesta de Stripe indica que la suscripción está programada para cancelarse
+            if response.get('cancel_at_period_end'):
+                user.subscription_type = 'canceled_pending'
+                db.session.commit()
+                flash("Tu suscripción ha sido cancelada. Continuarás disfrutando del servicio hasta el final del período actual.", 'success')
+            else:
+                flash("No se pudo programar la cancelación de la suscripción. Por favor, intenta nuevamente.", 'error')
+
         except stripe.error.StripeError as e:
             print(f"Error during subscription cancellation: {e}")
+            flash(f"Hubo un error al cancelar tu suscripción: {str(e)}", 'error')
     else:
         print("No active subscription found to cancel.")
+        flash("No se encontró una suscripción activa para cancelar.", 'error')
 
     return redirect(url_for('app_index'))
+
 
 
 
