@@ -832,11 +832,16 @@ def stripe_webhook():
 
 
 def handle_checkout_session(session):
-    customer_email = session.get('customer_details', {}).get('email')
+    customer_email = session.get('customer_details', {}).get('email')  # Correo de Stripe
     stripe_customer_id = session.get('customer')  # Obtener el Stripe customer ID
-    user = User.query.filter_by(email=customer_email).first()
+    user = User.query.filter_by(stripe_customer_id=stripe_customer_id).first()
 
     if user:
+        # Verifica si el correo de Stripe es distinto al correo principal (de Google)
+        if user.email != customer_email:
+            user.stripe_email = customer_email  # Sincroniza el correo de Stripe en un campo adicional
+            db.session.commit()
+
         # Verifica si la suscripción incluye un período de prueba (trial)
         subscription_id = session.get('subscription')
         subscription = stripe.Subscription.retrieve(subscription_id)
@@ -852,8 +857,8 @@ def handle_checkout_session(session):
 
         # Guardar el subscription_id y el customer_id
         user.stripe_subscription_id = subscription_id
-        user.stripe_customer_id = stripe_customer_id  # Guardar el customer_id en la base de datos
         db.session.commit()
+
 
 
 def handle_subscription_cancellation(subscription):
@@ -877,17 +882,19 @@ def handle_payment_failed(invoice):
 
 def handle_subscription_update(subscription):
     customer_id = subscription['customer']
+    stripe_email = subscription.get('customer_details', {}).get('email')  # Obtener correo de Stripe
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
     
     if user:
-        # Evitar sobrescribir el estado si ya está marcado para cancelarse
-        if user.subscription_type == 'canceled_pending':
-            return
-        
+        # Si el correo de Stripe es diferente, sincronízalo
+        if user.email != stripe_email:
+            user.stripe_email = stripe_email  # Sincroniza el correo de Stripe
+            db.session.commit()
+
+        # Manejar la actualización del estado de la suscripción
         if subscription['status'] == 'trialing':
             user.subscription_type = 'trial'
         elif subscription['status'] == 'active':
-            # Verificar si hay un método de pago asociado
             if subscription.get('default_payment_method'):
                 user.subscription_type = 'paid'
             else:
@@ -899,7 +906,6 @@ def handle_subscription_update(subscription):
         elif subscription['status'] == 'paused':
             user.subscription_type = 'paused'
 
-        user.stripe_customer_id = customer_id
         db.session.commit()
 
 
