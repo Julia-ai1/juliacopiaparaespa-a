@@ -886,29 +886,41 @@ def handle_subscription_update(subscription):
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
     
     if user:
+        print(f"Actualizando suscripción para el usuario {user.email} con estado {subscription['status']}")
+
         # Si el correo de Stripe es diferente, sincronízalo
         if user.email != stripe_email:
-            user.stripe_email = stripe_email  # Sincroniza el correo de Stripe
+            user.stripe_email = stripe_email
             db.session.commit()
 
         # Manejar la actualización del estado de la suscripción
-        if subscription['status'] == 'trialing':
+        if subscription.get('cancel_at_period_end'):
+            # Si la cancelación está programada, cambiar a 'canceled_pending'
+            user.subscription_type = 'canceled_pending'
+            print(f"Suscripción programada para cancelarse. Estado: canceled_pending")
+        elif subscription['status'] == 'trialing' and user.subscription_type != 'canceled_pending':
+            # Solo marcar como 'trial' si no está programada para cancelarse
             user.subscription_type = 'trial'
+            print(f"Estado de la suscripción: trial")
         elif subscription['status'] == 'active':
             if subscription.get('default_payment_method'):
                 user.subscription_type = 'paid'
+                print(f"Estado de la suscripción: paid")
             else:
                 user.subscription_type = 'paused'
+                print(f"Estado de la suscripción: paused")
         elif subscription['status'] == 'past_due':
             user.subscription_type = 'past_due'
+            print(f"Estado de la suscripción: past_due")
         elif subscription['status'] == 'canceled':
-            user.subscription_type = 'canceled'  # Cambiar el estado a 'canceled' cuando la cancelación sea efectiva
+            user.subscription_type = 'canceled'
+            print(f"Estado de la suscripción: canceled")
         elif subscription['status'] == 'paused':
             user.subscription_type = 'paused'
-        elif subscription.get('cancel_at_period_end'):
-            user.subscription_type = 'canceled_pending'  # Marcar como 'canceled_pending' si la cancelación está programada
+            print(f"Estado de la suscripción: paused")
 
         db.session.commit()
+
 
 
 
