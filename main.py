@@ -832,16 +832,11 @@ def stripe_webhook():
 
 
 def handle_checkout_session(session):
-    customer_email = session.get('customer_details', {}).get('email')  # Correo de Stripe
+    customer_email = session.get('customer_details', {}).get('email')
     stripe_customer_id = session.get('customer')  # Obtener el Stripe customer ID
-    user = User.query.filter_by(stripe_customer_id=stripe_customer_id).first()
+    user = User.query.filter_by(email=customer_email).first()
 
     if user:
-        # Verifica si el correo de Stripe es distinto al correo principal (de Google)
-        if user.email != customer_email:
-            user.stripe_email = customer_email  # Sincroniza el correo de Stripe en un campo adicional
-            db.session.commit()
-
         # Verifica si la suscripción incluye un período de prueba (trial)
         subscription_id = session.get('subscription')
         subscription = stripe.Subscription.retrieve(subscription_id)
@@ -857,8 +852,8 @@ def handle_checkout_session(session):
 
         # Guardar el subscription_id y el customer_id
         user.stripe_subscription_id = subscription_id
+        user.stripe_customer_id = stripe_customer_id  # Guardar el customer_id en la base de datos
         db.session.commit()
-
 
 
 def handle_subscription_cancellation(subscription):
@@ -882,45 +877,30 @@ def handle_payment_failed(invoice):
 
 def handle_subscription_update(subscription):
     customer_id = subscription['customer']
-    stripe_email = subscription.get('customer_details', {}).get('email')  # Obtener correo de Stripe
     user = User.query.filter_by(stripe_customer_id=customer_id).first()
     
     if user:
-        print(f"Actualizando suscripción para el usuario {user.email} con estado {subscription['status']}")
-
-        # Si el correo de Stripe es diferente, sincronízalo
-        if user.email != stripe_email:
-            user.stripe_email = stripe_email
-            db.session.commit()
-
-        # Manejar la actualización del estado de la suscripción
-        if subscription.get('cancel_at_period_end'):
-            # Si la cancelación está programada, cambiar a 'canceled_pending'
-            user.subscription_type = 'canceled_pending'
-            print(f"Suscripción programada para cancelarse. Estado: canceled_pending")
-        elif subscription['status'] == 'trialing' and user.subscription_type != 'canceled_pending':
-            # Solo marcar como 'trial' si no está programada para cancelarse
+        # Evitar sobrescribir el estado si ya está marcado para cancelarse
+        if user.subscription_type == 'canceled_pending':
+            return
+        
+        if subscription['status'] == 'trialing':
             user.subscription_type = 'trial'
-            print(f"Estado de la suscripción: trial")
         elif subscription['status'] == 'active':
+            # Verificar si hay un método de pago asociado
             if subscription.get('default_payment_method'):
                 user.subscription_type = 'paid'
-                print(f"Estado de la suscripción: paid")
             else:
                 user.subscription_type = 'paused'
-                print(f"Estado de la suscripción: paused")
         elif subscription['status'] == 'past_due':
             user.subscription_type = 'past_due'
-            print(f"Estado de la suscripción: past_due")
         elif subscription['status'] == 'canceled':
             user.subscription_type = 'canceled'
-            print(f"Estado de la suscripción: canceled")
         elif subscription['status'] == 'paused':
             user.subscription_type = 'paused'
-            print(f"Estado de la suscripción: paused")
 
+        user.stripe_customer_id = customer_id
         db.session.commit()
-
 
 
 
@@ -931,26 +911,18 @@ def cancel_subscription():
     user = current_user
     if user.stripe_subscription_id:
         try:
-            # Intentamos cancelar la suscripción en Stripe al final del ciclo de facturación
             response = stripe.Subscription.modify(
                 user.stripe_subscription_id,
                 cancel_at_period_end=True
             )
-            
-            # Verificar si la respuesta de Stripe indica que la suscripción está programada para cancelarse
-            if response.get('cancel_at_period_end'):
-                user.subscription_type = 'canceled_pending'
-                db.session.commit()
-                flash("Tu suscripción ha sido cancelada. Continuarás disfrutando del servicio hasta el final del período actual.", 'success')
-            else:
-                flash("No se pudo programar la cancelación de la suscripción. Por favor, intenta nuevamente.", 'error')
-
+            print(f"Stripe modify response: {response}")
+            user.subscription_type = 'canceled_pending'
+            db.session.commit()
+            print(f"Subscription marked as canceled_pending for user: {user.email}")
         except stripe.error.StripeError as e:
             print(f"Error during subscription cancellation: {e}")
-            flash(f"Hubo un error al cancelar tu suscripción: {str(e)}", 'error')
     else:
         print("No active subscription found to cancel.")
-        flash("No se encontró una suscripción activa para cancelar.", 'error')
 
     return redirect(url_for('app_index'))
 
