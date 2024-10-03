@@ -1001,7 +1001,7 @@ def generate_exam():
             human_text = (
                 f"A continuación tienes el contexto:\n"
                 f"{context}\n\n"
-                f"Genera {num_items} preguntas tipo test, cada una con 4 opciones de respuesta y una de ellas es la correcta(No la repitas). Las preguntas deben estar relacionadas con el tema '{segmento}'."
+                f"Genera {num_items} preguntas tipo test, cada una con solo 4 opciones de respuesta y una de las cuatro, es la correcta(No la repitas la respuesta correcta, ponla como una respuesta más de las cuatro). Las preguntas deben estar relacionadas con el tema '{segmento}'."
             )
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
