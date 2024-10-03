@@ -995,7 +995,7 @@ def generate_exam():
             # Crear el prompt para GPT-4o-mini
             system_text = (
                 f"Eres un asistente que genera preguntas  para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
-                f"Usa el siguiente contexto para generar preguntas tipo test con opciones y respuestas claras. Si no tienes suficiente contexto, utiliza conocimientos generales."
+                f"Usa el siguiente contexto para generar preguntas tipo test con 4 opciones(una de ellas la correcta). Si no tienes suficiente contexto, utiliza conocimientos generales."
             )
 
             human_text = (
