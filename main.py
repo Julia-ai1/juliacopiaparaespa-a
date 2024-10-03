@@ -994,14 +994,14 @@ def generate_exam():
         try:
             # Crear el prompt para GPT-4o-mini
             system_text = (
-                f"Eres un asistente que genera preguntas de matemáticas para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
+                f"Eres un asistente que genera preguntas  para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
                 f"Usa el siguiente contexto para generar preguntas tipo test con opciones y respuestas claras. Si no tienes suficiente contexto, utiliza conocimientos generales."
             )
 
             human_text = (
                 f"A continuación tienes el contexto:\n"
                 f"{context}\n\n"
-                f"Genera {num_items} preguntas tipo test, cada una con 4 opciones de respuesta y señala cuál es la correcta. Las preguntas deben estar relacionadas con el tema '{segmento}'."
+                f"Genera {num_items} preguntas tipo test, cada una con 4 opciones de respuesta y una de ellas es la correcta(No la repitas). Las preguntas deben estar relacionadas con el tema '{segmento}'."
             )
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
