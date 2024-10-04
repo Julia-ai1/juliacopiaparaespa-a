@@ -680,7 +680,67 @@
                 </div>
             </div>
         </div>
-    </section>
+            <!-- Sección Blog -->
+        <section id="blog" class="py-5">
+            <div class="container">
+                <h2 class="text-center mb-5">Nuestro Blog</h2>
+                <div class="row" id="blog-posts">
+                    <!-- Aquí se insertarán dinámicamente las publicaciones del blog -->
+                </div>
+            </div>
+        </section>
+
+        <script>
+            // Array con las publicaciones del blog
+            const blogPosts = [
+                {
+                    title: "Título del primer post",
+                    summary: "Este es un breve resumen del primer post del blog...",
+                    image: "ruta_imagen_blog1.jpg",
+                    url: "post1.html"
+                },
+                {
+                    title: "Título del segundo post",
+                    summary: "Este es un breve resumen del segundo post del blog...",
+                    image: "ruta_imagen_blog2.jpg",
+                    url: "post2.html"
+                },
+                {
+                    title: "Título del tercer post",
+                    summary: "Este es un breve resumen del tercer post del blog...",
+                    image: "ruta_imagen_blog3.jpg",
+                    url: "post3.html"
+                }
+                // Puedes agregar más posts aquí
+            ];
+
+            // Función para cargar los posts dinámicamente
+            function loadBlogPosts() {
+                const blogContainer = document.getElementById('blog-posts');
+                blogPosts.forEach(post => {
+                    // Crear la estructura HTML para cada post
+                    const postHTML = `
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <img src="${post.image}" class="card-img-top" alt="${post.title}">
+                                <div class="card-body">
+                                    <h5 class="card-title">${post.title}</h5>
+                                    <p class="card-text">${post.summary}</p>
+                                    <a href="${post.url}" class="btn btn-primary">Leer Más</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    // Insertar el post en el contenedor del blog
+                    blogContainer.innerHTML += postHTML;
+                });
+            }
+
+            // Cargar los posts cuando la página cargue
+            document.addEventListener('DOMContentLoaded', loadBlogPosts);
+        </script>
+
+            </section>
 
     <!-- Footer -->
     <footer class="py-5 bg-light">
