@@ -106,7 +106,17 @@ def app_index():
 
     return render_template('index.html', subscription_type=subscription_type, questions_asked=questions_asked)
 #Empieza aqui lo de los pdfs y tipo test de pdfs
+@app.route('/post1')
+def post1():
+    return render_template('post1.html')
 
+@app.route('/post2')
+def post2():
+    return render_template('post2.html')
+
+@app.route('/post3')
+def post3():
+    return render_template('post3.html')
 import re
 def normalize_pdf_id(filename):
     # Reemplaza cualquier carácter no permitido por un guion bajo o guion
