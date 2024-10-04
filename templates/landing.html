@@ -692,27 +692,27 @@
 
         <script>
             // Array con las publicaciones del blog
-            const blogPosts = [
-                {
-                    title: "Título del primer post",
-                    summary: "Este es un breve resumen del primer post del blog...",
-                    image: "ruta_imagen_blog1.jpg",
-                    url: "post1.html"
-                },
-                {
-                    title: "Título del segundo post",
-                    summary: "Este es un breve resumen del segundo post del blog...",
-                    image: "ruta_imagen_blog2.jpg",
-                    url: "post2.html"
-                },
-                {
-                    title: "Título del tercer post",
-                    summary: "Este es un breve resumen del tercer post del blog...",
-                    image: "ruta_imagen_blog3.jpg",
-                    url: "post3.html"
-                }
-                // Puedes agregar más posts aquí
-            ];
+                    const blogPosts = [
+            {
+                title: "Título del primer post",
+                summary: "Este es un breve resumen del primer post del blog...",
+                image: "ruta_imagen_blog1.jpg",
+                url: "templates/post1.html"  // Enlace correcto si está en la carpeta 'templates'
+            },
+            {
+                title: "Título del segundo post",
+                summary: "Este es un breve resumen del segundo post del blog...",
+                image: "ruta_imagen_blog2.jpg",
+                url: "templates/post2.html"  // Enlace correcto si está en la carpeta 'templates'
+            },
+            {
+                title: "Título del tercer post",
+                summary: "Este es un breve resumen del tercer post del blog...",
+                image: "ruta_imagen_blog3.jpg",
+                url: "templates/post3.html"  // Enlace correcto si está en la carpeta 'templates'
+            }
+        ];
+
 
             // Función para cargar los posts dinámicamente
             function loadBlogPosts() {
