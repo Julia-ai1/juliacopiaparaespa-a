@@ -95,6 +95,11 @@ stripe.api_key = os.getenv('STRIPE_API_KEY')
 def landing():
     return render_template('landing.html')
 
+@app.route('/landing')
+def landing():
+    return render_template('landing.html')
+
+
 @app.route('/app')
 def app_index():
     if current_user.is_authenticated:
