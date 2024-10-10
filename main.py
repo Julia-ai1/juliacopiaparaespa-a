@@ -979,15 +979,18 @@ def generate_exam():
     asignatura = request.form['asignatura']
     num_items = int(request.form['num_items'])
 
-    # Configuración de Elasticsearch con tus credenciales
-    es = Elasticsearch(
-        cloud_id="julia:d2VzdHVzMi5henVyZS5lbGFzdGljLWNsb3VkLmNvbSQyYzM3NDIxODU0MWI0NzFlODYzMjNjNzZiNWFiZjA3MSQ5Nzk5YTRkZTEyYzg0NTU5OTlkOGVjMWMzMzM1MGFmZg==",
-        basic_auth=("elastic", "VlXvDov4WtoFcBfEgFfOL6Zd")
+    # Crear el cliente de Azure Search
+    search_client = SearchClient(
+        endpoint=SEARCH_SERVICE_ENDPOINT,
+        index_name="exam_questions_sel",
+        credential=AzureKeyCredential(SEARCH_API_KEY)
     )
 
     # Recuperar documentos relevantes usando el segmento ingresado
     print(f"Recuperando documentos para el segmento: {segmento}")
-    relevant_docs = retrieve_documents(segmento, es, "exam_questions_sel", 20)
+    search_results = search_client.search(search_text=segmento, top=20)
+
+    relevant_docs = [result for result in search_results]
     if not relevant_docs:
         print("No se recuperaron documentos relevantes.")
         return jsonify({"error": "No se recuperaron documentos."})
@@ -1004,22 +1007,22 @@ def generate_exam():
         try:
             # Crear el prompt para GPT-4o-mini
             system_text = (
-                f"Eres un asistente que genera preguntas  para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
-                f"Usa el siguiente contexto para generar preguntas tipo test con 4 opciones(una de ellas la correcta). Si no tienes suficiente contexto, utiliza conocimientos generales."
+                f"Eres un asistente que genera preguntas para el segmento '{segmento}' sobre la asignatura '{asignatura}'. "
+                f"Usa el siguiente contexto para generar preguntas tipo test con 4 opciones (una de ellas la correcta). Si no tienes suficiente contexto, utiliza conocimientos generales."
             )
 
             human_text = (
-    f"A continuación tienes el contexto:\n"
-    f"{context}\n\n"
-    f"Genera {num_items} preguntas tipo test. Cada pregunta debe tener exactamente 4 opciones de respuesta, y solo una de ellas debe ser correcta. "
-    f"Por favor, no repitas la respuesta correcta en más de una opción y utiliza el siguiente formato:\n\n"
-    f"Pregunta: [Texto de la pregunta]\n"
-    f"A) [Opción A]\n"
-    f"B) [Opción B]\n"
-    f"C) [Opción C]\n"
-    f"D) [Opción D]\n"
-    f"Las preguntas deben estar relacionadas con el tema '{segmento}' y la asignatura '{asignatura}'. Asegúrate de que las opciones sean variadas y no se repitan."
-)
+                f"A continuación tienes el contexto:\n"
+                f"{context}\n\n"
+                f"Genera {num_items} preguntas tipo test. Cada pregunta debe tener exactamente 4 opciones de respuesta, y solo una de ellas debe ser correcta. "
+                f"Por favor, no repitas la respuesta correcta en más de una opción y utiliza el siguiente formato:\n\n"
+                f"Pregunta: [Texto de la pregunta]\n"
+                f"A) [Opción A]\n"
+                f"B) [Opción B]\n"
+                f"C) [Opción C]\n"
+                f"D) [Opción D]\n"
+                f"Las preguntas deben estar relacionadas con el tema '{segmento}' y la asignatura '{asignatura}'. Asegúrate de que las opciones sean variadas y no se repitan."
+            )
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -1080,7 +1083,6 @@ def validate_question(question):
     if len(question['choices']) < 2:  # Asegurar que haya al menos dos opciones
         return False
     return True
-
 
 @app.route('/check', methods=['POST'])
 @pro_required
