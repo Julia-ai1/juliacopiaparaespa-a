@@ -94,17 +94,15 @@ def retrieve_documents(query, es, index_name, num_docs=20):
 
 
 # Función para extraer contexto relevante de los documentos recuperados
-def extract_relevant_context(documents, max_length=1000):
-    relevant_text = []
-    for doc in documents:
-        content = doc['page_content']
-        sentences = content.split('.')
-        for sentence in sentences:
-            if len('. '.join(relevant_text)) >= max_length:
-                return '. '.join(relevant_text)[:max_length]
-            relevant_text.append(sentence.strip())
-    return '. '.join(relevant_text)[:max_length]
-
+def extract_relevant_context(docs):
+    context = ""
+    for doc in docs:
+        # Asegúrate de que 'content' existe en el documento
+        if 'content' in doc:
+            context += doc['content'] + "\n"  # Cambia 'page_content' por 'content'
+        else:
+            print("Campo 'content' no encontrado en el documento:", doc)
+    return context
 
 # Función para verificar si la respuesta del usuario es correcta
 def check_answer(question, user_answer):
