@@ -120,7 +120,7 @@
         }
 
         function generateTest(transcript) {
-            fetch('/generate_test_questions', {
+            fetch('/generate_test_questions2', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -132,7 +132,6 @@
                 if (data.questions) {
                     document.getElementById("testSection").classList.remove("hidden");
                     displayQuestions(data.questions); // Mostrar preguntas
-                    correctAnswers = data.correct_answers; // Almacenar las respuestas correctas
                 }
             })
             .catch(error => {
@@ -144,14 +143,12 @@
             const questionsDiv = document.getElementById("questions");
             questionsDiv.innerHTML = "";
 
-            questions.forEach((question, index) => {
+            // Convertir las preguntas en una lista y mostrar
+            const questionList = questions.split('\n'); // Asumimos que están separadas por saltos de línea
+            questionList.forEach((question, index) => {
                 const questionDiv = document.createElement("div");
                 questionDiv.innerHTML = `
-                    <p>${index + 1}. ${question.text}</p>
-                    <input type="radio" name="q${index}" value="A"> ${question.options.A}<br>
-                    <input type="radio" name="q${index}" value="B"> ${question.options.B}<br>
-                    <input type="radio" name="q${index}" value="C"> ${question.options.C}<br>
-                    <input type="radio" name="q${index}" value="D"> ${question.options.D}<br>
+                    <p>${index + 1}. ${question}</p>
                 `;
                 questionsDiv.appendChild(questionDiv);
             });
@@ -177,23 +174,3 @@
             .then(data => {
                 document.getElementById("resultsSection").classList.remove("hidden");
                 displayResults(data.result); // Mostrar resultados
-            })
-            .catch(error => {
-                alert("Error al enviar las respuestas: " + error.message);
-            });
-        }
-
-        function displayResults(results) {
-            const resultsDiv = document.getElementById("results");
-            resultsDiv.innerHTML = "";
-
-            results.forEach(result => {
-                const resultText = result.correct ? "Correcto" : "Incorrecto";
-                resultsDiv.innerHTML += `<p>Pregunta ${result.question}: ${resultText}</p>`;
-            });
-        }
-
-        window.onload = loadVideos;
-    </script>
-</body>
-</html>

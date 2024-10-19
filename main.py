@@ -1894,27 +1894,33 @@ def get_videos():
         filtered_videos = [video for video in videos if video['subject'] == subject_filter]
         return jsonify({"videos": filtered_videos})
 
-@app.route('/check_answers', methods=['POST'])
-def check_answers():
-    user_answers = request.json.get('answers')
-    correct_answers = request.json.get('correct_answers')
-    
-    if not user_answers or not correct_answers:
-        return jsonify({"error": "Faltan respuestas."}), 400
+@app.route('/get_transcription', methods=['POST'])
+def get_transcription():
+    video_url = request.json.get('video_url')
 
-    result = []
-    for i in range(len(user_answers)):
-        if user_answers[i] == correct_answers[i]:
-            result.append({"question": i+1, "correct": True})
-        else:
-            result.append({"question": i+1, "correct": False})
+    # Extraer el ID del video de la URL
+    def extract_video_id(url):
+        import re
+        match = re.search(r'v=([^&]+)', url)
+        return match.group(1) if match else None
 
-    return jsonify({"result": result})
+    video_id = extract_video_id(video_url)
 
+    if not video_id:
+        return jsonify({"error": "No se pudo extraer el ID del video."}), 400
+
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript_text = ' '.join([entry['text'] for entry in transcript])
+        return jsonify({"transcript": transcript_text})
+    except Exception as e:
+        return jsonify({"error": f"Error al obtener la transcripción: {str(e)}"}), 500
+
+# Endpoint para generar preguntas a partir de la transcripción
 @app.route('/generate_test_questions2', methods=['POST'])
 def generate_test_questions2():
     transcript = request.json.get('transcript')
-    
+
     prompt = f"Genera 5 preguntas de opción múltiple basadas en el siguiente contenido educativo:\n\n{transcript}"
     
     try:
@@ -1930,30 +1936,23 @@ def generate_test_questions2():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-from youtube_transcript_api import YouTubeTranscriptApi
+# Endpoint para verificar respuestas
+@app.route('/check_answers', methods=['POST'])
+def check_answers():
+    user_answers = request.json.get('answers')
+    correct_answers = request.json.get('correct_answers')
 
-@app.route('/get_transcription', methods=['POST'])
-def get_video_transcript(video_url):
-    # Función para extraer el ID del video de la URL
-    def extract_video_id(url):
-        import re
-        match = re.search(r'v=([^&]+)', url)
-        return match.group(1) if match else None
+    if not user_answers or not correct_answers:
+        return jsonify({"error": "Faltan respuestas."}), 400
 
-    video_id = extract_video_id(video_url)
+    result = []
+    for i in range(len(user_answers)):
+        if user_answers[i] == correct_answers[i]:
+            result.append({"question": i+1, "correct": True})
+        else:
+            result.append({"question": i+1, "correct": False})
 
-    if not video_id:
-        return "No se pudo extraer el ID del video."
-
-    try:
-        # Obtener la transcripción
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        
-        # Convertir la transcripción a texto
-        transcript_text = ' '.join([entry['text'] for entry in transcript])
-        return transcript_text
-    except Exception as e:
-        return f"Error al obtener la transcripción: {str(e)}"
+    return jsonify({"result": result})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)
