@@ -1933,22 +1933,27 @@ def generate_test_questions2():
 from youtube_transcript_api import YouTubeTranscriptApi
 
 @app.route('/get_transcription', methods=['POST'])
-def get_transcription():
-    video_url = request.json.get('video_url')
-    video_id = extract_video_id(video_url)
-    
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        transcript_text = ' '.join([entry['text'] for entry in transcript])
-        return jsonify({"transcript": transcript_text})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+def get_video_transcript(video_url):
+    # Función para extraer el ID del video de la URL
+    def extract_video_id(url):
+        import re
+        match = re.search(r'v=([^&]+)', url)
+        return match.group(1) if match else None
 
-def extract_video_id(video_url):
-    # Aquí extraemos el ID del video de la URL de YouTube
-    import re
-    match = re.search(r'v=([^&]+)', video_url)
-    return match.group(1) if match else None
+    video_id = extract_video_id(video_url)
+
+    if not video_id:
+        return "No se pudo extraer el ID del video."
+
+    try:
+        # Obtener la transcripción
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        
+        # Convertir la transcripción a texto
+        transcript_text = ' '.join([entry['text'] for entry in transcript])
+        return transcript_text
+    except Exception as e:
+        return f"Error al obtener la transcripción: {str(e)}"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)
