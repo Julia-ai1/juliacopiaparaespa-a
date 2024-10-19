@@ -1896,26 +1896,29 @@ def get_videos():
 
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
-    video_url = request.json.get('video_url')
-
-    # Extraer el ID del video de la URL
-    def extract_video_id(url):
-        import re
-        match = re.search(r'v=([^&]+)', url)
-        return match.group(1) if match else None
-
-    video_id = extract_video_id(video_url)
-
-    if not video_id:
-        return jsonify({"error": "No se pudo extraer el ID del video."}), 400
-
     try:
+        video_url = request.json.get('video_url')
+        if not video_url:
+            return jsonify({"error": "No se proporcionó una URL de video."}), 400
+
+        # Extraer el ID del video de la URL
+        def extract_video_id(url):
+            import re
+            match = re.search(r'v=([^&]+)', url)
+            return match.group(1) if match else None
+
+        video_id = extract_video_id(video_url)
+        if not video_id:
+            return jsonify({"error": "No se pudo extraer el ID del video."}), 400
+
+        # Obtener la transcripción usando youtube_transcript_api
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         transcript_text = ' '.join([entry['text'] for entry in transcript])
+
         return jsonify({"transcript": transcript_text})
+
     except Exception as e:
         return jsonify({"error": f"Error al obtener la transcripción: {str(e)}"}), 500
-
 # Endpoint para generar preguntas a partir de la transcripción
 @app.route('/generate_test_questions2', methods=['POST'])
 def generate_test_questions2():
