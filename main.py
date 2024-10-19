@@ -7,6 +7,7 @@ from langchain_community.chat_models import ChatDeepInfra
 from selectividad import generate_questions, check_answer, retrieve_documents, extract_relevant_context, process_questions
 from study_guide_generator import generate_study_guide_from_pdf, save_progress, load_progress
 import os
+from youtube_transcript_api import YouTubeTranscriptApi
 import tempfile
 import os
 from flask_sqlalchemy import SQLAlchemy
@@ -1485,6 +1486,7 @@ def next_section():
         logger.error(f"Error al obtener la siguiente sección: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 # Ruta para marcar la sección actual como completada
 @app.route('/mark_section_complete', methods=['POST'])
 @login_required
@@ -1891,6 +1893,62 @@ def get_videos():
     else:
         filtered_videos = [video for video in videos if video['subject'] == subject_filter]
         return jsonify({"videos": filtered_videos})
+
+@app.route('/check_answers', methods=['POST'])
+def check_answers():
+    user_answers = request.json.get('answers')
+    correct_answers = request.json.get('correct_answers')
+    
+    if not user_answers or not correct_answers:
+        return jsonify({"error": "Faltan respuestas."}), 400
+
+    result = []
+    for i in range(len(user_answers)):
+        if user_answers[i] == correct_answers[i]:
+            result.append({"question": i+1, "correct": True})
+        else:
+            result.append({"question": i+1, "correct": False})
+
+    return jsonify({"result": result})
+
+@app.route('/generate_test_questions2', methods=['POST'])
+def generate_test_questions2():
+    transcript = request.json.get('transcript')
+    
+    prompt = f"Genera 5 preguntas de opción múltiple basadas en el siguiente contenido educativo:\n\n{transcript}"
+    
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=500,
+            n=1,
+            stop=None
+        )
+        questions = response.choices[0].text.strip()
+        return jsonify({"questions": questions})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+from youtube_transcript_api import YouTubeTranscriptApi
+
+@app.route('/get_transcription', methods=['POST'])
+def get_transcription():
+    video_url = request.json.get('video_url')
+    video_id = extract_video_id(video_url)
+    
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript_text = ' '.join([entry['text'] for entry in transcript])
+        return jsonify({"transcript": transcript_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def extract_video_id(video_url):
+    # Aquí extraemos el ID del video de la URL de YouTube
+    import re
+    match = re.search(r'v=([^&]+)', video_url)
+    return match.group(1) if match else None
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)

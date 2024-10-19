@@ -36,21 +36,13 @@
         a:hover {
             color: blue;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <h1>Clases Grabadas</h1>
-    
-    <!-- Filtros para filtrar los videos -->
-    <div id="filtros">
-        <h3>Filtrar por Asignatura:</h3>
-        <select id="subjectFilter" onchange="filterVideos()">
-            <option value="all">Todas las asignaturas</option>
-            <option value="matematicas">Matemáticas</option>
-            <option value="ciencias">Ciencias</option>
-            <option value="historia">Historia</option>
-        </select>
-    </div>
     
     <!-- Tabla para listar los videos -->
     <table id="videoTable">
@@ -68,7 +60,23 @@
         </tbody>
     </table>
 
+    <!-- Test section -->
+    <div id="testSection" class="hidden">
+        <h3>Test de Conocimientos</h3>
+        <div id="questions"></div>
+        <button onclick="submitAnswers()">Enviar Respuestas</button>
+    </div>
+
+    <!-- Resultados -->
+    <div id="resultsSection" class="hidden">
+        <h3>Resultados</h3>
+        <div id="results"></div>
+    </div>
+
     <script>
+        let correctAnswers = []; // Almacenar las respuestas correctas
+        let userAnswers = []; // Almacenar las respuestas del usuario
+
         function loadVideos() {
             fetch('/get_videos')
                 .then(response => response.json())
@@ -78,7 +86,7 @@
                     data.videos.forEach(video => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td><a href="${video.url}" target="_blank">${video.title}</a></td>
+                            <td><a href="${video.url}" target="_blank" onclick="videoWatched('${video.url}')">${video.title}</a></td>
                             <td>${video.topic}</td>
                             <td>${video.course}</td>
                             <td>${video.segment}</td>
@@ -89,28 +97,94 @@
                 });
         }
 
-        function filterVideos() {
-            const filterValue = document.getElementById("subjectFilter").value;
-            fetch(`/get_videos?subject=${filterValue}`)
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.querySelector("#videoTable tbody");
-                    tableBody.innerHTML = "";
-                    data.videos.forEach(video => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><a href="${video.url}" target="_blank">${video.title}</a></td>
-                            <td>${video.topic}</td>
-                            <td>${video.course}</td>
-                            <td>${video.segment}</td>
-                            <td>${video.subject}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                });
+        function videoWatched(videoUrl) {
+            fetch('/get_transcription', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ video_url: videoUrl })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.transcript) {
+                    generateTest(data.transcript);
+                } else {
+                    alert("No se pudo obtener la transcripción del video.");
+                }
+            });
+        }
+
+        function generateTest(transcript) {
+            fetch('/generate_test_questions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ transcript: transcript })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.questions) {
+                    document.getElementById("testSection").classList.remove("hidden");
+                    displayQuestions(data.questions); // Mostrar preguntas
+                    correctAnswers = data.correct_answers; // Almacenar las respuestas correctas
+                }
+            });
+        }
+
+        function displayQuestions(questions) {
+            const questionsDiv = document.getElementById("questions");
+            questionsDiv.innerHTML = "";
+
+            questions.forEach((question, index) => {
+                const questionDiv = document.createElement("div");
+                questionDiv.innerHTML = `
+                    <p>${index + 1}. ${question.text}</p>
+                    <input type="radio" name="q${index}" value="A"> ${question.options.A}<br>
+                    <input type="radio" name="q${index}" value="B"> ${question.options.B}<br>
+                    <input type="radio" name="q${index}" value="C"> ${question.options.C}<br>
+                    <input type="radio" name="q${index}" value="D"> ${question.options.D}<br>
+                `;
+                questionsDiv.appendChild(questionDiv);
+            });
+        }
+
+        function submitAnswers() {
+            const totalQuestions = correctAnswers.length;
+            userAnswers = [];
+            
+            for (let i = 0; i < totalQuestions; i++) {
+                const answer = document.querySelector(`input[name="q${i}"]:checked`);
+                userAnswers.push(answer ? answer.value : null);
+            }
+
+            fetch('/check_answers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ answers: userAnswers, correct_answers: correctAnswers })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("resultsSection").classList.remove("hidden");
+                displayResults(data.result); // Mostrar resultados
+            });
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "";
+
+            results.forEach(result => {
+                const resultText = result.correct ? "Correcto" : "Incorrecto";
+                resultsDiv.innerHTML += `<p>Pregunta ${result.question}: ${resultText}</p>`;
+            });
         }
 
         window.onload = loadVideos;
     </script>
 </body>
 </html>
+
