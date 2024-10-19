@@ -98,6 +98,7 @@
         }
 
         function videoWatched(videoUrl) {
+            // Obtener la transcripción y generar el test
             fetch('/get_transcription', {
                 method: 'POST',
                 headers: {
@@ -109,9 +110,12 @@
             .then(data => {
                 if (data.transcript) {
                     generateTest(data.transcript);
-                } else {
-                    alert("No se pudo obtener la transcripción del video.");
+                } else if (data.error) {
+                    alert(data.error); // Mostrar el mensaje de error al usuario
                 }
+            })
+            .catch(error => {
+                alert("Error al obtener la transcripción: " + error.message);
             });
         }
 
@@ -130,6 +134,9 @@
                     displayQuestions(data.questions); // Mostrar preguntas
                     correctAnswers = data.correct_answers; // Almacenar las respuestas correctas
                 }
+            })
+            .catch(error => {
+                alert("Error al generar las preguntas: " + error.message);
             });
         }
 
@@ -170,6 +177,9 @@
             .then(data => {
                 document.getElementById("resultsSection").classList.remove("hidden");
                 displayResults(data.result); // Mostrar resultados
+            })
+            .catch(error => {
+                alert("Error al enviar las respuestas: " + error.message);
             });
         }
 
@@ -187,4 +197,3 @@
     </script>
 </body>
 </html>
-
