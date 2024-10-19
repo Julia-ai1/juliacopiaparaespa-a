@@ -1894,27 +1894,34 @@ def get_videos():
         filtered_videos = [video for video in videos if video['subject'] == subject_filter]
         return jsonify({"videos": filtered_videos})
 
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
+
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
+    video_url = request.json.get('video_url')
+
+    # Función para extraer el ID del video de la URL
+    def extract_video_id(url):
+        import re
+        match = re.search(r'v=([^&]+)', url)
+        return match.group(1) if match else None
+
+    video_id = extract_video_id(video_url)
+
+    if not video_id:
+        return jsonify({"error": "No se pudo extraer el ID del video."}), 400
+
     try:
-        video_url = request.json.get('video_url')
-        if not video_url:
-            return jsonify({"error": "No se proporcionó una URL de video."}), 400
+        # Obtener la lista de transcripciones disponibles
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
 
-        # Extraer el ID del video de la URL
-        def extract_video_id(url):
-            import re
-            match = re.search(r'v=([^&]+)', url)
-            return match.group(1) if match else None
+        # Intentar obtener la transcripción en español o en inglés si está disponible
+        try:
+            transcript = transcript_list.find_transcript(['es', 'en'])  # Buscar primero en español, luego en inglés
+        except NoTranscriptFound:
+            return jsonify({"error": "No se encontró ninguna transcripción disponible en español o inglés."}), 404
 
-        video_id = extract_video_id(video_url)
-        if not video_id:
-            return jsonify({"error": "No se pudo extraer el ID del video."}), 400
-
-        # Obtener la transcripción usando youtube_transcript_api
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        transcript_text = ' '.join([entry['text'] for entry in transcript])
-
+        transcript_text = ' '.join([entry['text'] for entry in transcript.fetch()])
         return jsonify({"transcript": transcript_text})
 
     except Exception as e:
