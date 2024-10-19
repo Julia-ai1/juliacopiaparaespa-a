@@ -1876,6 +1876,21 @@ def detalle_subtema():
     else:
         return jsonify({'error': 'No se proporcionó el subtema'}), 400
 
+@app.route('/clases_grabadas')
+def clases_grabadas():
+    return render_template('clases_grabadas.html')
+
+
+from videos import videos  # Importar los videos desde el archivo separado
+
+@app.route('/get_videos', methods=['GET'])
+def get_videos():
+    subject_filter = request.args.get('subject', 'all')
+    if subject_filter == 'all':
+        return jsonify({"videos": videos})
+    else:
+        filtered_videos = [video for video in videos if video['subject'] == subject_filter]
+        return jsonify({"videos": filtered_videos})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)

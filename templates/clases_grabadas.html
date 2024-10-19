@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clases Grabadas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #filtros {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        a {
+            text-decoration: none;
+            color: #000;
+        }
+        a:hover {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clases Grabadas</h1>
+    
+    <!-- Filtros para filtrar los videos -->
+    <div id="filtros">
+        <h3>Filtrar por Asignatura:</h3>
+        <select id="subjectFilter" onchange="filterVideos()">
+            <option value="all">Todas las asignaturas</option>
+            <option value="matematicas">Matemáticas</option>
+            <option value="ciencias">Ciencias</option>
+            <option value="historia">Historia</option>
+        </select>
+    </div>
+    
+    <!-- Tabla para listar los videos -->
+    <table id="videoTable">
+        <thead>
+            <tr>
+                <th>Video</th>
+                <th>Tema</th>
+                <th>Curso</th>
+                <th>Segmento</th>
+                <th>Asignatura</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Aquí se insertarán los videos desde el backend -->
+        </tbody>
+    </table>
+
+    <script>
+        function loadVideos() {
+            fetch('/get_videos')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector("#videoTable tbody");
+                    tableBody.innerHTML = "";
+                    data.videos.forEach(video => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><a href="${video.url}" target="_blank">${video.title}</a></td>
+                            <td>${video.topic}</td>
+                            <td>${video.course}</td>
+                            <td>${video.segment}</td>
+                            <td>${video.subject}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                });
+        }
+
+        function filterVideos() {
+            const filterValue = document.getElementById("subjectFilter").value;
+            fetch(`/get_videos?subject=${filterValue}`)
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector("#videoTable tbody");
+                    tableBody.innerHTML = "";
+                    data.videos.forEach(video => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><a href="${video.url}" target="_blank">${video.title}</a></td>
+                            <td>${video.topic}</td>
+                            <td>${video.course}</td>
+                            <td>${video.segment}</td>
+                            <td>${video.subject}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                });
+        }
+
+        window.onload = loadVideos;
+    </script>
+</body>
+</html>
