@@ -12,6 +12,37 @@
         .video-card:hover {
             transform: scale(1.05);
         }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -32,23 +63,28 @@
         </div>
     </main>
 
+    <div id="videoModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="videoPlayer"></div>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         let allVideos = [];
         let activeFilter = null;
+        let player;
 
         function loadVideos() {
-            fetch('/get_videos')
-                .then(response => response.json())
-                .then(data => {
-                    allVideos = data.videos;
-                    console.log("Videos cargados:", allVideos);
-                    updateTopicFilters();
-                    renderVideos(allVideos);
-                })
-                .catch(error => {
-                    console.error("Error al cargar los videos:", error);
-                    alert("Error al cargar los videos: " + error.message);
-                });
+            // Simulamos la carga de videos desde el backend
+            allVideos = [
+                { id: 'dQw4w9WgXcQ', title: 'Clase 1: Álgebra Básica', topic: 'Álgebra', course: 'Curso 1', segment: 'Segmento A', subject: 'Matemáticas' },
+                { id: 'ZXsQAXx_ao0', title: 'Introducción a la Programación', topic: 'Programación', course: 'Ciencia de la Computación', segment: 'Universidad', subject: 'Programación' },
+                // Agrega más videos según sea necesario
+            ];
+            updateTopicFilters();
+            renderVideos(allVideos);
         }
 
         function updateTopicFilters() {
@@ -91,18 +127,60 @@
                 const card = document.createElement('div');
                 card.className = 'video-card bg-white rounded-lg shadow-md overflow-hidden';
                 card.innerHTML = `
-                    <img src="/api/placeholder/400/225" alt="Thumbnail for ${video.title}" class="w-full h-48 object-cover">
+                    <img src="https://img.youtube.com/vi/${video.id}/0.jpg" alt="Thumbnail for ${video.title}" class="w-full h-48 object-cover cursor-pointer">
                     <div class="p-4">
                         <h3 class="font-bold text-xl mb-2">${video.title}</h3>
                         <p class="text-gray-600 mb-2">Tema: ${video.topic}</p>
                         <p class="text-gray-600 mb-2">Curso: ${video.course}</p>
                         <p class="text-gray-600 mb-2">Segmento: ${video.segment}</p>
                         <p class="text-gray-600 mb-4">Asignatura: ${video.subject}</p>
-                        <a href="${video.url}" target="_blank" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ver video</a>
+                        <button onclick="openVideoModal('${video.id}')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ver video</button>
                     </div>
                 `;
                 grid.appendChild(card);
             });
+        }
+
+        function openVideoModal(videoId) {
+            const modal = document.getElementById('videoModal');
+            const videoPlayer = document.getElementById('videoPlayer');
+            modal.style.display = 'block';
+            
+            if (player) {
+                player.loadVideoById(videoId);
+            } else {
+                player = new YT.Player('videoPlayer', {
+                    height: '390',
+                    width: '640',
+                    videoId: videoId,
+                    events: {
+                        'onReady': onPlayerReady
+                    }
+                });
+            }
+        }
+
+        function onPlayerReady(event) {
+            event.target.playVideo();
+        }
+
+        const modal = document.getElementById('videoModal');
+        const span = document.getElementsByClassName('close')[0];
+
+        span.onclick = function() {
+            modal.style.display = 'none';
+            if (player) {
+                player.stopVideo();
+            }
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+                if (player) {
+                    player.stopVideo();
+                }
+            }
         }
 
         window.onload = loadVideos;
