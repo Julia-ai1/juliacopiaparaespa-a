@@ -1,3 +1,4 @@
+<!-- templates/clases_grabadas.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -99,7 +100,7 @@
                     data.videos.forEach(video => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td><a href="#" onclick="videoWatched('${video.url}'); return false;">${video.title}</a></td>
+                            <td><a href="#" onclick="videoWatched('${video.video_id}'); return false;">${video.title}</a></td>
                             <td>${video.topic}</td>
                             <td>${video.course}</td>
                             <td>${video.segment}</td>
@@ -115,15 +116,15 @@
         }
 
         // Llamada para obtener la transcripción de un video
-        function videoWatched(videoUrl) {
-            console.log("Video URL:", videoUrl); // Agregado para depuración
+        function videoWatched(videoId) {
+            console.log("Video ID:", videoId); // Agregado para depuración
 
             fetch('/get_transcription', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ video_url: videoUrl }) // Enviar la URL del video
+                body: JSON.stringify({ video_id: videoId }) // Enviar el ID del video
             })
             .then(response => response.json()) // Procesar la respuesta como JSON
             .then(data => {

@@ -1882,9 +1882,6 @@ def detalle_subtema():
 def clases_grabadas():
     return render_template('clases_grabadas.html')
 
-
-from videos import videos  # Importar los videos desde el archivo separado
-
 @app.route('/get_videos', methods=['GET'])
 def get_videos():
     subject_filter = request.args.get('subject', 'all')
@@ -1894,37 +1891,24 @@ def get_videos():
         filtered_videos = [video for video in videos if video['subject'] == subject_filter]
         return jsonify({"videos": filtered_videos})
 
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, CouldNotRetrieveTranscript
-
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
-    video_url = request.json.get('video_url')
-    print(f"Video URL recibida: {video_url}")
-
-    # Función para extraer el ID del video de la URL
-    def extract_video_id(url):
-        import re
-        match = re.search(r'v=([^&]+)', url)
-        return match.group(1) if match else None
-
-    video_id = extract_video_id(video_url)
-    print(f"Video ID extraído: {video_id}")
-
-    if not video_id:
-        return jsonify({"error": "No se pudo extraer el ID del video."}), 400
+    video_id = request.json.get('video_id')
+    print(f"Video ID recibido: {video_id}")
 
     try:
-        # Intentar obtener cualquier transcripción disponible
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        transcript_text = ' '.join([entry['text'] for entry in transcript])
+        # Construir la ruta al archivo de transcripción
+        transcript_path = os.path.join('transcripts', f'{video_id}.txt')
+        # Leer la transcripción desde el archivo
+        with open(transcript_path, 'r', encoding='utf-8') as f:
+            transcript_text = f.read()
         return jsonify({"transcript": transcript_text})
-    except NoTranscriptFound:
-        return jsonify({"error": "No se encontró ninguna transcripción disponible para este video."}), 404
+    except FileNotFoundError:
+        return jsonify({"error": "Transcripción no encontrada para este video."}), 404
     except Exception as e:
-        print(f"Error al obtener la transcripción: {e}")
-        return jsonify({"error": f"Error al obtener la transcripción: {str(e)}"}), 500
+        print(f"Error al leer la transcripción: {e}")
+        return jsonify({"error": f"Error al leer la transcripción: {str(e)}"}), 500
 
-# Endpoint para generar preguntas a partir de la transcripción
 @app.route('/generate_test_questions2', methods=['POST'])
 def generate_test_questions2():
     transcript = request.json.get('transcript')
@@ -1971,9 +1955,9 @@ def generate_test_questions2():
         return jsonify({"questions": questions_data})
 
     except Exception as e:
+        print(f"Error al procesar las preguntas: {e}")
         return jsonify({"error": f"Error al procesar las preguntas: {str(e)}", "response_text": response_text}), 500
 
-# Endpoint para verificar respuestas
 @app.route('/check_answers', methods=['POST'])
 def check_answers():
     user_answers = request.json.get('answers')
@@ -1990,6 +1974,5 @@ def check_answers():
             result.append({"question": i+1, "correct": False})
 
     return jsonify({"result": result})
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)
