@@ -2055,5 +2055,10 @@ def performance_data():
     # Devolver los datos en formato JSON
     return jsonify(performance_data)
 
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)
