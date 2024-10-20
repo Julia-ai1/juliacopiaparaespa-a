@@ -77,17 +77,24 @@
         let player;
 
         function loadVideos() {
-            fetch('/get_videos')
-                .then(response => response.json())
-                .then(data => {
-                    allVideos = data.videos;
-                    updateTopicFilters();
-                    renderVideos(allVideos);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al cargar los videos. Por favor, intenta de nuevo más tarde.');
-                });
+            // Simulamos la respuesta del servidor con el video de ejemplo
+            const mockResponse = {
+                videos: [
+                    {
+                        "title": "Espacios vectoriales - ¿Qué es un espacio vectorial?",
+                        "url": "https://www.youtube.com/watch?v=q6IQJA8qvok",
+                        "id": "q6IQJA8qvok",
+                        "topic": "Álgebra Lineal",
+                        "course": "Universidad",
+                        "segment": "Espacios Vectoriales",
+                        "subject": "Matemáticas"
+                    }
+                ]
+            };
+            
+            allVideos = mockResponse.videos;
+            updateTopicFilters();
+            renderVideos(allVideos);
         }
 
         function updateTopicFilters() {
