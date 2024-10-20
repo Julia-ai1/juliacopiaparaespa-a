@@ -93,6 +93,7 @@
             fetch('/get_videos')
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Videos cargados:", data); // Log para depuración
                     const tableBody = document.querySelector("#videoTable tbody");
                     tableBody.innerHTML = "";
                     data.videos.forEach(video => {
@@ -108,12 +109,15 @@
                     });
                 })
                 .catch(error => {
+                    console.error("Error al cargar los videos:", error); // Log de error
                     alert("Error al cargar los videos: " + error.message);
                 });
         }
 
         // Llamada para obtener la transcripción de un video
         function videoWatched(videoUrl) {
+            console.log("Video URL:", videoUrl); // Agregado para depuración
+
             fetch('/get_transcription', {
                 method: 'POST',
                 headers: {
@@ -123,6 +127,7 @@
             })
             .then(response => response.json()) // Procesar la respuesta como JSON
             .then(data => {
+                console.log("Respuesta de get_transcription:", data); // Log para depuración
                 if (data.transcript) {
                     generateTest(data.transcript); // Generar el test con la transcripción
                 } else if (data.error) {
@@ -130,12 +135,15 @@
                 }
             })
             .catch(error => {
+                console.error("Error al obtener la transcripción:", error); // Log de error
                 alert("Error al obtener la transcripción: " + error.message);
             });
         }
 
         // Generar preguntas a partir de la transcripción
         function generateTest(transcript) {
+            console.log("Transcripción recibida para generar test:", transcript); // Log para depuración
+
             fetch('/generate_test_questions2', {
                 method: 'POST',
                 headers: {
@@ -145,21 +153,25 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Respuesta de generate_test_questions2:", data); // Log para depuración
                 if (data.questions) {
                     document.getElementById("testSection").classList.remove("hidden");
                     displayQuestions(data.questions); // Mostrar las preguntas
                 } else if (data.error) {
                     alert(data.error);
-                    console.error(data.response_text);  // Mostrar el texto de respuesta para depuración
+                    console.error("Error en generateTest:", data.error); // Log de error
+                    console.error("Texto de respuesta:", data.response_text);  // Mostrar el texto de respuesta para depuración
                 }
             })
             .catch(error => {
+                console.error("Error al generar las preguntas:", error); // Log de error
                 alert("Error al generar las preguntas: " + error.message);
             });
         }
 
         // Mostrar las preguntas en el HTML
         function displayQuestions(questions) {
+            console.log("Preguntas recibidas:", questions); // Log para depuración
             const questionsDiv = document.getElementById("questions");
             questionsDiv.innerHTML = "";
 
@@ -203,6 +215,9 @@
                 userAnswers.push(answer);
             }
 
+            console.log("Respuestas del usuario:", userAnswers); // Log para depuración
+            console.log("Respuestas correctas:", correctAnswers); // Log para depuración
+
             fetch('/check_answers', {
                 method: 'POST',
                 headers: {
@@ -212,20 +227,24 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Resultado de check_answers:", data); // Log para depuración
                 if (data.result) {
                     document.getElementById("resultsSection").classList.remove("hidden");
                     displayResults(data.result); // Mostrar los resultados
                 } else if (data.error) {
                     alert(data.error);
+                    console.error("Error en submitAnswers:", data.error); // Log de error
                 }
             })
             .catch(error => {
+                console.error("Error al enviar las respuestas:", error); // Log de error
                 alert("Error al enviar las respuestas: " + error.message);
             });
         }
 
         // Mostrar los resultados en el HTML
         function displayResults(results) {
+            console.log("Resultados recibidos:", results); // Log para depuración
             const resultsDiv = document.getElementById("results");
             resultsDiv.innerHTML = "";
 

@@ -1894,7 +1894,7 @@ def get_videos():
         filtered_videos = [video for video in videos if video['subject'] == subject_filter]
         return jsonify({"videos": filtered_videos})
 
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
@@ -1905,8 +1905,9 @@ def get_transcription():
     def extract_video_id(url):
         import re
         regex_patterns = [
-            r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',  # Captura el ID de video estándar
-            r'youtu\.be\/([0-9A-Za-z_-]{11})',   # Captura URLs cortas
+            r'v=([0-9A-Za-z_-]{11})',          # Formato estándar
+            r'embed/([0-9A-Za-z_-]{11})',      # Formato embebido
+            r'youtu\.be/([0-9A-Za-z_-]{11})',  # Formato corto
         ]
         for pattern in regex_patterns:
             match = re.search(pattern, url)
@@ -1921,20 +1922,16 @@ def get_transcription():
         return jsonify({"error": "No se pudo extraer el ID del video."}), 400
 
     try:
-        # Obtener la lista de transcripciones disponibles
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        print(f"Transcripciones disponibles: {transcript_list._transcripts}")
-
-        # Intentar obtener la transcripción en español o en inglés si está disponible
-        try:
-            transcript = transcript_list.find_transcript(['es', 'en'])  # Buscar primero en español, luego en inglés
-            print(f"Transcripción encontrada en: {transcript.language}")
-        except NoTranscriptFound:
-            return jsonify({"error": "No se encontró ninguna transcripción disponible en español o inglés."}), 404
-
-        transcript_text = ' '.join([entry['text'] for entry in transcript.fetch()])
+        # Intentar obtener la transcripción en español o inglés
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['es', 'en'])
+        transcript_text = ' '.join([entry['text'] for entry in transcript])
         return jsonify({"transcript": transcript_text})
-
+    except NoTranscriptFound:
+        return jsonify({"error": "No se encontró ninguna transcripción disponible en español o inglés."}), 404
+    except TranscriptsDisabled:
+        return jsonify({"error": "Las transcripciones están deshabilitadas para este video."}), 403
+    except VideoUnavailable:
+        return jsonify({"error": "El video no está disponible."}), 404
     except Exception as e:
         print(f"Excepción al obtener la transcripción: {e}")
         return jsonify({"error": f"Error al obtener la transcripción: {str(e)}"}), 500
