@@ -1931,20 +1931,49 @@ def get_transcription():
 def generate_test_questions2():
     transcript = request.json.get('transcript')
 
-    prompt = f"Genera 5 preguntas de opción múltiple basadas en el siguiente contenido educativo:\n\n{transcript}"
+    prompt = (
+        f"Genera 5 preguntas de opción múltiple basadas en el siguiente contenido educativo. "
+        f"Para cada pregunta, proporciona cuatro opciones (A, B, C, D) y la respuesta correcta. "
+        f"El formato debe ser:\n\n"
+        f"Pregunta 1: [texto de la pregunta]\n"
+        f"A) [opción A]\n"
+        f"B) [opción B]\n"
+        f"C) [opción C]\n"
+        f"D) [opción D]\n"
+        f"Respuesta: [letra de la respuesta correcta]\n\n"
+        f"Y así sucesivamente para las 5 preguntas.\n\n"
+        f"Contenido educativo:\n\n{transcript}"
+    )
     
     try:
         response = openai.Completion.create(
             engine="text-davinci-003",
             prompt=prompt,
-            max_tokens=500,
+            max_tokens=1500,  # Aumentar los tokens máximos
             n=1,
             stop=None
         )
-        questions = response.choices[0].text.strip()
-        return jsonify({"questions": questions})
+        response_text = response.choices[0].text.strip()
+
+        # Parsear la respuesta
+        import re
+        pattern = r"Pregunta \d+: (.*?)\nA\) (.*?)\nB\) (.*?)\nC\) (.*?)\nD\) (.*?)\nRespuesta: (\w)"
+        matches = re.findall(pattern, response_text, re.DOTALL)
+
+        questions_data = []
+        for match in matches:
+            question_text = match[0].strip()
+            options = [match[1].strip(), match[2].strip(), match[3].strip(), match[4].strip()]
+            answer = match[5].strip().upper()
+            questions_data.append({
+                "question": question_text,
+                "options": options,
+                "answer": answer
+            })
+        return jsonify({"questions": questions_data})
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Error al procesar las preguntas: {str(e)}", "response_text": response_text}), 500
 
 # Endpoint para verificar respuestas
 @app.route('/check_answers', methods=['POST'])

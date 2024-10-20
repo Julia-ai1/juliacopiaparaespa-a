@@ -18,6 +18,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 20px; /* Añadido para separar la tabla del test */
         }
         table, th, td {
             border: 1px solid black;
@@ -38,6 +39,16 @@
         }
         .hidden {
             display: none;
+        }
+        /* Estilos para el test */
+        #testSection, #resultsSection {
+            margin-top: 20px;
+        }
+        #questions div {
+            margin-bottom: 15px;
+        }
+        #results p {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -95,6 +106,9 @@
                         `;
                         tableBody.appendChild(row);
                     });
+                })
+                .catch(error => {
+                    alert("Error al cargar los videos: " + error.message);
                 });
         }
 
@@ -122,7 +136,7 @@
 
         // Generar preguntas a partir de la transcripción
         function generateTest(transcript) {
-            fetch('/generate_test_questions', {
+            fetch('/generate_test_questions2', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -134,6 +148,9 @@
                 if (data.questions) {
                     document.getElementById("testSection").classList.remove("hidden");
                     displayQuestions(data.questions); // Mostrar las preguntas
+                } else if (data.error) {
+                    alert(data.error);
+                    console.error(data.response_text);  // Mostrar el texto de respuesta para depuración
                 }
             })
             .catch(error => {
@@ -146,13 +163,31 @@
             const questionsDiv = document.getElementById("questions");
             questionsDiv.innerHTML = "";
 
-            // Separar preguntas y mostrarlas una por una
-            const questionList = questions.split('\n');
-            questionList.forEach((question, index) => {
+            correctAnswers = []; // Reiniciar el array de respuestas correctas
+
+            // Mostrar cada pregunta con sus opciones
+            questions.forEach((q, index) => {
+                correctAnswers.push(q.answer); // Almacenar la respuesta correcta
+
                 const questionDiv = document.createElement("div");
-                questionDiv.innerHTML = `
-                    <p>${index + 1}. ${question}</p>
-                `;
+                questionDiv.innerHTML = `<p>${index + 1}. ${q.question}</p>`;
+
+                q.options.forEach((option, optIndex) => {
+                    const optionLabel = String.fromCharCode(65 + optIndex); // Convertir 0 -> 'A', 1 -> 'B', etc.
+                    const optionInput = document.createElement("input");
+                    optionInput.type = "radio";
+                    optionInput.name = `q${index}`;
+                    optionInput.value = optionLabel;
+
+                    const optionText = document.createTextNode(` ${optionLabel}) ${option}`);
+
+                    const optionDiv = document.createElement("div");
+                    optionDiv.appendChild(optionInput);
+                    optionDiv.appendChild(optionText);
+
+                    questionDiv.appendChild(optionDiv);
+                });
+
                 questionsDiv.appendChild(questionDiv);
             });
         }
@@ -163,8 +198,9 @@
             userAnswers = [];
             
             for (let i = 0; i < totalQuestions; i++) {
-                const answer = document.querySelector(`input[name="q${i}"]:checked`);
-                userAnswers.push(answer ? answer.value : null);
+                const answerElement = document.querySelector(`input[name="q${i}"]:checked`);
+                const answer = answerElement ? answerElement.value : null;
+                userAnswers.push(answer);
             }
 
             fetch('/check_answers', {
@@ -176,8 +212,12 @@
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById("resultsSection").classList.remove("hidden");
-                displayResults(data.result); // Mostrar los resultados
+                if (data.result) {
+                    document.getElementById("resultsSection").classList.remove("hidden");
+                    displayResults(data.result); // Mostrar los resultados
+                } else if (data.error) {
+                    alert(data.error);
+                }
             })
             .catch(error => {
                 alert("Error al enviar las respuestas: " + error.message);
@@ -189,8 +229,8 @@
             const resultsDiv = document.getElementById("results");
             resultsDiv.innerHTML = "";
 
-            results.forEach(result => {
-                const resultText = result.correct ? "Correcto" : "Incorrecto";
+            results.forEach((result, index) => {
+                const resultText = result.correct ? "Correcto" : `Incorrecto. Respuesta correcta: ${correctAnswers[index]}`;
                 resultsDiv.innerHTML += `<p>Pregunta ${result.question}: ${resultText}</p>`;
             });
         }
@@ -199,4 +239,3 @@
     </script>
 </body>
 </html>
-
