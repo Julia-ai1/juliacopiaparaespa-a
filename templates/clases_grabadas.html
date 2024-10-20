@@ -130,7 +130,7 @@
                 const card = document.createElement('div');
                 card.className = 'video-card bg-white rounded-lg shadow-md overflow-hidden';
                 card.innerHTML = `
-                    <img src="https://img.youtube.com/vi/${video.id}/0.jpg" alt="Thumbnail for ${video.title}" class="w-full h-48 object-cover cursor-pointer">
+                    <img src="https://img.youtube.com/vi/${video.id}/0.jpg" alt="Thumbnail for ${video.title}" class="w-full h-48 object-cover cursor-pointer" onerror="this.src='https://via.placeholder.com/640x360.png?text=Video+no+disponible'">
                     <div class="p-4">
                         <h3 class="font-bold text-xl mb-2">${video.title}</h3>
                         <p class="text-gray-600 mb-2">Tema: ${video.topic}</p>
@@ -157,7 +157,8 @@
                     width: '640',
                     videoId: videoId,
                     events: {
-                        'onReady': onPlayerReady
+                        'onReady': onPlayerReady,
+                        'onError': onPlayerError
                     }
                 });
             }
@@ -167,22 +168,28 @@
             event.target.playVideo();
         }
 
-        const modal = document.getElementById('videoModal');
-        const span = document.getElementsByClassName('close')[0];
+        function onPlayerError(event) {
+            console.error('Error de reproducción:', event.data);
+            alert('Lo sentimos, este video no está disponible en este momento.');
+            closeModal();
+        }
 
-        span.onclick = function() {
+        function closeModal() {
+            const modal = document.getElementById('videoModal');
             modal.style.display = 'none';
             if (player) {
                 player.stopVideo();
             }
         }
 
+        const modal = document.getElementById('videoModal');
+        const span = document.getElementsByClassName('close')[0];
+
+        span.onclick = closeModal;
+
         window.onclick = function(event) {
             if (event.target == modal) {
-                modal.style.display = 'none';
-                if (player) {
-                    player.stopVideo();
-                }
+                closeModal();
             }
         }
 
