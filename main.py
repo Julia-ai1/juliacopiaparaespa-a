@@ -1742,6 +1742,7 @@ def generate_any_age_exam():
         # Incrementa el contador de preguntas para el usuario actual
         current_user.increment_questions()
 
+        
         # Renderizar las preguntas en el HTML (quiz.html)
         return render_template('quiz.html', questions=results)
 
@@ -2007,5 +2008,52 @@ def check_answers():
             result.append({"question": i+1, "correct": False})
 
     return jsonify({"result": result})
+
+def calculate_performance(user, topic=None):
+    """
+    Calcula el rendimiento del usuario, con la opción de filtrar por tema.
+    
+    Args:
+    - user: El usuario del cual queremos calcular las estadísticas.
+    - topic: Filtra las estadísticas por tema, si se proporciona.
+    
+    Returns:
+    - Un diccionario con el total de preguntas respondidas, respuestas correctas, y porcentaje de acierto.
+    """
+    query = UserQuestion.query.filter_by(user_id=user.id)
+
+    if topic:
+        query = query.filter_by(topic=topic)
+
+    user_questions = query.all()
+
+    total_questions = len(user_questions)
+    correct_answers = sum(1 for q in user_questions if q.is_correct)
+
+    if total_questions == 0:
+        accuracy = 0
+    else:
+        accuracy = (correct_answers / total_questions) * 100
+
+    return {
+        'total_questions': total_questions,
+        'correct_answers': correct_answers,
+        'accuracy': accuracy
+    }
+
+@app.route('/performance_data')
+@login_required
+def performance_data():
+    topic = request.args.get('topic', None)
+
+    # Llamamos a la función para calcular el rendimiento, filtrando por tema si es necesario
+    if topic:
+        performance_data = calculate_performance(current_user, topic=topic)
+    else:
+        performance_data = calculate_performance(current_user)
+
+    # Devolver los datos en formato JSON
+    return jsonify(performance_data)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)

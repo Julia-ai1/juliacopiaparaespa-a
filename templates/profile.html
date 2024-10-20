@@ -2,12 +2,90 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perfil de Usuario</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluir Chart.js para las gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-    <h1>Perfil de Usuario</h1>
-    <p>Tipo de suscripción actual: {{ subscription_type }}</p>
-    <p>Fecha de inicio de la suscripción: {{ subscription_start.strftime('%Y-%m-%d') }}</p>
-    <a href="{{ url_for('index') }}">Volver al Inicio</a>
+<body class="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+    <div class="container max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-3xl font-bold mb-4">Perfil de {{ current_user.username }}</h2>
+
+        <h3 class="text-xl font-semibold mb-4">Informe de Rendimiento</h3>
+
+        <!-- Selector de temas -->
+        <label for="topic" class="block mb-2 text-lg">Selecciona un Tema:</label>
+        <select id="topic" class="block mb-6 p-2 border rounded-md" onchange="filterByTopic()">
+            <option value="">Todos los temas</option>
+            <option value="Matemáticas">Matemáticas</option>
+            <option value="Historia">Historia</option>
+            <option value="Ciencias">Ciencias</option>
+            <!-- Agrega más temas según tus datos -->
+        </select>
+
+        <!-- Datos de rendimiento -->
+        <div id="performance-data">
+            <ul class="mb-8">
+                <li>Total de Preguntas Respondidas: <span id="total-questions">0</span></li>
+                <li>Respuestas Correctas: <span id="correct-answers">0</span></li>
+                <li>Porcentaje de Acierto: <span id="accuracy">0</span>%</li>
+            </ul>
+        </div>
+
+        <!-- Gráfico de progreso -->
+        <canvas id="progressChart" width="400" height="200"></canvas>
+
+        <a href="{{ url_for('index') }}" class="action-button bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 px-6 rounded-lg mt-4">
+            Volver al Inicio
+        </a>
+    </div>
+
+    <script>
+        // Función que se ejecuta cuando se selecciona un tema
+        function filterByTopic() {
+            const topic = document.getElementById("topic").value;
+
+            // Realiza una solicitud GET a /performance_data con el tema seleccionado
+            fetch(`/performance_data?topic=${topic}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Actualiza los datos de rendimiento
+                    document.getElementById('total-questions').innerText = data.total_questions;
+                    document.getElementById('correct-answers').innerText = data.correct_answers;
+                    document.getElementById('accuracy').innerText = data.accuracy.toFixed(2);
+
+                    // Actualiza el gráfico de progreso
+                    updateChart(data.correct_answers, data.total_questions - data.correct_answers);
+                });
+        }
+
+        // Inicializar el gráfico con valores por defecto
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        let chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Correctas', 'Incorrectas'],
+                datasets: [{
+                    label: 'Progreso',
+                    data: [0, 0],  // Valores iniciales (correctas, incorrectas)
+                    backgroundColor: ['#4CAF50', '#F44336']
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+
+        // Función para actualizar el gráfico
+        function updateChart(correct, incorrect) {
+            chart.data.datasets[0].data = [correct, incorrect];
+            chart.update();
+        }
+
+        // Llama a la función al cargar la página para mostrar los datos iniciales
+        filterByTopic();
+    </script>
 </body>
 </html>
