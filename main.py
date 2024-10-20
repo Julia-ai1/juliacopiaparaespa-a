@@ -1882,6 +1882,7 @@ def detalle_subtema():
 def clases_grabadas():
     return render_template('clases_grabadas.html')
 
+from videos import videos
 @app.route('/get_videos', methods=['GET'])
 def get_videos():
     subject_filter = request.args.get('subject', 'all')
