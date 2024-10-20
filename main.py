@@ -1883,6 +1883,8 @@ def clases_grabadas():
     return render_template('clases_grabadas.html')
 
 from videos import videos
+import yt_dlp
+
 @app.route('/get_videos', methods=['GET'])
 def get_videos():
     subject_filter = request.args.get('subject', 'all')
@@ -1894,21 +1896,51 @@ def get_videos():
 
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
-    video_id = request.json.get('video_id')
-    print(f"Video ID recibido: {video_id}")
+    video_url = request.json.get('video_url')
+    print(f"Video URL recibida: {video_url}")
+
+    # Función para extraer el ID del video
+    def extract_video_id(url):
+        import re
+        match = re.search(r'v=([^&]+)', url)
+        return match.group(1) if match else None
+
+    video_id = extract_video_id(video_url)
+    print(f"Video ID extraído: {video_id}")
+
+    if not video_id:
+        return jsonify({"error": "No se pudo extraer el ID del video."}), 400
 
     try:
-        # Construir la ruta al archivo de transcripción
-        transcript_path = os.path.join('transcripts', f'{video_id}.txt')
-        # Leer la transcripción desde el archivo
-        with open(transcript_path, 'r', encoding='utf-8') as f:
-            transcript_text = f.read()
+        # Descargar el audio del video
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': f'audio/{video_id}.%(ext)s',
+            'quiet': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+        os.makedirs('audio', exist_ok=True)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+        audio_file_path = f'audio/{video_id}.mp3'
+
+        # Transcribir el audio usando OpenAI Whisper
+        with open(audio_file_path, 'rb') as audio_file:
+            transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        transcript_text = transcript['text']
+
+        # Eliminar el archivo de audio después de la transcripción si lo deseas
+        # os.remove(audio_file_path)
+
         return jsonify({"transcript": transcript_text})
-    except FileNotFoundError:
-        return jsonify({"error": "Transcripción no encontrada para este video."}), 404
+
     except Exception as e:
-        print(f"Error al leer la transcripción: {e}")
-        return jsonify({"error": f"Error al leer la transcripción: {str(e)}"}), 500
+        print(f"Error al obtener la transcripción: {e}")
+        return jsonify({"error": f"Error al obtener la transcripción: {str(e)}"}), 500
 
 @app.route('/generate_test_questions2', methods=['POST'])
 def generate_test_questions2():
