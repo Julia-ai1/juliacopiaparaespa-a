@@ -1,218 +1,111 @@
-<!-- templates/clases_grabadas.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clases Grabadas</title>
+    <title>Plataforma de Clases Educativas</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
-        /* Tus estilos aquí */
+        .video-card {
+            transition: transform 0.3s ease-in-out;
+        }
+        .video-card:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
-<body>
-    <h1>Clases Grabadas</h1>
-    
-    <!-- Tabla para listar los videos -->
-    <table id="videoTable">
-        <thead>
-            <tr>
-                <th>Video</th>
-                <th>Tema</th>
-                <th>Curso</th>
-                <th>Segmento</th>
-                <th>Asignatura</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Aquí se insertarán los videos desde el backend -->
-        </tbody>
-    </table>
+<body class="bg-gray-100">
+    <header class="bg-blue-600 text-white p-4">
+        <h1 class="text-3xl font-bold text-center">Plataforma de Clases Educativas</h1>
+    </header>
 
-    <!-- Test section -->
-    <div id="testSection" class="hidden">
-        <h3>Test de Conocimientos</h3>
-        <div id="questions"></div>
-        <button onclick="submitAnswers()">Enviar Respuestas</button>
-    </div>
+    <main class="container mx-auto mt-8 p-4">
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Filtrar por tema:</h2>
+            <div id="topicFilters" class="flex flex-wrap gap-2">
+                <!-- Los filtros se agregarán aquí dinámicamente -->
+            </div>
+        </div>
 
-    <!-- Resultados -->
-    <div id="resultsSection" class="hidden">
-        <h3>Resultados</h3>
-        <div id="results"></div>
-    </div>
+        <div id="videoGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Las tarjetas de video se agregarán aquí dinámicamente -->
+        </div>
+    </main>
 
     <script>
-        let correctAnswers = []; // Almacenar las respuestas correctas
-        let userAnswers = []; // Almacenar las respuestas del usuario
+        let allVideos = [];
+        let activeFilter = null;
 
-        // Cargar los videos desde el backend
         function loadVideos() {
             fetch('/get_videos')
                 .then(response => response.json())
                 .then(data => {
-                    console.log("Videos cargados:", data); // Log para depuración
-                    const tableBody = document.querySelector("#videoTable tbody");
-                    tableBody.innerHTML = "";
-                    data.videos.forEach(video => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><a href="#" onclick="videoWatched('${video.url}'); return false;">${video.title}</a></td>
-                            <td>${video.topic}</td>
-                            <td>${video.course}</td>
-                            <td>${video.segment}</td>
-                            <td>${video.subject}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
+                    allVideos = data.videos;
+                    console.log("Videos cargados:", allVideos);
+                    updateTopicFilters();
+                    renderVideos(allVideos);
                 })
                 .catch(error => {
-                    console.error("Error al cargar los videos:", error); // Log de error
+                    console.error("Error al cargar los videos:", error);
                     alert("Error al cargar los videos: " + error.message);
                 });
         }
 
-        // Llamada para obtener la transcripción de un video
-        function videoWatched(videoUrl) {
-            console.log("Video URL:", videoUrl); // Agregado para depuración
+        function updateTopicFilters() {
+            const topics = [...new Set(allVideos.map(video => video.topic))];
+            const filterContainer = document.getElementById('topicFilters');
+            filterContainer.innerHTML = `<button class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 active:bg-blue-700" onclick="filterVideos(null)">Todos</button>`;
+            topics.forEach(topic => {
+                const button = document.createElement('button');
+                button.className = 'px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 active:bg-gray-400';
+                button.textContent = topic;
+                button.onclick = () => filterVideos(topic);
+                filterContainer.appendChild(button);
+            });
+        }
 
-            fetch('/get_transcription', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ video_url: videoUrl }) // Enviar la URL del video
-            })
-            .then(response => response.json()) // Procesar la respuesta como JSON
-            .then(data => {
-                console.log("Respuesta de get_transcription:", data); // Log para depuración
-                if (data.transcript) {
-                    generateTest(data.transcript); // Generar el test con la transcripción
-                } else if (data.error) {
-                    alert(data.error); // Mostrar error si no se pudo obtener la transcripción
+        function filterVideos(topic) {
+            activeFilter = topic;
+            const filteredVideos = topic ? allVideos.filter(video => video.topic === topic) : allVideos;
+            renderVideos(filteredVideos);
+            updateFilterButtons();
+        }
+
+        function updateFilterButtons() {
+            const buttons = document.querySelectorAll('#topicFilters button');
+            buttons.forEach(button => {
+                if ((button.textContent === 'Todos' && !activeFilter) || button.textContent === activeFilter) {
+                    button.classList.remove('bg-gray-200', 'hover:bg-gray-300', 'active:bg-gray-400');
+                    button.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'active:bg-blue-700');
+                } else {
+                    button.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'active:bg-blue-700');
+                    button.classList.add('bg-gray-200', 'hover:bg-gray-300', 'active:bg-gray-400');
                 }
-            })
-            .catch(error => {
-                console.error("Error al obtener la transcripción:", error); // Log de error
-                alert("Error al obtener la transcripción: " + error.message);
             });
         }
 
-        // Generar preguntas a partir de la transcripción
-        function generateTest(transcript) {
-            console.log("Transcripción recibida para generar test:", transcript); // Log para depuración
-
-            fetch('/generate_test_questions2', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ transcript: transcript }) // Enviar la transcripción
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Respuesta de generate_test_questions2:", data); // Log para depuración
-                if (data.questions) {
-                    document.getElementById("testSection").classList.remove("hidden");
-                    displayQuestions(data.questions); // Mostrar las preguntas
-                } else if (data.error) {
-                    alert(data.error);
-                    console.error("Error en generateTest:", data.error); // Log de error
-                    console.error("Texto de respuesta:", data.response_text);  // Mostrar el texto de respuesta para depuración
-                }
-            })
-            .catch(error => {
-                console.error("Error al generar las preguntas:", error); // Log de error
-                alert("Error al generar las preguntas: " + error.message);
+        function renderVideos(videos) {
+            const grid = document.getElementById('videoGrid');
+            grid.innerHTML = '';
+            videos.forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card bg-white rounded-lg shadow-md overflow-hidden';
+                card.innerHTML = `
+                    <img src="/api/placeholder/400/225" alt="Thumbnail for ${video.title}" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-2">${video.title}</h3>
+                        <p class="text-gray-600 mb-2">Tema: ${video.topic}</p>
+                        <p class="text-gray-600 mb-2">Curso: ${video.course}</p>
+                        <p class="text-gray-600 mb-2">Segmento: ${video.segment}</p>
+                        <p class="text-gray-600 mb-4">Asignatura: ${video.subject}</p>
+                        <a href="${video.url}" target="_blank" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ver video</a>
+                    </div>
+                `;
+                grid.appendChild(card);
             });
         }
 
-        // Mostrar las preguntas en el HTML
-        function displayQuestions(questions) {
-            console.log("Preguntas recibidas:", questions); // Log para depuración
-            const questionsDiv = document.getElementById("questions");
-            questionsDiv.innerHTML = "";
-
-            correctAnswers = []; // Reiniciar el array de respuestas correctas
-
-            // Mostrar cada pregunta con sus opciones
-            questions.forEach((q, index) => {
-                correctAnswers.push(q.answer); // Almacenar la respuesta correcta
-
-                const questionDiv = document.createElement("div");
-                questionDiv.innerHTML = `<p>${index + 1}. ${q.question}</p>`;
-
-                q.options.forEach((option, optIndex) => {
-                    const optionLabel = String.fromCharCode(65 + optIndex); // Convertir 0 -> 'A', 1 -> 'B', etc.
-                    const optionInput = document.createElement("input");
-                    optionInput.type = "radio";
-                    optionInput.name = `q${index}`;
-                    optionInput.value = optionLabel;
-
-                    const optionText = document.createTextNode(` ${optionLabel}) ${option}`);
-
-                    const optionDiv = document.createElement("div");
-                    optionDiv.appendChild(optionInput);
-                    optionDiv.appendChild(optionText);
-
-                    questionDiv.appendChild(optionDiv);
-                });
-
-                questionsDiv.appendChild(questionDiv);
-            });
-        }
-
-        // Enviar las respuestas del usuario
-        function submitAnswers() {
-            const totalQuestions = correctAnswers.length;
-            userAnswers = [];
-            
-            for (let i = 0; i < totalQuestions; i++) {
-                const answerElement = document.querySelector(`input[name="q${i}"]:checked`);
-                const answer = answerElement ? answerElement.value : null;
-                userAnswers.push(answer);
-            }
-
-            console.log("Respuestas del usuario:", userAnswers); // Log para depuración
-            console.log("Respuestas correctas:", correctAnswers); // Log para depuración
-
-            fetch('/check_answers', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ answers: userAnswers, correct_answers: correctAnswers })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Resultado de check_answers:", data); // Log para depuración
-                if (data.result) {
-                    document.getElementById("resultsSection").classList.remove("hidden");
-                    displayResults(data.result); // Mostrar los resultados
-                } else if (data.error) {
-                    alert(data.error);
-                    console.error("Error en submitAnswers:", data.error); // Log de error
-                }
-            })
-            .catch(error => {
-                console.error("Error al enviar las respuestas:", error); // Log de error
-                alert("Error al enviar las respuestas: " + error.message);
-            });
-        }
-
-        // Mostrar los resultados en el HTML
-        function displayResults(results) {
-            console.log("Resultados recibidos:", results); // Log para depuración
-            const resultsDiv = document.getElementById("results");
-            resultsDiv.innerHTML = "";
-
-            results.forEach((result, index) => {
-                const resultText = result.correct ? "Correcto" : `Incorrecto. Respuesta correcta: ${correctAnswers[index]}`;
-                resultsDiv.innerHTML += `<p>Pregunta ${result.question}: ${resultText}</p>`;
-            });
-        }
-
-        window.onload = loadVideos; // Cargar los videos cuando se carga la página
+        window.onload = loadVideos;
     </script>
 </body>
 </html>
-
