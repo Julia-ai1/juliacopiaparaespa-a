@@ -1899,14 +1899,23 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
     video_url = request.json.get('video_url')
+    print(f"Video URL recibida: {video_url}")
 
-    # Función para extraer el ID del video de la URL
+    # Función para extraer el ID del video
     def extract_video_id(url):
         import re
-        match = re.search(r'v=([^&]+)', url)
-        return match.group(1) if match else None
+        regex_patterns = [
+            r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',  # Captura el ID de video estándar
+            r'youtu\.be\/([0-9A-Za-z_-]{11})',   # Captura URLs cortas
+        ]
+        for pattern in regex_patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
 
     video_id = extract_video_id(video_url)
+    print(f"Video ID extraído: {video_id}")
 
     if not video_id:
         return jsonify({"error": "No se pudo extraer el ID del video."}), 400
@@ -1914,10 +1923,12 @@ def get_transcription():
     try:
         # Obtener la lista de transcripciones disponibles
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        print(f"Transcripciones disponibles: {transcript_list._transcripts}")
 
         # Intentar obtener la transcripción en español o en inglés si está disponible
         try:
             transcript = transcript_list.find_transcript(['es', 'en'])  # Buscar primero en español, luego en inglés
+            print(f"Transcripción encontrada en: {transcript.language}")
         except NoTranscriptFound:
             return jsonify({"error": "No se encontró ninguna transcripción disponible en español o inglés."}), 404
 
@@ -1925,7 +1936,9 @@ def get_transcription():
         return jsonify({"transcript": transcript_text})
 
     except Exception as e:
+        print(f"Excepción al obtener la transcripción: {e}")
         return jsonify({"error": f"Error al obtener la transcripción: {str(e)}"}), 500
+
 # Endpoint para generar preguntas a partir de la transcripción
 @app.route('/generate_test_questions2', methods=['POST'])
 def generate_test_questions2():
