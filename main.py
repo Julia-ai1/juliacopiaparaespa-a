@@ -1894,7 +1894,7 @@ def get_videos():
         filtered_videos = [video for video in videos if video['subject'] == subject_filter]
         return jsonify({"videos": filtered_videos})
 
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, CouldNotRetrieveTranscript
 
 @app.route('/get_transcription', methods=['POST'])
 def get_transcription():
@@ -1922,13 +1922,23 @@ def get_transcription():
         return jsonify({"error": "No se pudo extraer el ID del video."}), 400
 
     try:
+        # Obtener la lista de transcripciones disponibles
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        print(f"Transcripciones disponibles: {[t.language for t in transcript_list]}")
+
         # Intentar obtener la transcripción en español o inglés
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['es', 'en'])
-        transcript_text = ' '.join([entry['text'] for entry in transcript])
+        try:
+            transcript = transcript_list.find_manually_created_transcript(['es', 'en'])
+            print(f"Transcripción manual encontrada en: {transcript.language}")
+        except NoTranscriptFound:
+            # Intentar obtener la transcripción generada automáticamente
+            transcript = transcript_list.find_generated_transcript(['es', 'en'])
+            print(f"Transcripción automática encontrada en: {transcript.language}")
+
+        transcript_text = ' '.join([entry['text'] for entry in transcript.fetch()])
         return jsonify({"transcript": transcript_text})
-    except NoTranscriptFound:
-        return jsonify({"error": "No se encontró ninguna transcripción disponible en español o inglés."}), 404
-    except TranscriptsDisabled:
+
+    except (TranscriptsDisabled, CouldNotRetrieveTranscript):
         return jsonify({"error": "Las transcripciones están deshabilitadas para este video."}), 403
     except VideoUnavailable:
         return jsonify({"error": "El video no está disponible."}), 404

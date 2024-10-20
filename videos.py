@@ -7,5 +7,13 @@ videos = [
         "course": "Curso 1",
         "segment": "Segmento A",
         "subject": "matematicas"
-    }
+    },
+    {
+        "title": "Introducción a la Programación",
+        "url": "https://www.youtube.com/watch?v=rfscVS0vtbw",
+        "topic": "Programación",
+        "course": "Ciencia de la Computación",
+        "segment": "Universidad",
+        "subject": "Programación"
+    },
 ]
