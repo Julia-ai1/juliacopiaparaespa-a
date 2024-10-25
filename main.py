@@ -765,7 +765,7 @@ def subscribe():
             payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago sin trial
     else:
         # Redirigir a un enlace de pago con trial si no ha usado el trial ni cancelado
-        payment_link = "https://buy.stripe.com/dR6eYV7Po7k1cuI6op"  # Enlace de pago con trial
+        payment_link = "https://buy.stripe.com/4gwaIF3z8cElbqE3cc"  # Enlace de pago con trial
 
     return redirect(payment_link)
 
