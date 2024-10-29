@@ -15,9 +15,16 @@
     <script>
         async function buscarVideos() {
             const tema = document.getElementById('tema').value;
-            const response = await fetch(`http://127.0.0.1:5000/search?tema=${tema}`);
-            const results = await response.json();
+            
+            // Cambia esta URL a la URL de tu API en producción
+            const response = await fetch(`https://aihelpstudy.com/api/search?tema=${encodeURIComponent(tema)}`);
+            
+            if (!response.ok) {
+                document.getElementById('resultados').innerHTML = `<p>Error: ${response.statusText}</p>`;
+                return;
+            }
 
+            const results = await response.json();
             const resultadosDiv = document.getElementById('resultados');
             resultadosDiv.innerHTML = '';
 
@@ -25,8 +32,8 @@
                 resultadosDiv.innerHTML += `
                     <h3>${result.title}</h3>
                     <p><a href="${result.url}" target="_blank">Ver en YouTube</a></p>
-                    <p><strong>Transcripción:</strong> ${result.transcript}</p>
-                    <p><strong>Resumen:</strong> ${result.summary}</p>
+                    <p><strong>Transcripción:</strong> ${result.transcript || 'No disponible'}</p>
+                    <p><strong>Resumen:</strong> ${result.summary || 'No disponible'}</p>
                     <hr>
                 `;
             });
@@ -34,3 +41,4 @@
     </script>
 </body>
 </html>
+
