@@ -2060,5 +2060,68 @@ def performance_data():
 def profile():
     return render_template('profile.html')
 
+import requests
+
+@app.route('/youtube')
+@login_required
+def youtube():
+    return render_template('youtube.html')
+
+@app.route('/search', methods=['GET'])
+def search_videos():
+    tema = request.args.get('tema')
+    search_url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        'part': 'snippet',
+        'q': tema,
+        'type': 'video',
+        'maxResults': 5,
+        'key': 'AIzaSyBhzoRruR9lXHYsAyXTdFimVJSFvCGfaIc'
+    }
+    response = requests.get(search_url, params=params)
+    search_results = response.json()
+    video_ids = [item['id']['videoId'] for item in search_results['items']]
+    
+    # Obtener transcripciones y resúmenes
+    results = []
+    for item in search_results['items']:
+        video_id = item['id']['videoId']
+        title = item['snippet']['title']
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        
+        transcript = get_transcript(video_id)
+        summary = summarize_text(transcript) if transcript else "No se encontró transcripción."
+
+        results.append({
+            'title': title,
+            'url': video_url,
+            'transcript': transcript[:200] if transcript else None,
+            'summary': summary
+        })
+
+    return jsonify(results)
+
+# Función para obtener transcripción en varios idiomas
+def get_transcript(video_id, languages=['en', 'es']):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
+        return " ".join([entry['text'] for entry in transcript])
+    except Exception as e:
+        print(f"Error al obtener transcripción para video {video_id}: {e}")
+        return None
+
+# Función para resumir el texto con OpenAI GPT
+def summarize_text(text):
+    try:
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=f"Resume el siguiente contenido: {text}",
+            max_tokens=150
+        )
+        return response['choices'][0]['text'].strip()
+    except Exception as e:
+        print(f"Error al generar resumen: {e}")
+        return "Error al generar el resumen."
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)
