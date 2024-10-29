@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar Videos en YouTube</title>
+</head>
+<body>
+    <h1>Búsqueda de Videos en YouTube</h1>
+    <input type="text" id="tema" placeholder="Escribe el tema">
+    <button onclick="buscarVideos()">Buscar</button>
+
+    <div id="resultados"></div>
+
+    <script>
+        async function buscarVideos() {
+            const tema = document.getElementById('tema').value;
+            const response = await fetch(`http://127.0.0.1:5000/search?tema=${tema}`);
+            const results = await response.json();
+
+            const resultadosDiv = document.getElementById('resultados');
+            resultadosDiv.innerHTML = '';
+
+            results.forEach(result => {
+                resultadosDiv.innerHTML += `
+                    <h3>${result.title}</h3>
+                    <p><a href="${result.url}" target="_blank">Ver en YouTube</a></p>
+                    <p><strong>Transcripción:</strong> ${result.transcript}</p>
+                    <p><strong>Resumen:</strong> ${result.summary}</p>
+                    <hr>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
