@@ -8,7 +8,7 @@ def pro_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash("Debes iniciar sesión para acceder a esta página.", "warning")
+            flash("Debes iniciar sesión para acceder a sta página.", "warning")
             return redirect(url_for('login'))
         if current_user.subscription_type not in ['paid', 'trial', 'canceled_pending', 'free']:
             flash("Esta función está disponible solo para usuarios Pro.", "danger")
