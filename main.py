@@ -270,25 +270,31 @@ def generate_response(context, question):
     print("Generando respuesta...")
     print(prompt)
     client = OpenAI(api_key=openai.api_key)
-    # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
-        messages=[
-            {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=1000,
-        temperature=0.7
-    )
 
-    # Extraer el texto de la respuesta generada
-    answer_text = response['choices'][0]['message']['content'].strip()
+    try:
+        # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
+            messages=[
+                {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
 
-    # Imprimir la respuesta generada para debugging
-    print("Respuesta generada: ", answer_text)
+        # Extraer el texto de la respuesta generada de forma segura
+        answer_text = response.choices[0].message['content'].strip()
 
-    # Devolver la respuesta en formato diccionario
-    return {'answer': answer_text}
+        # Imprimir la respuesta generada para debugging
+        print("Respuesta generada: ", answer_text)
+
+        # Devolver la respuesta en formato diccionario
+        return {'answer': answer_text}
+
+    except Exception as e:
+        logging.error(f"Error al generar la respuesta con OpenAI: {e}")
+        return {'error': 'No se pudo generar una respuesta adecuada.'}
 
 
 
@@ -1732,40 +1738,52 @@ def esquema():
         if 'file' not in request.files:
             flash('No se seleccionó ningún archivo')
             return redirect(request.url)
+
         file = request.files['file']
         if file.filename == '':
             flash('No se seleccionó ningún archivo')
             return redirect(request.url)
+
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             ruta_archivo = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(ruta_archivo)
-            # Procesar el archivo y generar el esquema
-            texto = leer_archivo(ruta_archivo)
-            conceptos_json = obtener_estructura_jerarquica(texto)
 
-            # Limpiar el JSON
-            conceptos_json = limpiar_json(conceptos_json)
-            if not conceptos_json:
-                flash("No se pudo generar el esquema debido a un JSON inválido.")
-                return redirect(request.url)
-            else:
+            try:
+                # Procesar el archivo y generar el esquema
+                texto = leer_archivo(ruta_archivo)
+                conceptos_json = obtener_estructura_jerarquica(texto)
+
+                if not conceptos_json:
+                    flash("No se pudo generar el esquema: OpenAI no devolvió datos válidos.")
+                    return redirect(request.url)
+
+                # Limpiar el JSON
+                conceptos_json = limpiar_json(conceptos_json)
+                if not conceptos_json:
+                    flash("No se pudo generar el esquema debido a un JSON inválido.")
+                    return redirect(request.url)
+
+                # Parsear y generar el esquema
                 try:
                     data = json5.loads(conceptos_json)
                     labels, parents, descriptions = parsear_json_a_listas(data)
                     esquema_html = generar_esquema_interactivo(labels, parents, descriptions)
-                    print(esquema_html)
                     return render_template('esquema.html', esquema_html=esquema_html)
                 except Exception as e:
-                    print(f"Error al procesar el JSON: {e}")
+                    logging.error(f"Error al procesar el JSON: {e}")
                     flash("No se pudo generar el esquema debido a un error en el procesamiento del JSON.")
                     return redirect(request.url)
+
+            except Exception as e:
+                logging.error(f"Error al procesar el archivo: {e}")
+                flash("Ocurrió un error al procesar el archivo.")
+                return redirect(request.url)
         else:
             flash('Archivo no permitido. Solo se permiten archivos PDF o TXT.')
             return redirect(request.url)
     else:
         return render_template('subir_esquema.html')
-
 
 # Ruta API para recibir texto o imágenes
 # backend/main.py
