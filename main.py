@@ -269,9 +269,9 @@ def generate_response(context, question):
 
     print("Generando respuesta...")
     print(prompt)
-
+    client = OpenAI(api_key=openai.api_key)
     # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
         messages=[
             {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},

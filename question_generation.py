@@ -80,6 +80,7 @@ def generate_questions1(prompt_text, num_questions):
     """
     client = OpenAI(api_key=openai.api_key)
     try:
+        # Llamada a la API de OpenAI
         response = client.chat.completions.create(
             model="gpt-4o-mini",  # Cambia según el modelo que uses
             messages=[
@@ -88,18 +89,20 @@ def generate_questions1(prompt_text, num_questions):
             max_tokens=1000,
             temperature=0.7,
         )
+
         # Procesar el texto de la respuesta
-        response_text = response['choices'][0]['message']['content']
+        response_text = response.choices[0].message.content.strip()
         questions = process_questions(response_text)
         return questions
     except Exception as e:
         logging.error(f"Error en generate_questions1: {e}")
         return []
-
+    
 def check_answer1(question, user_answer):
     """
     Verifica si la respuesta del usuario es correcta utilizando OpenAI GPT.
     """
+    client = OpenAI(api_key=openai.api_key)
     try:
         # Crear el prompt para verificar la respuesta correcta
         correct_prompt = (
@@ -109,7 +112,7 @@ def check_answer1(question, user_answer):
             "\nDevuelve solo la opción correcta."
         )
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": correct_prompt}],
             max_tokens=100,
