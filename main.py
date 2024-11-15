@@ -270,26 +270,26 @@ def generate_response(context, question):
     print("Generando respuesta...")
     print(prompt)
 
-    try:
-        # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
-            messages=[
-                {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
+    # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
+        messages=[
+            {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=1000,
+        temperature=0.7
+    )
 
-        # Extraer el texto de la respuesta generada
-        answer_text = response['choices'][0]['message']['content'].strip()
+    # Extraer el texto de la respuesta generada
+    answer_text = response['choices'][0]['message']['content'].strip()
 
     # Imprimir la respuesta generada para debugging
     print("Respuesta generada: ", answer_text)
 
     # Devolver la respuesta en formato diccionario
     return {'answer': answer_text}
+
 
 
 # Add route for the PDF interaction page for test purposes

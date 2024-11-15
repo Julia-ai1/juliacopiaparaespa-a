@@ -81,7 +81,7 @@ def generate_questions1(prompt_text, num_questions):
     client = OpenAI(api_key=openai.api_key)
     try:
         response = client.chat.completions.create(
-            model="gpt-4-o-mini",  # Cambia según el modelo que uses
+            model="gpt-4o-mini",  # Cambia según el modelo que uses
             messages=[
                 {"role": "user", "content": prompt_text}
             ],
