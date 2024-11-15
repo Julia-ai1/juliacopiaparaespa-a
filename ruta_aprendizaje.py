@@ -4,6 +4,7 @@ import re
 import openai
 import json
 import os
+from openai import OpenAI
 
 # Configura tu clave de OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -28,10 +29,10 @@ Proporciona la ruta **solo** en formato JSON válido y sin texto adicional, sigu
 }}
 Responde únicamente con el JSON. No incluyas explicaciones, texto adicional, bloques de código ni comillas alrededor del JSON.
 """
-
+    client = OpenAI(api_key=openai.api_key)
     try:
         # Llamada a la API de OpenAI
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "Eres un experto en generar contenido educativo."},

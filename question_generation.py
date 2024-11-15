@@ -1,9 +1,12 @@
 # question_generation.py
-
+from openai import OpenAI
 import re
 import logging
+import openai
+import os
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.chat_models import ChatDeepInfra
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def format_solutions(solutions_text):
     solutions_raw = solutions_text.split("\n\n")
@@ -71,77 +74,52 @@ def process_questions(response_text):
     logging.info(f"Preguntas procesadas correctamente: {len(questions)}")
     return questions
 
-def generate_questions1(chat, prompt_text, num_questions):
+def generate_questions1(prompt_text, num_questions):
     """
-    Genera preguntas utilizando el modelo de chat basado en el prompt proporcionado.
-
-    Args:
-        chat: Instancia del modelo de chat.
-        prompt_text: Texto del prompt para generar preguntas.
-        num_questions: Número de preguntas a generar.
-
-    Returns:
-        List de diccionarios con las preguntas generadas, entre las que debe estar la correcta.
+    Genera preguntas utilizando el modelo GPT-4-o Mini basado en el prompt proporcionado.
     """
-    system_text = prompt_text
-
-    prompt = ChatPromptTemplate.from_messages([("system", system_text), ("human", "")])
-
+    client = OpenAI(api_key=openai.api_key)
     try:
-        response = prompt | chat
-        response_msg = response.invoke({})
-        response_text = response_msg.content.strip()
-
-        # Procesar las preguntas generadas por el modelo
+        response = client.chat.completions.create(
+            model="gpt-4-o-mini",  # Cambia según el modelo que uses
+            messages=[
+                {"role": "user", "content": prompt_text}
+            ],
+            max_tokens=1000,
+            temperature=0.7,
+        )
+        # Procesar el texto de la respuesta
+        response_text = response['choices'][0]['message']['content']
         questions = process_questions(response_text)
         return questions
-
     except Exception as e:
-        logging.error(f"Error en generate_questions: {e}")
+        logging.error(f"Error en generate_questions1: {e}")
         return []
 
-def check_answer1(question, user_answer, chat):
-    system_correct = (
-        "Eres un asistente que determina la respuesta correcta a una pregunta de opción múltiple "
-        "basada en el contexto proporcionado. Devuelve solo la opción correcta sin explicaciones adicionales.Hazlo en inglés"
-    )
-
-    options_correct = "".join("- " + choice + "\n" for choice in question["choices"])
-
-    human_correct = f'Pregunta: {question["question"]}\nOpciones:\n{options_correct}'
-
-    prompt_correct = ChatPromptTemplate.from_messages(
-        [("system", system_correct), ("human", human_correct)]
-    )
-
-    response_correct = prompt_correct | chat
-    correct_answer = response_correct.invoke({}).content.strip()
-
-    if not correct_answer:
-        return "error", "No se pudo obtener una respuesta correcta para la pregunta."
-
-    system_explanation = (
-        "Eres un asistente que proporciona una explicación detallada de por qué una respuesta es correcta o incorrecta. Responde en inglés"
-    )
-
-    human_explanation = f'Pregunta: {question["question"]}\nRespuesta correcta: {correct_answer}'
-
-    prompt_explanation = ChatPromptTemplate.from_messages(
-        [("system", system_explanation), ("human", human_explanation)]
-    )
-
-    response_explanation = prompt_explanation | chat
-    explanation = response_explanation.invoke({}).content.strip()
-
-    if user_answer.lower() in correct_answer.lower():
-        final_explanation = (
-            f"Yes, the answer is correct. The correct answer is '{correct_answer}'.\n"
-            f"Explanation: {explanation}"
+def check_answer1(question, user_answer):
+    """
+    Verifica si la respuesta del usuario es correcta utilizando OpenAI GPT.
+    """
+    try:
+        # Crear el prompt para verificar la respuesta correcta
+        correct_prompt = (
+            f"Pregunta: {question['question']}\n"
+            f"Opciones:\n" +
+            "\n".join(f"- {choice}" for choice in question['choices']) +
+            "\nDevuelve solo la opción correcta."
         )
-        return "correct", final_explanation
-    else:
-        final_explanation = (
-            f"No, the answer is incorrect. The correct answer is '{correct_answer}', "
-            f"no '{user_answer}'.\nExplanation: {explanation}"
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4-o-mini",
+            messages=[{"role": "user", "content": correct_prompt}],
+            max_tokens=100,
         )
-        return "incorrect", final_explanation
+        correct_answer = response['choices'][0]['message']['content'].strip()
+
+        if user_answer.lower() in correct_answer.lower():
+            return "correct", f"Correcto. La respuesta es '{correct_answer}'."
+        else:
+            return "incorrect", f"Incorrecto. La respuesta correcta es '{correct_answer}'."
+    except Exception as e:
+        logging.error(f"Error en check_answer1: {e}")
+        return "error", "No se pudo verificar la respuesta."

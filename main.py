@@ -272,7 +272,7 @@ def generate_response(context, question):
 
     try:
         # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
             messages=[
                 {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},
@@ -1676,10 +1676,11 @@ def generate_any_age_exam():
             return "Datos de formulario inválidos.", 400
 
         # Generar el prompt basado en el nivel, la asignatura y el tema
-        prompt_text = f"""Eres un asistente que genera preguntas de opción múltiple para el segmento '{topic}' de la asignatura '{asignatura}' en el nivel '{nivel}'.
-        Aclaración: 1 de primaria corresponde a la edad de seis años, 2 primaria 7, y así sucesivamente, hasta 1 de la eso, que es 12 años.
-        Debes proporcionar {num_items} preguntas sobre el tema dado, que sean adecuadas para el nivel educativo seleccionado, añadiendo tus conocimientos generales, con 4 opciones de respuesta cada una. 
-        En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`. 
+        prompt_text = f"""
+        Eres un asistente que genera preguntas de opción múltiple para el segmento '{topic}' de la asignatura '{asignatura}' en el nivel '{nivel}'.
+        Aclaración: 1 de primaria corresponde a la edad de seis años, 2 primaria 7, y así sucesivamente, hasta 1 de la ESO, que es 12 años.
+        Debes proporcionar {num_items} preguntas sobre el tema dado, que sean adecuadas para el nivel educativo seleccionado, añadiendo tus conocimientos generales, con 4 opciones de respuesta cada una.
+        En caso de términos matemáticos, ponlos en formato LATEX y usa delimitadores LaTeX para matemáticas en línea `\\(...\\)`.
         Usa el siguiente formato:
         Pregunta 1: ¿Cuál es la capital de Francia?
         A) Madrid.
@@ -1689,71 +1690,34 @@ def generate_any_age_exam():
         """
         print("prompt")
         print(prompt_text)
-        # Generar preguntas utilizando el módulo separado
-        questions = generate_questions1(chat_model, prompt_text, num_items)
+
+        # Generar preguntas utilizando generate_questions1
+        questions = generate_questions1(prompt_text, num_items)
 
         # Validar y preparar las preguntas generadas
         results = []
         for question in questions:
-            # Añadir manualmente la asignatura, segmento y nivel a cada pregunta
             question['subject'] = asignatura
             question['topic'] = topic
             question['level'] = nivel
 
             if validate_question(question):
                 results.append(question)
-            else:
-                logging.warning(f"Pregunta inválida: {question}")
 
-        questions_generated = len(results)
-        reintentos = 0
-        max_reintentos = 5
-
-        # Intentar generar más preguntas si no se alcanzó el número requerido
-        while questions_generated < num_items and reintentos < max_reintentos:
-            additional_questions = generate_questions1(chat_model, prompt_text, num_items - questions_generated)
-            for question in additional_questions:
-                question['subject'] = asignatura
-                question['topic'] = topic
-                question['level'] = nivel
-
-                if validate_question(question):
-                    results.append(question)
-                    questions_generated += 1
-
-                    if questions_generated == num_items:
-                        break
-
-            reintentos += 1
-
-        if questions_generated < num_items:
-            logging.warning(f"No se pudieron generar todas las preguntas válidas. Se generaron {questions_generated} de {num_items}.")
-
-        # Guardar las preguntas generadas en la base de datos
+        # Guardar en la base de datos
         for question in results:
             user_question = UserQuestion(
                 user_id=current_user.id,
                 question=question['question'],
-                user_answer=None,  # No hay respuesta aún
-                correct_answer=None,  # La respuesta correcta se verificará después
-                is_correct=False,  # Esto se actualizará al comprobar la respuesta del usuario
-                subject=question['subject'],  # Asignatura
-                topic=question['topic'],  # Segmento
-                level=question['level']  # Nivel Educativo
+                subject=question['subject'],
+                topic=question['topic'],
+                level=question['level']
             )
             db.session.add(user_question)
-
-        # Confirmar los cambios en la base de datos
         db.session.commit()
 
-        # Incrementa el contador de preguntas para el usuario actual
-        current_user.increment_questions()
-
-        
-        # Renderizar las preguntas en el HTML (quiz.html)
         return render_template('quiz.html', questions=results)
 
-    # Si es GET, renderiza el formulario de generación de exámenes
     return render_template('exam_form.html')
 
 
@@ -1969,7 +1933,7 @@ def generate_test_questions2():
     )
     
     try:
-        response = openai.Completion.create(
+        response = client.chat.completions.create(
             engine="text-davinci-003",
             prompt=prompt,
             max_tokens=1500,  # Aumentar los tokens máximos
