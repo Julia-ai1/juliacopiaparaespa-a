@@ -283,8 +283,8 @@ def generate_response(context, question):
             temperature=0.7
         )
 
-        # Extraer el texto de la respuesta generada de forma segura
-        answer_text = response.choices[0].message['content'].strip()
+        # Extraer el texto de la respuesta generada correctamente
+        answer_text = response.choices[0].message.content.strip()
 
         # Imprimir la respuesta generada para debugging
         print("Respuesta generada: ", answer_text)
