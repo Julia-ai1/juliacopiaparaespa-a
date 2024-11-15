@@ -2,7 +2,12 @@ import PyPDF2
 import plotly.graph_objects as go
 import re
 import json5
-from langchain.chat_models import ChatDeepInfra
+from openai import OpenAI
+import openai
+import os
+
+# Configura tu clave de OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def leer_archivo(ruta_archivo):
     contenido = ""
@@ -25,10 +30,7 @@ def obtener_estructura_jerarquica(texto):
         texto = texto[:max_length]
         print("El texto ha sido truncado para ajustarse al límite de tokens.")
 
-    # Inicializar el modelo de DeepInfra
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=1500)
-
-    # Definir el prompt para obtener una estructura jerárquica detallada
+    # Crear el prompt
     prompt = f"""
 Eres un asistente inteligente que ayuda a crear esquemas de estudio. Tienes acceso al siguiente texto:
 
@@ -83,20 +85,23 @@ Ejemplo de formato:
 
 Proporciona únicamente el JSON sin explicación adicional. Asegúrate de que el JSON sea válido y bien formado.
 """
+    client = OpenAI(api_key=openai.api_key)
+    try:
+        # Llamada a la API de OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Eres un asistente experto en generar esquemas de estudio."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1500,
+            temperature=0.7
+        )
+        respuesta = response['choices'][0]['message']['content'].strip()
 
-    # Invoca la API de DeepInfra para obtener la respuesta
-    print("Generando estructura jerárquica detallada...")
-    response = chat.invoke(prompt)
-
-    # Obtener el texto de la respuesta
-    if isinstance(response, dict):
-        respuesta = response.get('answer', '')
-    elif hasattr(response, 'text'):
-        respuesta = response.text
-    elif hasattr(response, 'content'):
-        respuesta = response.content.decode('utf-8') if isinstance(response.content, bytes) else response.content
-    else:
-        respuesta = ''
+    except Exception as e:
+        print("Error al generar la estructura jerárquica:", e)
+        return None
 
     # Imprimir la respuesta generada para depuración
     print("Estructura jerárquica generada:\n", respuesta)

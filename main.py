@@ -285,11 +285,6 @@ def generate_response(context, question):
         # Extraer el texto de la respuesta generada
         answer_text = response['choices'][0]['message']['content'].strip()
 
-    except Exception as e:
-        # Manejar errores en la generación de respuesta
-        print(f"Error al generar respuesta: {e}")
-        answer_text = "No se pudo generar una respuesta adecuada debido a un error."
-
     # Imprimir la respuesta generada para debugging
     print("Respuesta generada: ", answer_text)
 
