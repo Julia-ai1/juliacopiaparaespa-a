@@ -1,11 +1,17 @@
 # ruta_aprendizaje.py
 import json
 import re
-from langchain_community.chat_models import ChatDeepInfra
-def generar_ruta_aprendizaje(tema, conocimientos_previos):
-    # Inicializar el modelo de lenguaje
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=1000)
+import openai
+import json
+import os
 
+# Configura tu clave de OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def generar_ruta_aprendizaje(tema, conocimientos_previos):
+    """
+    Genera una ruta de aprendizaje personalizada utilizando GPT-4-o Mini.
+    """
     # Crear el prompt
     prompt = f"""
 Eres un experto en educación que crea rutas de aprendizaje personalizadas.
@@ -16,88 +22,87 @@ Proporciona la ruta **solo** en formato JSON válido y sin texto adicional, sigu
 {{
     "tema_principal": "{tema}",
     "subtemas": [
-        {{
-            "nombre": "Subtema 1"
-        }},
-        {{
-            "nombre": "Subtema 2"
-        }}
+        {{"nombre": "Subtema 1"}},
+        {{"nombre": "Subtema 2"}}
     ]
 }}
 Responde únicamente con el JSON. No incluyas explicaciones, texto adicional, bloques de código ni comillas alrededor del JSON.
 """
 
-    # Invocar el modelo
-    response = chat.invoke(prompt)
+    try:
+        # Llamada a la API de OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Eres un experto en generar contenido educativo."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        ruta_text = response['choices'][0]['message']['content'].strip()
 
-    # Verificar el tipo de la respuesta y extraer el texto
-    if hasattr(response, 'content'):
-        ruta_text = response.content.strip()
-    elif hasattr(response, 'text'):
-        ruta_text = response.text.strip()
-    else:
-        # Si no tiene 'content' ni 'text', es posible que sea una cadena de texto directa
-        ruta_text = str(response).strip()
-
-    print("Texto de la ruta:", ruta_text)
-
-    # Extraer el JSON de la respuesta
-    json_match = re.search(r'\{[\s\S]*\}', ruta_text)
-    if json_match:
-        ruta_json_str = json_match.group(0)
-        try:
-            ruta_json = json.loads(ruta_json_str)
-        except json.JSONDecodeError as e:
-            print("Error al parsear JSON:", e)
+        # Extraer el JSON de la respuesta
+        json_match = re.search(r'\{[\s\S]*\}', ruta_text)
+        if json_match:
+            ruta_json_str = json_match.group(0)
+            try:
+                ruta_json = json.loads(ruta_json_str)
+            except json.JSONDecodeError as e:
+                print("Error al parsear JSON:", e)
+                ruta_json = {"error": "No se pudo generar la ruta de aprendizaje. Por favor, intenta nuevamente."}
+        else:
+            print("No se encontró JSON en la respuesta.")
             ruta_json = {"error": "No se pudo generar la ruta de aprendizaje. Por favor, intenta nuevamente."}
-    else:
-        print("No se encontró JSON en la respuesta.")
-        ruta_json = {"error": "No se pudo generar la ruta de aprendizaje. Por favor, intenta nuevamente."}
+
+    except Exception as e:
+        print("Error al generar la ruta de aprendizaje:", e)
+        ruta_json = {"error": "Hubo un error al generar la ruta de aprendizaje. Por favor, intenta nuevamente."}
 
     return ruta_json
 
+
 def generate_response(context, question):
-    # Aquí se asume que estás usando un modelo de DeepInfra para generar la respuesta
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=1000)
-
-    # Prompt actualizado con el contexto y la pregunta
-    prompt = f"""
-    You are an intelligent assistant. You have access to the following context:
-    {context}
-    
-    Based on the context above, please answer the following question:
-    {question}
-    
-    Please make sure your response is relevant to the context.
     """
+    Genera una respuesta basada en un contexto y una pregunta utilizando GPT-4-o Mini.
+    """
+    prompt = f"""
+You are an intelligent assistant. You have access to the following context:
+{context}
 
-    # Invoca la API de DeepInfra para obtener la respuesta
-    print("Generando respuesta...")
-    print(prompt)
-    response = chat.invoke(prompt)  # Realizamos la invocación del modelo
+Based on the context above, please answer the following question:
+{question}
 
-    # Verificar el tipo de la respuesta para extraer el texto
-    if isinstance(response, dict):
-        answer_text = response.get('answer', 'No se pudo generar una respuesta adecuada.')
-    elif hasattr(response, 'text'):
-        answer_text = response.text
-    elif hasattr(response, 'content'):
-        answer_text = response.content.decode('utf-8') if isinstance(response.content, bytes) else response.content
-    else:
-        answer_text = "No se pudo generar una respuesta adecuada debido a un formato de respuesta desconocido."
+Please make sure your response is relevant to the context.
+"""
 
-    # Imprimir la respuesta generada para debugging
-    print("Respuesta generada: ", answer_text)
+    try:
+        # Llamada a la API de OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an intelligent assistant providing accurate and relevant answers."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        answer_text = response['choices'][0]['message']['content'].strip()
 
-    # Devolver la respuesta en formato texto
-    return answer_text.strip()
+    except Exception as e:
+        print("Error al generar respuesta:", e)
+        answer_text = "No se pudo generar una respuesta adecuada debido a un error."
+
+    return answer_text
+
 
 def generar_detalle_subtema(subtema):
-    # Generar el detalle del subtema utilizando la función generate_response
+    """
+    Genera una explicación detallada y didáctica sobre un subtema utilizando GPT-4-o Mini.
+    """
     context = ""  # Puedes agregar contexto adicional si lo tienes
     question = f"Proporciona una explicación detallada y didáctica sobre el siguiente subtema: {subtema}"
 
     detalle = generate_response(context, question)
 
     return detalle
-

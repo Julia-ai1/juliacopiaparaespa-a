@@ -250,9 +250,11 @@ def ask_question():
         logging.error(f"Error durante la búsqueda en Azure Search: {e}")
         return jsonify({"error": "Ocurrió un error durante la búsqueda."}), 500
 
+
 def generate_response(context, question):
-    # Aquí se asume que estás usando un modelo de DeepInfra para generar la respuesta
-    chat = ChatDeepInfra(model="meta-llama/Meta-Llama-3.1-8B-Instruct", max_tokens=1000)
+    """
+    Genera una respuesta basada en un contexto y una pregunta utilizando GPT-4 o GPT-4 Mini.
+    """
 
     # Prompt actualizado con el contexto y la pregunta
     prompt = f"""
@@ -265,30 +267,35 @@ def generate_response(context, question):
     Please make sure your response is relevant to the context.
     """
 
-    # Invoca la API de DeepInfra para obtener la respuesta
     print("Generando respuesta...")
     print(prompt)
-    response = chat.invoke(prompt)  # Realizamos la invocación del modelo
 
-    # Verificar el tipo de la respuesta para extraer el texto
-    if isinstance(response, dict):
-        # Si la respuesta es un diccionario, busca el campo 'answer'
-        answer_text = response.get('answer', 'No se pudo generar una respuesta adecuada.')
-    elif hasattr(response, 'text'):
-        # Si el objeto tiene un atributo 'text', úsalo
-        answer_text = response.text
-    elif hasattr(response, 'content'):
-        # Si tiene un atributo 'content', úsalo (por si es un objeto más complejo)
-        answer_text = response.content.decode('utf-8') if isinstance(response.content, bytes) else response.content
-    else:
-        # Si no tiene atributos reconocibles, usa una respuesta por defecto
-        answer_text = "No se pudo generar una respuesta adecuada debido a un formato de respuesta desconocido."
+    try:
+        # Llamada a la API de OpenAI para GPT-4 o GPT-4 Mini
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",  # Cambia a "gpt-4-mini" si usas esa variante
+            messages=[
+                {"role": "system", "content": "You are an expert assistant providing relevant and accurate responses."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+
+        # Extraer el texto de la respuesta generada
+        answer_text = response['choices'][0]['message']['content'].strip()
+
+    except Exception as e:
+        # Manejar errores en la generación de respuesta
+        print(f"Error al generar respuesta: {e}")
+        answer_text = "No se pudo generar una respuesta adecuada debido a un error."
 
     # Imprimir la respuesta generada para debugging
     print("Respuesta generada: ", answer_text)
 
-    # Devolver la respuesta en formato diccionario, que luego será serializado a JSON
+    # Devolver la respuesta en formato diccionario
     return {'answer': answer_text}
+
 
 # Add route for the PDF interaction page for test purposes
 @app.route('/pdf_page')
