@@ -76,10 +76,10 @@ Based on the context above, please answer the following question:
 
 Please make sure your response is relevant to the context.
 """
-
+    client = OpenAI(api_key=openai.api_key)
     try:
         # Llamada a la API de OpenAI
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are an intelligent assistant providing accurate and relevant answers."},

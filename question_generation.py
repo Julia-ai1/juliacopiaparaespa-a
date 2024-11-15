@@ -110,7 +110,7 @@ def check_answer1(question, user_answer):
         )
 
         response = openai.ChatCompletion.create(
-            model="gpt-4-o-mini",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": correct_prompt}],
             max_tokens=100,
         )
