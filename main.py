@@ -951,7 +951,7 @@ def cancel_subscription():
 @app.route('/select_exam', methods=['POST'])
 @login_required
 def select_exam():
-    if current_user.subscription_type not in ['trial', 'paid', 'canceled_pending']:
+    if current_user.subscription_type not in ['trial', 'paid', 'canceled_pending', 'free']:
         flash('Necesitas una suscripción activa para acceder a los exámenes.', 'warning')
         return redirect(url_for('app_index'))
     exam_type = request.form.get('exam_type')
