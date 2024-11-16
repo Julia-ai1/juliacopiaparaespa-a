@@ -53,7 +53,7 @@ class EsquemaGenerator:
             prompt = self._crear_prompt(texto)
             
             response = self.client.chat.completions.create(
-                model="gpt-40-mini",  # Corregido de gpt-4o-mini a gpt-4
+                model="gpt-4o-mini",  # Corregido de gpt-4o-mini a gpt-4
                 messages=[
                     {"role": "system", "content": "Eres un asistente experto en generar esquemas de estudio."},
                     {"role": "user", "content": prompt}
