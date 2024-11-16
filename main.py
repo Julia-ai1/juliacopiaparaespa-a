@@ -1839,11 +1839,18 @@ def ruta():
     if request.method == 'POST':
         tema = request.form['tema']
         conocimientos_previos = request.form['conocimientos']
-        ruta_personalizada = generar_ruta_aprendizaje(tema, conocimientos_previos)
-        return render_template('ruta.html', ruta=ruta_personalizada)
+        print(f"Tema recibido: {tema}")  # Debug log
+        print(f"Conocimientos previos: {conocimientos_previos}")  # Debug log
+        try:
+            ruta_personalizada = generar_ruta_aprendizaje(tema, conocimientos_previos)
+            print(f"Ruta generada: {ruta_personalizada}")  # Debug log
+            return render_template('ruta.html', ruta=ruta_personalizada)
+        except Exception as e:
+            print(f"Error al generar ruta: {e}")  # Debug log
+            return render_template('ruta.html', error=str(e))
     else:
         return render_template('ruta.html')
-
+    
 @app.route('/detalle_subtema', methods=['POST'])
 @pro_required
 def detalle_subtema():
