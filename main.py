@@ -1724,6 +1724,8 @@ def generate_any_age_exam():
 
 from esquema import leer_archivo, obtener_estructura_jerarquica, limpiar_json, parsear_json_a_listas, generar_esquema_interactivo
 import json5
+from esquema import EsquemaGenerator  # Importamos la clase
+from functools import wraps
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'txt'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -1734,56 +1736,45 @@ if not os.path.exists(UPLOAD_FOLDER):
 @pro_required
 def esquema():
     if request.method == 'POST':
-        # Verificar si el archivo está en la solicitud
-        if 'file' not in request.files:
-            flash('No se seleccionó ningún archivo')
-            return redirect(request.url)
-
-        file = request.files['file']
-        if file.filename == '':
-            flash('No se seleccionó ningún archivo')
-            return redirect(request.url)
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            ruta_archivo = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(ruta_archivo)
-
-            try:
-                # Procesar el archivo y generar el esquema
-                texto = leer_archivo(ruta_archivo)
-                conceptos_json = obtener_estructura_jerarquica(texto)
-
-                if not conceptos_json:
-                    flash("No se pudo generar el esquema: OpenAI no devolvió datos válidos.")
-                    return redirect(request.url)
-
-                # Limpiar el JSON
-                conceptos_json = limpiar_json(conceptos_json)
-                if not conceptos_json:
-                    flash("No se pudo generar el esquema debido a un JSON inválido.")
-                    return redirect(request.url)
-
-                # Parsear y generar el esquema
-                try:
-                    data = json5.loads(conceptos_json)
-                    labels, parents, descriptions = parsear_json_a_listas(data)
-                    esquema_html = generar_esquema_interactivo(labels, parents, descriptions)
-                    return render_template('esquema.html', esquema_html=esquema_html)
-                except Exception as e:
-                    logging.error(f"Error al procesar el JSON: {e}")
-                    flash("No se pudo generar el esquema debido a un error en el procesamiento del JSON.")
-                    return redirect(request.url)
-
-            except Exception as e:
-                logging.error(f"Error al procesar el archivo: {e}")
-                flash("Ocurrió un error al procesar el archivo.")
+        try:
+            if 'file' not in request.files:
+                flash('No se seleccionó ningún archivo')
                 return redirect(request.url)
-        else:
-            flash('Archivo no permitido. Solo se permiten archivos PDF o TXT.')
+
+            file = request.files['file']
+            if file.filename == '':
+                flash('No se seleccionó ningún archivo')
+                return redirect(request.url)
+
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                ruta_archivo = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(ruta_archivo)
+
+                # Crear instancia del generador
+                generator = EsquemaGenerator(api_key=os.getenv("OPENAI_API_KEY"))
+
+                # Procesar el archivo
+                texto = generator.leer_archivo(ruta_archivo)
+                conceptos_json = generator.obtener_estructura_jerarquica(texto)
+                conceptos_json = generator.limpiar_json(conceptos_json)
+                
+                data = json5.loads(conceptos_json)
+                labels, parents, descriptions = generator.parsear_json_a_listas(data)
+                esquema_html = generator.generar_esquema_interactivo(labels, parents, descriptions)
+                
+                return render_template('esquema.html', esquema_html=esquema_html)
+
+        except ValueError as e:
+            flash(str(e))
+            logger.error(f"Error de validación: {str(e)}")
             return redirect(request.url)
-    else:
-        return render_template('subir_esquema.html')
+        except Exception as e:
+            flash("Ocurrió un error al procesar el archivo.")
+            logger.error(f"Error inesperado: {str(e)}")
+            return redirect(request.url)
+    
+    return render_template('subir_esquema.html')
 
 # Ruta API para recibir texto o imágenes
 # backend/main.py
