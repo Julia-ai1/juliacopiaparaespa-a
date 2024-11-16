@@ -1722,7 +1722,7 @@ def generate_any_age_exam():
     return render_template('exam_form.html')
 
 
-from esquema import leer_archivo, obtener_estructura_jerarquica, limpiar_json, parsear_json_a_listas, generar_esquema_interactivo
+# from esquema import leer_archivo, obtener_estructura_jerarquica, limpiar_json, parsear_json_a_listas, generar_esquema_interactivo
 import json5
 from esquema import EsquemaGenerator  # Importamos la clase
 from functools import wraps
